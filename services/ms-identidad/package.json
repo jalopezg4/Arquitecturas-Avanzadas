@@ -1,0 +1,27 @@
+{
+  "name": "ms-identidad",
+  "version": "1.0.0",
+  "description": "Identidad, afiliacion y portabilidad - Operador Carpeta Ciudadana (HU-01, HU-02, HU-11)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "jest",
+    "test:watch": "npm test -- --watch"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^4.19.2",
+    "mongoose": "^8.5.0",
+    "argon2": "^0.41.1",
+    "jsonwebtoken": "^9.0.2",
+    "amqplib": "^0.10.4",
+    "axios": "^1.7.4",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0",
+    "mongodb-memory-server": "^9.4.0"
+  }
+}
