@@ -22,6 +22,17 @@ class ServiceUnavailableError extends Error {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function isNonEmptyString(v) {
+  return typeof v === "string" && v.trim().length > 0;
+}
+
+function isValidDocumento(v) {
+  // GovCarpeta espera `id` como number (ver docs/GOVCARPETA_CONTRATO.md), asi que
+  // documento debe ser o ya un number, o una cadena que representa un entero positivo.
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isInteger(n) && n > 0 && String(v).trim() === String(n);
+}
+
 /**
  * HU-01: Registro de un ciudadano, implementado como saga orquestada (ADR-04).
  * Pasos: valida -> persiste PENDIENTE -> valida en GovCarpeta -> registra en GovCarpeta
@@ -36,11 +47,23 @@ class CitizenSagaService {
   }
 
   _validateInput({ documento, nombre, direccion, correo, password }) {
-    if (!documento || !nombre || !direccion || !correo || !password) {
+    if (documento === undefined || documento === null || !nombre || !direccion || !correo || !password) {
       throw new ValidationError("documento, nombre, direccion, correo y password son requeridos");
     }
-    if (!EMAIL_RE.test(correo)) {
+    if (!isValidDocumento(documento)) {
+      throw new ValidationError("documento debe ser un numero entero positivo");
+    }
+    if (!isNonEmptyString(nombre)) {
+      throw new ValidationError("nombre debe ser una cadena no vacia");
+    }
+    if (!isNonEmptyString(direccion)) {
+      throw new ValidationError("direccion debe ser una cadena no vacia");
+    }
+    if (!isNonEmptyString(correo) || !EMAIL_RE.test(correo)) {
       throw new ValidationError("correo invalido");
+    }
+    if (!isNonEmptyString(password) || password.length < 8) {
+      throw new ValidationError("password debe tener al menos 8 caracteres");
     }
   }
 
@@ -50,6 +73,8 @@ class CitizenSagaService {
 
   async register({ documento, nombre, direccion, correo, password }) {
     this._validateInput({ documento, nombre, direccion, correo, password });
+    // Normaliza a Number una vez validado -- GovCarpeta y el esquema de Mongo esperan number.
+    documento = Number(documento);
 
     const existing = await this.citizenRepository.findByDocumento(documento);
     if (existing) {
@@ -106,12 +131,23 @@ class CitizenSagaService {
       throw err;
     }
 
-    // Paso 5: publicar evento SOLO si el estado final es activo
-    await this.eventPublisher.publish("ciudadano.registrado", {
-      ciudadanoId: activeCitizen._id.toString(),
-      documento: activeCitizen.documento,
-      direccionUnica: activeCitizen.direccionUnica,
-    });
+    // Paso 5: publicar evento SOLO si el estado final es activo. El ciudadano ya quedo
+    // activo y confirmado en GovCarpeta en este punto -- un fallo de RabbitMQ (broker caido,
+    // nack) no debe hacer fallar el registro (ADR-04: la notificacion no es camino critico).
+    // Se registra el fallo para reconciliacion/alerta a soporte en vez de propagar el error.
+    try {
+      await this.eventPublisher.publish("ciudadano.registrado", {
+        ciudadanoId: activeCitizen._id.toString(),
+        documento: activeCitizen.documento,
+        direccionUnica: activeCitizen.direccionUnica,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `No se pudo publicar ciudadano.registrado para ${activeCitizen._id}; requiere reconciliacion:`,
+        err
+      );
+    }
 
     return { ciudadanoId: activeCitizen._id.toString(), direccionUnica: activeCitizen.direccionUnica };
   }

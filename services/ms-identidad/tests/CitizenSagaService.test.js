@@ -99,6 +99,34 @@ describe("CitizenSagaService.register()", () => {
     await expect(service.register({ ...validInput, correo: undefined })).rejects.toThrow(ValidationError);
   });
 
+  test("rechaza con ValidationError si documento no es un entero valido (string no numerica)", async () => {
+    const repo = makeFakeRepo();
+    const gov = makeFakeGovCarpeta();
+    const publisher = makeFakePublisher();
+    const service = new CitizenSagaService({ citizenRepository: repo, govCarpetaClient: gov, eventPublisher: publisher });
+
+    await expect(service.register({ ...validInput, documento: "abc" })).rejects.toThrow(ValidationError);
+    expect(gov.validateCitizen).not.toHaveBeenCalled();
+  });
+
+  test("rechaza con ValidationError si nombre no es un string (ej. numero)", async () => {
+    const repo = makeFakeRepo();
+    const gov = makeFakeGovCarpeta();
+    const publisher = makeFakePublisher();
+    const service = new CitizenSagaService({ citizenRepository: repo, govCarpetaClient: gov, eventPublisher: publisher });
+
+    await expect(service.register({ ...validInput, nombre: 42 })).rejects.toThrow(ValidationError);
+  });
+
+  test("rechaza con ValidationError si password tiene menos de 8 caracteres", async () => {
+    const repo = makeFakeRepo();
+    const gov = makeFakeGovCarpeta();
+    const publisher = makeFakePublisher();
+    const service = new CitizenSagaService({ citizenRepository: repo, govCarpetaClient: gov, eventPublisher: publisher });
+
+    await expect(service.register({ ...validInput, password: "1234567" })).rejects.toThrow(ValidationError);
+  });
+
   test("rechaza con ConflictError si el documento ya existe localmente", async () => {
     const repo = makeFakeRepo();
     await repo.create({ ...validInput, direccionUnica: "x@carpetacolombia.co", passwordHash: "h", estado: "activo" });
@@ -134,6 +162,18 @@ describe("CitizenSagaService.register()", () => {
       "ciudadano.registrado",
       expect.objectContaining({ documento: validInput.documento })
     );
+  });
+
+  test("NO falla el registro si eventPublisher.publish() rechaza (evento no es camino critico, ADR-04)", async () => {
+    const repo = makeFakeRepo();
+    const gov = makeFakeGovCarpeta();
+    const publisher = { publish: jest.fn(async () => { throw new Error("RabbitMQ no disponible"); }) };
+    const service = new CitizenSagaService({ citizenRepository: repo, govCarpetaClient: gov, eventPublisher: publisher });
+
+    const result = await service.register(validInput);
+
+    expect(result).toEqual({ ciudadanoId: expect.any(String), direccionUnica: expect.any(String) });
+    expect(repo.markActive).toHaveBeenCalled();
   });
 
   test("NO publica evento si la saga falla antes de llegar a activo", async () => {

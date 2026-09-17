@@ -21,6 +21,7 @@ async function main() {
     baseUrl: env.govCarpetaBaseUrl,
     operatorId: env.operatorId,
     operatorName: env.operatorName,
+    availableStatus: env.govCarpetaAvailableStatus,
   });
   const eventPublisher = new EventPublisher(env.rabbitUri);
 

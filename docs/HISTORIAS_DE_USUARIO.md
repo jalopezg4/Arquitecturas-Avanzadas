@@ -37,7 +37,7 @@ Como ciudadano colombiano quiero registrarme ante un operador de Carpeta Ciudada
 - ✅ Solo pasa a `activo` cuando GovCarpeta confirma con 201
 - ✅ Si GovCarpeta responde 204/501 (ya afiliado o error), se rechaza sin dejar registros huérfanos
 - ✅ Si falla después de confirmado en GovCarpeta, se ejecuta `unregisterCitizen` como compensación
-- ✅ La dirección única es inmutable y tiene restricción de unicidad a nivel de base de datos (índice único en PostgreSQL, no solo validación en código)
+- ✅ La dirección única es inmutable y tiene restricción de unicidad a nivel de base de datos (índice único en MongoDB, no solo validación en código — ver nota de alcance de implementación: esta entrega usa MongoDB en todos los servicios, no PostgreSQL como en el diseño políglota objetivo)
 - ✅ Publica `CiudadanoRegistrado` en RabbitMQ solo cuando el estado ya es `activo`
 - ✅ Consumidores (`ms-documentos`, `ms-notificaciones`) son idempotentes ante reintento del mismo evento
 - ✅ Respuesta 201 con `{ciudadanoId, direccionUnica}`; 409 si documento ya existe; 400 si validación falla
@@ -479,7 +479,11 @@ Sin esto, depurar un fallo en la saga de HU-01 (4 sistemas externos) es práctic
 **Cubre:** RNF-05 (confidencialidad) y el impacto de ADR-06 ("política de expiración de URLs aplicada en el repositorio de objetos") · **Puntos:** 3
 Certificados y rotación de credenciales por servicio — hoy solo está descrito en la ADR, no como trabajo a ejecutar.
 
-**Total historias técnicas: 7 historias, 29 puntos**
+### HT-08: CI/CD por microservicio
+**Cubre:** impacto declarado explícitamente en ADR-01 ("seis canalizaciones de integración continua... por operar") · **Puntos:** 5
+Un workflow de GitHub Actions por microservicio (o parametrizado por carpeta cambiada): lint + tests antes de build, deploy bloqueado si los tests fallan, secretos vía variables de entorno del proveedor, nunca hardcodeados. Prerrequisito práctico para desplegar cualquier HU — sin esto, cada PR se prueba manualmente.
+
+**Total historias técnicas: 8 historias, 34 puntos**
 
 ---
 
@@ -489,10 +493,10 @@ Certificados y rotación de credenciales por servicio — hoy solo está descrit
 |---|---|---|
 | Entrega 2 (funcional) | 4 | 34 |
 | Backlog funcional (RF/RFP) | 14 | 65 |
-| Historias técnicas (RNF) | 7 | 29 |
-| **TOTAL** | **25** | **128** |
+| Historias técnicas (RNF) | 8 | 34 |
+| **TOTAL** | **26** | **133** |
 
-Para comparar: la primera versión que te di tenía 15 HU inventadas (algunas sin respaldo en ningún RF real) sumando 80 puntos. Esta versión tiene **25 historias, todas trazables a un RF, RFP o RNF específico de la Entrega 1**, sumando 128 puntos. La cobertura real del proyecto completo es más grande de lo que parecía — no porque haya inflado el alcance, sino porque la primera vez no había leído los RF-01 a RF-37 originales, solo el resumen por dominios del expediente.
+Para comparar: la primera versión que te di tenía 15 HU inventadas (algunas sin respaldo en ningún RF real) sumando 80 puntos. Esta versión tiene **26 historias, todas trazables a un RF, RFP o RNF específico de la Entrega 1**, sumando 133 puntos. La cobertura real del proyecto completo es más grande de lo que parecía — no porque haya inflado el alcance, sino porque la primera vez no había leído los RF-01 a RF-37 originales, solo el resumen por dominios del expediente.
 
 ---
 
