@@ -1,63 +1,80 @@
-# Plan de trabajo — orden y reparto final
+# Plan de Trabajo — Distribución de Historias de Usuario
 
-Formato: **relevo**, no trabajo 100% paralelo. Cada persona hace su turno completo, de principio a fin, sin depender de nada que otro compañero todavía no haya terminado. Cuando termina, el siguiente arranca usando lo que ya quedó listo.
+## Modelo de ejecución
 
-## Estado de Oleada 0 (infraestructura) — honesto, no optimista
+El trabajo se organiza en **fases secuenciales** (relevo), no en asignación 100% paralela. Cada fase agrupa un conjunto de historias que puede completarse sin depender de historias asignadas a una fase posterior. Al cierre de una fase, la siguiente puede iniciar utilizando lo ya construido, sin bloqueos.
 
-| Historia | Estado |
-|---|---|
-| HT-01 (health checks) | ✅ Hecho (`/health`, `/ready` en ms-identidad) |
-| HT-08 (CI/CD) | ✅ Hecho (workflow de GitHub Actions corriendo en el PR #73) |
-| HT-07 (secretos/TLS) | 🟡 Parcial (solo `JWT_SECRET`) |
-| HT-04 (bitácora de auditoría) | ❌ Pendiente |
-| HT-06 (trazabilidad distribuida) | ❌ Pendiente |
+## Estado de Oleada 0 (Infraestructura)
 
-## Turno 1 — Jennifer (hoy): Oleada 0 + lo primero de la ruta crítica
+| Historia | Puntos | Estado |
+|---|---|---|
+| HT-01 — Health checks | 3 | ✅ Completado (`/health`, `/ready` en `ms-identidad`) |
+| HT-08 — CI/CD | 5 | ✅ Completado (workflow de GitHub Actions activo, PR #73) |
+| HT-07 — Secretos/TLS | 3 | 🟡 Parcial (implementado solo el manejo de `JWT_SECRET`) |
+| HT-04 — Bitácora de auditoría | 3 | ❌ Pendiente |
+| HT-06 — Trazabilidad distribuida | 5 | ❌ Pendiente |
 
-| # | Historia | Pts | Depende de |
+**Subtotal Oleada 0: 19 puntos** (11 pendientes: HT-04, HT-06, HT-07 resto).
+
+## Fase 1 — Responsable: Jennifer Andrea López Gómez
+
+Completa la Oleada 0 y da inicio a la ruta crítica de Entrega 2.
+
+| # | Historia | Puntos | Dependencia |
 |---|---|---|---|
-| 1 | HT-04 — Bitácora de auditoría | 3 | nada |
-| 2 | HT-06 — Trazabilidad distribuida | 5 | nada |
-| 3 | HT-07 (resto) — Secretos/TLS completo | 3 | nada |
-| 4 | HU-11 — Registro del operador en MinTIC | 2 | nada |
-| 5 | HU-02 — Login | 5 | HU-01 ✅ (ya está) |
+| 1 | HT-04 — Bitácora de auditoría | 3 | Ninguna |
+| 2 | HT-06 — Trazabilidad distribuida | 5 | Ninguna |
+| 3 | HT-07 (resto) — Secretos/TLS completo | 3 | Ninguna |
+| 4 | HU-11 — Registro del operador en MinTIC | 2 | Ninguna |
+| 5 | HU-02 — Login | 5 | HU-01 (completada) |
 
-**Total: 18 pts.** Oleada 0 completa + Oleada 1 (HU-11) + arranque de Oleada 2 (HU-02). El resto es de Julián y Tomás.
+**Total Fase 1: 18 puntos.**
 
-## Turno 2 — Julián (con Turno 1 ya terminado)
+## Fase 2 — Responsable: Julián Giraldo Chica
 
-| # | Historia | Pts | Depende de |
+Requiere la Fase 1 completada.
+
+| # | Historia | Puntos | Dependencia |
 |---|---|---|---|
-| 1 | HU-03 — Carga de documento | 8 | HU-02 (Turno 1) |
-| 2 | HU-05a — Localización de operadores | 3 | nada |
-| 3 | HU-05b — Publicar endpoint de transferencia | 2 | HU-11 (Turno 1) |
-| 4 | HU-06.1 — Registro de entidad institucional | 5 | nada |
-| 5 | HU-08 — Consulta de documentos | 5 | HU-02 (Turno 1), HU-03 (mismo turno) |
-| 6 | HU-07.1, HU-07.2, HU-07.3 — Premium/Analítica | 8 | nada |
-| 7 | HT-02 — Respaldo/restauración verificada | 5 | nada |
-| 8 | HT-03 — Pruebas de capacidad | 5 | nada |
+| 1 | HU-03 — Carga de documento | 8 | HU-02 (Fase 1) |
+| 2 | HU-05a — Localización de operadores | 3 | Ninguna |
+| 3 | HU-05b — Publicación de endpoint de transferencia | 2 | HU-11 (Fase 1) |
+| 4 | HU-06.1 — Registro de entidad institucional | 5 | Ninguna |
+| 5 | HU-08 — Consulta de documentos | 5 | HU-02 (Fase 1), HU-03 (Fase 2) |
+| 6 | HU-07.1, HU-07.2, HU-07.3 — Servicios Premium/Analítica | 8 | Ninguna |
+| 7 | HT-02 — Respaldo y restauración verificada | 5 | Ninguna |
+| 8 | HT-03 — Pruebas de capacidad | 5 | Ninguna |
 
-**Total: 41 pts.**
+**Total Fase 2: 41 puntos.**
 
-## Turno 3 — Tomás (con Turnos 1 y 2 ya terminados)
+## Fase 3 — Responsable: Tomás Echavarría Gil
 
-| # | Historia | Pts | Depende de |
+Requiere las Fases 1 y 2 completadas.
+
+| # | Historia | Puntos | Dependencia |
 |---|---|---|---|
-| 1 | HU-04 — Autenticar documento vía GovCarpeta | 8 | HU-03 (Turno 2), HU-11 (Turno 1) |
-| 2 | HU-05c — Transferencia con saga de dos fases | 8 | HU-05a, HU-05b (Turno 2) |
-| 3 | HU-09 — Descarga de documentos | 3 | HU-02 (Turno 1), HU-04 (mismo turno) |
-| 4 | HU-06.2 — Paquete documental y entrega | 8 | HU-06.1, HU-08 (Turno 2) |
-| 5 | HU-06.3 — Solicitud + autorización de envío | 8 | HU-02 (Turno 1) |
-| 6 | HU-06.4 — Solicitud de documento definitivo | 5 | HU-03 (Turno 2), HU-06.3 (mismo turno) |
-| 7 | HU-10 — Recepción por entidad emisora | 8 | HU-01 ✅ (ya está) |
-| 8 | HT-05 — Suite de pruebas de contrato | 5 | HU-05c (mismo turno) |
+| 1 | HU-04 — Autenticación de documento vía GovCarpeta | 8 | HU-03 (Fase 2), HU-11 (Fase 1) |
+| 2 | HU-05c — Transferencia con saga de dos fases | 8 | HU-05a, HU-05b (Fase 2) |
+| 3 | HU-09 — Descarga de documentos | 3 | HU-02 (Fase 1), HU-04 (Fase 3) |
+| 4 | HU-06.2 — Paquete documental y entrega | 8 | HU-06.1, HU-08 (Fase 2) |
+| 5 | HU-06.3 — Solicitud y autorización de envío | 8 | HU-02 (Fase 1) |
+| 6 | HU-06.4 — Solicitud de documento definitivo | 5 | HU-03 (Fase 2), HU-06.3 (Fase 3) |
+| 7 | HU-10 — Recepción de documento por entidad emisora | 8 | HU-01 (completada) |
+| 8 | HT-05 — Suite de pruebas de contrato de interoperabilidad | 5 | HU-05c (Fase 3) |
 
-**Total: 53 pts.**
+**Total Fase 3: 53 puntos.**
 
-## Verificación de balance
+## Resumen de puntos
 
-Jennifer 18 + Julián 41 + Tomás 53 = **112 pts**, más las 21 ya hechas (HU-01, HT-01, HT-08) = **133**, el proyecto completo.
+| Fase | Responsable | Puntos |
+|---|---|---|
+| 1 | Jennifer Andrea López Gómez | 18 |
+| 2 | Julián Giraldo Chica | 41 |
+| 3 | Tomás Echavarría Gil | 53 |
+| **Total pendiente** | | **112** |
 
-## Regla del relevo
+Puntos ya completados (HU-01, HT-01, HT-08): 21. **Total del proyecto: 133 puntos.**
 
-Antes de empezar tu turno, verifica en GitHub que las historias de las que dependes (columna "Depende de") ya estén cerradas/mergeadas. Si no lo están, adelanta algo de tu propio turno que no dependa de nada (los ítems marcados "nada" en cualquier turno se pueden hacer en cualquier momento, incluso antes de que te toque).
+## Regla de ejecución
+
+Antes de iniciar una fase, verificar en GitHub que las historias listadas como dependencia estén cerradas y mergeadas. Las historias marcadas con dependencia "Ninguna" pueden adelantarse en cualquier momento, incluso antes del inicio formal de su fase asignada, sin afectar el orden general.
