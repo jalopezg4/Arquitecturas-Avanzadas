@@ -1,50 +1,65 @@
-# Plan de trabajo — orden y reparto
+# Plan de trabajo — orden y reparto final
 
-## Reparto entre los 3 (≈42 pts c/u)
+Formato: **relevo**, no trabajo 100% paralelo. Cada persona hace su turno completo, de principio a fin, sin depender de nada que otro compañero todavía no haya terminado. Cuando termina, el siguiente arranca usando lo que ya quedó listo.
 
-| Persona | Dominio | Historias |
-|---|---|---|
-| Julián | Identidad + Interoperabilidad + Seguridad | HU-01, HU-02, HU-11, HU-05a, HU-05b, HU-05c, HT-04, HT-07, HT-01 |
-| Jennifer | Documentos | HU-03, HU-08, HU-09, HU-10, HU-06.1, HU-06.2, HT-02 |
-| Tomás | Autenticación + Compartición + Premium/Analítica | HU-04, HU-06.3, HU-06.4, HU-07.1, HU-07.2, HU-07.3, HT-03, HT-05, HT-06 |
+## Estado de Oleada 0 (infraestructura) — honesto, no optimista
 
-`HT-08` (CI/CD) es transversal, hacerlo entre los 3 al principio.
+| Historia | Estado |
+|---|---|
+| HT-01 (health checks) | ✅ Hecho (`/health`, `/ready` en ms-identidad) |
+| HT-08 (CI/CD) | ✅ Hecho (workflow de GitHub Actions corriendo en el PR #73) |
+| HT-07 (secretos/TLS) | 🟡 Parcial (solo `JWT_SECRET`) |
+| HT-04 (bitácora de auditoría) | ❌ Pendiente |
+| HT-06 (trazabilidad distribuida) | ❌ Pendiente |
 
-## Oleadas de dependencias (dentro de cada oleada se puede paralelizar)
+## Turno 1 — Jennifer (hoy)
 
-**Oleada 0 — Infraestructura (día 1, en paralelo, no bloquea negocio)**
-HT-08 (CI/CD) · HT-07 (secretos/TLS) · HT-06 (trazabilidad) · HT-01 (health checks) · HT-04 (bitácora auditoría)
+Orden dentro del turno (de arriba a abajo):
 
-**Oleada 1 — Bloqueante de negocio**
-HU-11 (registro del operador en MinTIC) — nada de GovCarpeta real funciona sin esto.
+| # | Historia | Pts | Depende de |
+|---|---|---|---|
+| 1 | HT-04 — Bitácora de auditoría | 3 | nada |
+| 2 | HT-06 — Trazabilidad distribuida | 5 | nada |
+| 3 | HT-07 (resto) — Secretos/TLS completo | 3 | nada |
+| 4 | HU-11 — Registro del operador en MinTIC | 2 | nada |
+| 5 | HU-02 — Login | 5 | HU-01 ✅ (ya está) |
+| 6 | HU-10 — Recepción por entidad emisora | 8 | HU-01 ✅ |
+| 7 | HT-02 — Respaldo/restauración verificada | 5 | nada |
+| 8 | HT-03 — Pruebas de capacidad | 5 | nada |
 
-**Oleada 2 — Identidad (secuencial)**
-HU-01 (registro) → HU-02 (login)
+**Total: 36 pts.** Los ítems 1-5 son el núcleo real de "hoy" (18 pts); 6-8 son independientes y sirven de relleno si sobra tiempo, sin forzar el día.
 
-**Oleada 3 — Entrega 2 restante (secuencial, depende de Oleada 2)**
-HU-03 (carga documento) → HU-04 (autenticar documento)
+## Turno 2 — Julián (con Turno 1 ya terminado)
 
-*Con esto se cierra la Entrega 2. Camino crítico: `HU-11 ∥ (HU-01→HU-02)` → `HU-03` → `HU-04`.*
+| # | Historia | Pts | Depende de |
+|---|---|---|---|
+| 1 | HU-05a — Localización de operadores | 3 | nada |
+| 2 | HU-05b — Publicar endpoint de transferencia | 2 | HU-11 (Turno 1) |
+| 3 | HU-06.1 — Registro de entidad institucional | 5 | nada |
+| 4 | HU-03 — Carga de documento | 8 | HU-02 (Turno 1) |
+| 5 | HU-08 — Consulta de documentos | 5 | HU-02 (Turno 1), HU-03 (mismo turno) |
+| 6 | HU-06.3 — Solicitud + autorización de envío | 8 | HU-02 (Turno 1) |
+| 7 | HU-07.1, HU-07.2, HU-07.3 — Premium/Analítica | 8 | nada |
 
-**Oleada 4 — Extensiones documentales (paralelas entre sí)**
-HU-08 (consulta) · HU-09 (descarga) · HU-10 (recepción por entidad emisora)
+**Total: 39 pts.**
 
-**Oleada 5 — Interoperabilidad**
-HU-05a (independiente, puede arrancar temprano) → HU-05b (necesita HU-11) → HU-05c (necesita 05a+05b+HU-01)
+## Turno 3 — Tomás (con Turnos 1 y 2 ya terminados)
 
-**Oleada 6 — Compartición**
-HU-06.1 (independiente) · HU-06.3 (necesita HU-02, en paralelo con 06.1)
-→ HU-06.2 (necesita 06.1+HU-08) · HU-06.4 (necesita HU-03+06.3)
+| # | Historia | Pts | Depende de |
+|---|---|---|---|
+| 1 | HU-04 — Autenticar documento vía GovCarpeta | 8 | HU-03 (Turno 2), HU-11 (Turno 1) |
+| 2 | HU-05c — Transferencia con saga de dos fases | 8 | HU-05a, HU-05b (Turno 2) |
+| 3 | HU-09 — Descarga de documentos | 3 | HU-02 (Turno 1), HU-04 (mismo turno) |
+| 4 | HU-06.2 — Paquete documental y entrega | 8 | HU-06.1, HU-08 (Turno 2) |
+| 5 | HU-06.4 — Solicitud de documento definitivo | 5 | HU-03 (Turno 2), HU-06.3 (Turno 2) |
+| 6 | HT-05 — Suite de pruebas de contrato | 5 | HU-05c (mismo turno) |
 
-**Oleada 7 — Premium/Analítica**
-HU-07.1, 07.2, 07.3 — sin dependencias fuertes, prioridad baja.
+**Total: 37 pts.**
 
-**Oleada 8 — Verificación tardía (necesitan sistema real corriendo)**
-HT-02 (backup/restore) · HT-03 (capacidad) · HT-05 (pruebas de contrato, necesita HU-05c)
+## Verificación de balance
 
-## Estado actual
+Jennifer 36 + Julián 39 + Tomás 37 = **112 pts**, más las 21 ya hechas (HU-01, HT-01, HT-08) = **133**, el proyecto completo. Balance parejo entre los 3 (36/39/37) — nadie carga mucho más que otro.
 
-- [x] Oleada 0 — estructura de repo y docs creada; CI/CD real pendiente
-- [ ] HU-11 — pendiente
-- [x] HU-01 — en progreso
-- [ ] Resto — por hacer, seguir este orden
+## Regla del relevo
+
+Antes de empezar tu turno, verifica en GitHub que las historias de las que dependes (columna "Depende de") ya estén cerradas/mergeadas. Si no lo están, adelanta algo de tu propio turno que no dependa de nada (los ítems marcados "nada" en cualquier turno se pueden hacer en cualquier momento, incluso antes de que te toque).

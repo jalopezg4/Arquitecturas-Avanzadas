@@ -10,6 +10,7 @@ Implementación del Operador de Carpeta Ciudadana. Curso: Arquitecturas Avanzada
 2. [`docs/HISTORIAS_DE_USUARIO.md`](docs/HISTORIAS_DE_USUARIO.md) — las 26 historias (Entrega 2 + backlog + técnicas), con AC y tests nombrados. Espejo de los [issues en GitHub](https://github.com/jalopezg4/Arquitecturas-Avanzadas/issues).
 3. [`docs/GOVCARPETA_CONTRATO.md`](docs/GOVCARPETA_CONTRATO.md) — contrato real de la API de GovCarpeta (verificado contra el Swagger, no inferido)
 4. [`docs/PLAN_TRABAJO.md`](docs/PLAN_TRABAJO.md) — orden de dependencias entre historias y reparto entre los 3
+5. [`docs/BUENAS_PRACTICAS.md`](docs/BUENAS_PRACTICAS.md) — principios, SOLID y patrones, con ejemplos de dónde ya se usan en este código. Revisar antes de abrir un PR.
 
 ## Estilo arquitectónico
 
