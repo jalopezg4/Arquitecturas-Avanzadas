@@ -12,53 +12,51 @@ Formato: **relevo**, no trabajo 100% paralelo. Cada persona hace su turno comple
 | HT-04 (bitácora de auditoría) | ❌ Pendiente |
 | HT-06 (trazabilidad distribuida) | ❌ Pendiente |
 
-## Turno 1 — Jennifer (hoy)
-
-Orden dentro del turno (de arriba a abajo):
+## Turno 1 — Jennifer (hoy): solo Oleada 0
 
 | # | Historia | Pts | Depende de |
 |---|---|---|---|
 | 1 | HT-04 — Bitácora de auditoría | 3 | nada |
 | 2 | HT-06 — Trazabilidad distribuida | 5 | nada |
 | 3 | HT-07 (resto) — Secretos/TLS completo | 3 | nada |
-| 4 | HU-11 — Registro del operador en MinTIC | 2 | nada |
-| 5 | HU-02 — Login | 5 | HU-01 ✅ (ya está) |
-| 6 | HU-10 — Recepción por entidad emisora | 8 | HU-01 ✅ |
-| 7 | HT-02 — Respaldo/restauración verificada | 5 | nada |
-| 8 | HT-03 — Pruebas de capacidad | 5 | nada |
 
-**Total: 36 pts.** Los ítems 1-5 son el núcleo real de "hoy" (18 pts); 6-8 son independientes y sirven de relleno si sobra tiempo, sin forzar el día.
+**Total: 11 pts.** Nada más — el resto (desde HU-11 en adelante) es de Julián y Tomás.
 
 ## Turno 2 — Julián (con Turno 1 ya terminado)
 
 | # | Historia | Pts | Depende de |
 |---|---|---|---|
-| 1 | HU-05a — Localización de operadores | 3 | nada |
-| 2 | HU-05b — Publicar endpoint de transferencia | 2 | HU-11 (Turno 1) |
-| 3 | HU-06.1 — Registro de entidad institucional | 5 | nada |
-| 4 | HU-03 — Carga de documento | 8 | HU-02 (Turno 1) |
-| 5 | HU-08 — Consulta de documentos | 5 | HU-02 (Turno 1), HU-03 (mismo turno) |
-| 6 | HU-06.3 — Solicitud + autorización de envío | 8 | HU-02 (Turno 1) |
-| 7 | HU-07.1, HU-07.2, HU-07.3 — Premium/Analítica | 8 | nada |
+| 1 | HU-11 — Registro del operador en MinTIC | 2 | nada |
+| 2 | HU-02 — Login | 5 | HU-01 ✅ (ya está) |
+| 3 | HU-03 — Carga de documento | 8 | HU-02 (mismo turno) |
+| 4 | HU-05a — Localización de operadores | 3 | nada |
+| 5 | HU-05b — Publicar endpoint de transferencia | 2 | HU-11 (mismo turno) |
+| 6 | HU-06.1 — Registro de entidad institucional | 5 | nada |
+| 7 | HU-08 — Consulta de documentos | 5 | HU-02, HU-03 (mismo turno) |
+| 8 | HU-07.1, HU-07.2, HU-07.3 — Premium/Analítica | 8 | nada |
+| 9 | HT-02 — Respaldo/restauración verificada | 5 | nada |
+| 10 | HT-03 — Pruebas de capacidad | 5 | nada |
 
-**Total: 39 pts.**
+**Total: 48 pts.**
 
 ## Turno 3 — Tomás (con Turnos 1 y 2 ya terminados)
 
 | # | Historia | Pts | Depende de |
 |---|---|---|---|
-| 1 | HU-04 — Autenticar documento vía GovCarpeta | 8 | HU-03 (Turno 2), HU-11 (Turno 1) |
+| 1 | HU-04 — Autenticar documento vía GovCarpeta | 8 | HU-03, HU-11 (Turno 2) |
 | 2 | HU-05c — Transferencia con saga de dos fases | 8 | HU-05a, HU-05b (Turno 2) |
-| 3 | HU-09 — Descarga de documentos | 3 | HU-02 (Turno 1), HU-04 (mismo turno) |
+| 3 | HU-09 — Descarga de documentos | 3 | HU-02 (Turno 2), HU-04 (mismo turno) |
 | 4 | HU-06.2 — Paquete documental y entrega | 8 | HU-06.1, HU-08 (Turno 2) |
-| 5 | HU-06.4 — Solicitud de documento definitivo | 5 | HU-03 (Turno 2), HU-06.3 (Turno 2) |
-| 6 | HT-05 — Suite de pruebas de contrato | 5 | HU-05c (mismo turno) |
+| 5 | HU-06.3 — Solicitud + autorización de envío | 8 | HU-02 (Turno 2) |
+| 6 | HU-06.4 — Solicitud de documento definitivo | 5 | HU-03 (Turno 2), HU-06.3 (mismo turno) |
+| 7 | HU-10 — Recepción por entidad emisora | 8 | HU-01 ✅ (ya está) |
+| 8 | HT-05 — Suite de pruebas de contrato | 5 | HU-05c (mismo turno) |
 
-**Total: 37 pts.**
+**Total: 53 pts.**
 
 ## Verificación de balance
 
-Jennifer 36 + Julián 39 + Tomás 37 = **112 pts**, más las 21 ya hechas (HU-01, HT-01, HT-08) = **133**, el proyecto completo. Balance parejo entre los 3 (36/39/37) — nadie carga mucho más que otro.
+Jennifer 11 + Julián 48 + Tomás 53 = **112 pts**, más las 21 ya hechas (HU-01, HT-01, HT-08) = **133**, el proyecto completo.
 
 ## Regla del relevo
 
