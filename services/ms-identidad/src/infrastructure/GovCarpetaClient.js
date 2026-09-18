@@ -7,7 +7,7 @@ let warnedAboutValidateCitizenAssumption = false;
  * (ver docs/GOVCARPETA_CONTRATO.md en la raiz del repo) -- no son suposiciones.
  */
 class GovCarpetaClient {
-  constructor({ baseUrl, operatorId, operatorName, maxRetries = 3, http = axios, availableStatus = 200 }) {
+  constructor({ baseUrl, operatorId, operatorName, maxRetries = 3, http = axios, availableStatus = 204 }) {
     this.baseUrl = baseUrl;
     this.operatorId = operatorId;
     this.operatorName = operatorName;
@@ -15,9 +15,10 @@ class GovCarpetaClient {
     this.http = http;
     // El Swagger de GovCarpeta no documenta el significado de 200 vs 204 en
     // validateCitizen (sin schema de respuesta) -- ver docs/GOVCARPETA_CONTRATO.md.
-    // Se asume por defecto 200 = disponible, pero queda configurable (constructor o
-    // GOVCARPETA_AVAILABLE_STATUS) para poder invertirlo sin tocar codigo si la
-    // verificacion empirica contra el sandbox muestra lo contrario.
+    // Verificado empiricamente el 2026-09-17 contra el sandbox real: un documento
+    // jamas usado por nadie devuelve 204, asi que 204 = disponible (no puede estar
+    // "ya afiliado" un documento que nunca se ha registrado). Sigue configurable
+    // (constructor o GOVCARPETA_AVAILABLE_STATUS) por si el comportamiento cambia.
     this.availableStatus = availableStatus;
   }
 
@@ -54,9 +55,11 @@ class GovCarpetaClient {
       warnedAboutValidateCitizenAssumption = true;
       // eslint-disable-next-line no-console
       console.warn(
-        "[GovCarpetaClient] La interpretacion de 200/204 en validateCitizen NO esta confirmada " +
-          "por el Swagger (sin schema de respuesta). Verificar empiricamente contra el sandbox " +
-          "antes de depender de este flujo en produccion. Ver docs/GOVCARPETA_CONTRATO.md."
+        "[GovCarpetaClient] validateCitizen: el Swagger no documenta 200/204 (sin schema). " +
+          "Verificado empiricamente el 2026-09-17 que un documento nunca registrado devuelve 204 " +
+          "(=> disponible). Aun no se ha confirmado con un caso real que 200 signifique 'ya " +
+          "existe' -- si algo se comporta raro, revisar esta interpretacion primero. Ver " +
+          "docs/GOVCARPETA_CONTRATO.md."
       );
     }
     return this._withRetry(async () => {

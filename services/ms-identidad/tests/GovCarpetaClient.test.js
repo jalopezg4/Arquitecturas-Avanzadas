@@ -82,13 +82,26 @@ describe("GovCarpetaClient", () => {
     expect(get).toHaveBeenCalledTimes(1);
   });
 
-  test("validateCitizen() usa availableStatus configurable para interpretar 200/204", async () => {
+  test("validateCitizen() por defecto trata 204 como disponible (verificado empiricamente contra el sandbox real el 2026-09-17: un documento nunca usado devuelve 204)", async () => {
     const get = jest.fn(async () => ({ status: 204 }));
     const client = new GovCarpetaClient({
       baseUrl: "http://fake",
       operatorId: "op1",
       operatorName: "Op",
-      availableStatus: 204, // invertido respecto al default (200), simulando verificacion empirica distinta
+      http: makeFakeHttp({ getImpl: get }), // sin availableStatus explicito -- usa el default
+    });
+
+    const result = await client.validateCitizen(123);
+    expect(result).toEqual({ available: true });
+  });
+
+  test("validateCitizen() usa availableStatus configurable si el comportamiento del sandbox cambia", async () => {
+    const get = jest.fn(async () => ({ status: 200 }));
+    const client = new GovCarpetaClient({
+      baseUrl: "http://fake",
+      operatorId: "op1",
+      operatorName: "Op",
+      availableStatus: 200, // override explicito, distinto del default (204)
       http: makeFakeHttp({ getImpl: get }),
     });
 

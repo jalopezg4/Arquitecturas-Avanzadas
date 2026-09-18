@@ -9,7 +9,7 @@ No son suposiciones — son los campos exactos que el servidor espera y devuelve
 
 - Path param `id`: number
 - Respuestas: `200 OK`, `204 Not Content`, `500`, `501`
-- ⚠️ El Swagger NO documenta el significado exacto de 200 vs 204 (no hay schema de respuesta ni body). **Verificar empíricamente contra el sandbox antes de codificar la lógica de la saga**: probar con un id que no existe en ningún operador y ver qué status devuelve realmente.
+- ✅ **Verificado empíricamente el 2026-09-17** contra el sandbox real: un documento (`987654321099`) que nunca ha sido usado por nadie devuelve **204**. Como un documento jamás registrado no puede estar "ya afiliado", esto confirma **204 = disponible para registrar**. `200` probablemente significa "ya existe", pero eso último aún no se confirmó con un caso real conocido (solo se dedujo por descarte). Configurable vía `GOVCARPETA_AVAILABLE_STATUS` sin tocar código si el comportamiento cambia.
 
 ## POST /apis/registerCitizen
 

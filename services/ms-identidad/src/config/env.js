@@ -24,7 +24,7 @@ module.exports = {
   operatorName: process.env.OPERATOR_NAME || "Operador Ciudadano EAFIT",
   // Ver nota en GovCarpetaClient: interpretacion de validateCitizen NO confirmada por el
   // Swagger. Permite invertirla (200 <-> 204) sin tocar codigo si la prueba empirica lo exige.
-  govCarpetaAvailableStatus: Number(process.env.GOVCARPETA_AVAILABLE_STATUS) || 200,
+  govCarpetaAvailableStatus: Number(process.env.GOVCARPETA_AVAILABLE_STATUS) || 204,
   jwtSecret,
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
