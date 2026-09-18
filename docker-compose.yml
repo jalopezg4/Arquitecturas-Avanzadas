@@ -1,0 +1,35 @@
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  ms-identidad:
+    build: ./services/ms-identidad
+    ports:
+      - "3001:3001"
+    environment:
+      # docker-compose es solo para desarrollo local (ver README) -- NODE_ENV=development
+      # es lo que permite que env.js caiga a un secreto de desarrollo si no se define JWT_SECRET.
+      # Fuera de este compose (staging/prod real), NODE_ENV nunca debe ser development y
+      # JWT_SECRET es obligatorio: env.js lanza error al arrancar si falta.
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017/ms-identidad
+      RABBITMQ_URI: amqp://rabbitmq:5672
+      OPERATOR_ID: ${OPERATOR_ID:-}
+      OPERATOR_NAME: ${OPERATOR_NAME:-Operador Ciudadano EAFIT}
+      JWT_SECRET: ${JWT_SECRET:-}
+    depends_on:
+      - mongo
+      - rabbitmq
+
+volumes:
+  mongo-data:
