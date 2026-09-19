@@ -150,6 +150,8 @@ Copia local del directorio de GovCarpeta (`GET /apis/getOperators`, ADR-03) para
 
 **Nuestro propio operador** (`OPERATOR_ID`) nunca puede ser el destino (`SelfTransferError`).
 
+**Publicación de nuestro endpoint (HU-05b, `npm run publish:endpoint`).** Modifica el registro de nuestro operador en GovCarpeta, así que: **simulación por defecto** (`--confirm` para publicar), falla **antes de enviar** si falta el `OPERATOR_ID` de HU-11, si no existe en el directorio o si **ya hay una dirección publicada** (`--replace` es una decisión explícita), y las direcciones que verán otros operadores pasan la **misma política de URLs** (no `localhost`, ni redes privadas, ni credenciales en la URL). Si la respuesta se pierde, relee el directorio antes de dar la publicación por fallida. El cliente que **escribe** está separado del que **lee** el directorio, y una prueba comprueba que el servicio de lectura no lo importa.
+
 ## Límites (qué NO cubre)
 
 - **Sin gestor de secretos** dedicado ni rotación automática de secretos: es rotación asistida por configuración.

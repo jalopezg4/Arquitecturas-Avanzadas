@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "publish:endpoint": "node scripts/publish-endpoint.js",
     "dev": "node --watch src/server.js",
     "test": "jest",
     "scan:secrets": "node scripts/scan-secrets.js"

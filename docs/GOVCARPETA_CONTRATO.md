@@ -77,6 +77,10 @@ Body (todos requeridos):
 ```
 - Solo `idOperator` y `endPoint` son estrictamente requeridos, pero `endPointConfirm` es indispensable para el protocolo de dos fases acordado con los otros equipos del curso.
 - Respuestas: `201 Updated`, `500`, `501`.
+- **El Gherkin de HU-05b está desactualizado**: decía `{operatorId, transferEndpoint}` y `200`; el contrato verificado (este) es `{idOperator, endPoint, endPointConfirm}` y `201`. El cliente envía exactamente estos tres campos y acepta 200 o 201.
+- Es una **actualización** (reemplaza los valores de nuestro operador), no un alta: repetirla con los mismos datos deja el mismo resultado, así que el cliente reintenta ante 500/red (a diferencia de `registerOperator`).
+- El directorio (`getOperators`) solo refleja `transferAPIURL` (el `endPoint`), no el `endPointConfirm`; con eso se detecta "ya publicado" y se verifica una publicación.
+- ⚠️ **El `PUT` real todavía no se ha ejecutado** (no hay endpoint en línea que publicar): lo verificado contra el sandbox real es la simulación (solo `GET`), no el `PUT`.
 
 ## GET /apis/getOperators
 
