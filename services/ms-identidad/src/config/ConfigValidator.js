@@ -16,6 +16,19 @@ const PRESIGNED_POLICY = {
   downloadTtlSeconds: { max: 60 * 60, label: "PRESIGNED_URL_DOWNLOAD_TTL_SECONDS (descarga del ciudadano, HU-09)" },
 };
 
+// Politica de sesion (HU-02, ADR-06): el access token vive como maximo 15 minutos; el refresh token, mas.
+const MAX_ACCESS_TOKEN_SECONDS = 15 * 60;
+const UNIT_SECONDS = { s: 1, m: 60, h: 3600, d: 86400 };
+
+/** "15m" | "900s" | "1h" | "7d" | 900 -> segundos; null si no es una duracion valida y positiva. */
+function parseDuration(value) {
+  if (typeof value === "number") return Number.isInteger(value) && value > 0 ? value : null;
+  const match = /^(\d+)\s*([smhd])$/i.exec(String(value || "").trim());
+  if (!match) return null;
+  const seconds = Number(match[1]) * UNIT_SECONDS[match[2].toLowerCase()];
+  return seconds > 0 ? seconds : null;
+}
+
 class ConfigError extends Error {
   constructor(problems) {
     super(`Configuracion invalida:\n - ${problems.join("\n - ")}`);
@@ -79,6 +92,16 @@ function validateConfig(cfg) {
     }
   }
 
+  // La vigencia de los tokens es politica, no preferencia: un valor de 24h en el .env no debe pasar en silencio.
+  if (cfg.jwtAccessExpiresIn !== undefined || cfg.jwtRefreshExpiresIn !== undefined) {
+    const access = parseDuration(cfg.jwtAccessExpiresIn);
+    const refresh = parseDuration(cfg.jwtRefreshExpiresIn);
+    if (access === null) problems.push("JWT_ACCESS_EXPIRES_IN debe ser una duracion valida (ej. 15m, 900s)");
+    else if (access > MAX_ACCESS_TOKEN_SECONDS) problems.push(`JWT_ACCESS_EXPIRES_IN no puede superar ${MAX_ACCESS_TOKEN_SECONDS}s (15 minutos, HU-02 / ADR-06)`);
+    if (refresh === null) problems.push("JWT_REFRESH_EXPIRES_IN debe ser una duracion valida (ej. 7d)");
+    else if (access !== null && refresh <= access) problems.push("JWT_REFRESH_EXPIRES_IN debe ser mayor que JWT_ACCESS_EXPIRES_IN");
+  }
+
   const tls = cfg.tls || {};
   if (Boolean(tls.certPath) !== Boolean(tls.keyPath)) problems.push("TLS_CERT_PATH y TLS_KEY_PATH deben definirse juntos");
   if (tls.caPath && !(tls.certPath && tls.keyPath)) problems.push("TLS_CA_PATH (mTLS) requiere TLS_CERT_PATH y TLS_KEY_PATH");
@@ -98,4 +121,4 @@ function assertValidConfig(cfg) {
   if (problems.length) throw new ConfigError(problems);
 }
 
-module.exports = { validateConfig, assertValidConfig, isStrongSecret, secretProblem, ConfigError, MIN_SECRET_LENGTH, PRESIGNED_POLICY };
+module.exports = { validateConfig, assertValidConfig, isStrongSecret, secretProblem, parseDuration, ConfigError, MIN_SECRET_LENGTH, MAX_ACCESS_TOKEN_SECONDS, PRESIGNED_POLICY };

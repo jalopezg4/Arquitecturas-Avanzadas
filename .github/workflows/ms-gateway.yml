@@ -1,0 +1,38 @@
+name: ms-gateway CI
+
+on:
+  push:
+    paths:
+      - "services/ms-gateway/**"
+      - ".github/workflows/ms-gateway.yml"
+  pull_request:
+    paths:
+      - "services/ms-gateway/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/ms-gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: services/ms-gateway/package-lock.json
+      - run: npm ci
+      - run: npm run scan:secrets
+      - run: npm test
+
+  build:
+    needs: test
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/ms-gateway
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t ms-gateway:${{ github.sha }} .

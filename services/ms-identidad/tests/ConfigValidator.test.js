@@ -1,4 +1,4 @@
-const { validateConfig, assertValidConfig, ConfigError, isStrongSecret } = require("../src/config/ConfigValidator");
+const { validateConfig, assertValidConfig, ConfigError, isStrongSecret, parseDuration } = require("../src/config/ConfigValidator");
 
 const STRONG = "k9Xv2mQ7pL4wZ8rT1nB6yH3jD5fG0sAe"; // 32 caracteres, variados
 
@@ -129,6 +129,36 @@ describe("ConfigValidator", () => {
     test("rechaza valores no positivos o no enteros, tambien en local", () => {
       const local = { isLocal: true, presignedUrl: { authTtlSeconds: 0, downloadTtlSeconds: NaN } };
       expect(validateConfig(local)).toHaveLength(2);
+    });
+  });
+
+  describe("vigencia de tokens de sesion (HU-02)", () => {
+    test("parseDuration entiende s/m/h/d y rechaza basura", () => {
+      expect(parseDuration("15m")).toBe(900);
+      expect(parseDuration("900s")).toBe(900);
+      expect(parseDuration("1h")).toBe(3600);
+      expect(parseDuration("7d")).toBe(604800);
+      expect(parseDuration(900)).toBe(900);
+      for (const bad of ["", "15", "0m", "-5m", "abc", "1.5h", null, undefined, 0, 1.5]) expect(parseDuration(bad)).toBeNull();
+    });
+
+    test("15m/7d (los valores por defecto) son validos", () => {
+      expect(validateConfig(prodConfig({ jwtAccessExpiresIn: "15m", jwtRefreshExpiresIn: "7d" }))).toEqual([]);
+    });
+
+    test("el access token no puede vivir mas de 15 minutos (no 24h)", () => {
+      for (const bad of ["16m", "1h", "24h"]) {
+        expect(validateConfig(prodConfig({ jwtAccessExpiresIn: bad, jwtRefreshExpiresIn: "7d" })).join()).toContain("no puede superar 900s");
+      }
+    });
+
+    test("el refresh token debe vivir mas que el access token", () => {
+      expect(validateConfig(prodConfig({ jwtAccessExpiresIn: "15m", jwtRefreshExpiresIn: "10m" })).join()).toContain("mayor que JWT_ACCESS_EXPIRES_IN");
+    });
+
+    test("rechaza duraciones ilegibles, tambien en local", () => {
+      const problems = validateConfig(prodConfig({ isLocal: true, jwtAccessExpiresIn: "rapido", jwtRefreshExpiresIn: "" }));
+      expect(problems).toHaveLength(2);
     });
   });
 

@@ -80,12 +80,14 @@ Como ciudadano ya registrado quiero iniciar sesión con mis credenciales, para a
 
 **Criterios de Aceptación:**
 - ✅ Password se verifica con **Argon2id**, no bcrypt
-- ✅ Token de acceso expira en **15 minutos** (no 24h); token de renovación con vigencia mayor y de un solo uso por rotación
-- ✅ Middleware de `ms-gateway` valida el token, y **cada microservicio lo vuelve a validar** (autorización no delegada solo al gateway — ADR-06)
+- ✅ Token de acceso expira en **15 minutos** (no 24h; el servicio no arranca si se configura más); token de renovación con vigencia mayor y de un solo uso por rotación (`POST /api/v1/auth/refresh`, con detección de reutilización)
+- ✅ `ms-gateway` (`services/ms-gateway`) valida el token antes de contactar al servicio destino, y **cada microservicio lo vuelve a validar** (`requireAuth` en `ms-identidad` y en un segundo servicio simulado con su propio llavero; ADR-06). Detalle en `docs/SEGURIDAD.md`, secciones 5 y 6
 - ✅ Respuesta 401 genérica sin distinguir "usuario no existe" de "password incorrecta"
-- ✅ Contador de intentos fallidos por ciudadano; bloqueo temporal al 5º intento
-- ✅ Registro en bitácora: ciudadano, timestamp, resultado (éxito/fallo)
+- ✅ Contador de intentos fallidos por ciudadano; bloqueo de 15 minutos al 5º intento (atómico; durante el bloqueo no se cuentan más intentos)
+- ✅ Registro en bitácora: ciudadano, timestamp, resultado (éxito/fallo/rechazo) y `traceId`
 - ✅ No involucra a GovCarpeta ni a la Registraduría (operación 100% local)
+
+Detalle de las decisiones de seguridad (tiempo uniforme, bloqueo, rotación, límites): `docs/SEGURIDAD.md`, sección 5.
 
 **Tests Unitarios a implementar:**
 ```
@@ -95,7 +97,7 @@ ms-identidad: AuthService.login() incrementa contador de intentos fallidos
 ms-identidad: AuthService.login() bloquea cuenta al 5º intento fallido
 ms-identidad: AuthService.login() responde 401 genérico si password no coincide
 ms-identidad: AuthService.login() responde 401 genérico si el documento no existe (mismo mensaje)
-ms-gateway: middleware JWT rechaza sin token o con token expirado
+ms-gateway: middleware JWT rechaza sin token o con token expirado (y el servicio destino no recibe nada)
 ms-identidad/ms-documentos/ms-autenticacion: cada servicio revalida el token (no confía ciegamente en el gateway)
 AuditLogger.record() persiste intento de login exitoso/fallido con timestamp
 ```

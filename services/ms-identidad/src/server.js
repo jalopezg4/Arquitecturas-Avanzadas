@@ -3,6 +3,7 @@ const env = require("./config/env");
 const logger = require("./tracing/logger");
 const buildApp = require("./app");
 const CitizenRepository = require("./infrastructure/CitizenRepository");
+const RefreshSessionRepository = require("./infrastructure/RefreshSessionRepository");
 const GovCarpetaClient = require("./infrastructure/GovCarpetaClient");
 const EventPublisher = require("./infrastructure/EventPublisher");
 const AuditLogger = require("./infrastructure/AuditLogger");
@@ -10,6 +11,7 @@ const AuditRepository = require("./infrastructure/AuditRepository");
 const SecretsManager = require("./security/SecretsManager");
 const createServer = require("./transport/createServer");
 const { CitizenSagaService } = require("./application/CitizenSagaService");
+const { AuthService } = require("./application/AuthService");
 
 async function main() {
   await mongoose.connect(env.mongoUri);
@@ -27,7 +29,7 @@ async function main() {
     { availableStatus: env.govCarpetaAvailableStatus }
   );
 
-  // Llavero de firma JWT (lo usara el login, HU-02). Solo se registran los ids de llave, nunca el secreto.
+  // Llavero de firma JWT (lo usa el login, HU-02). Solo se registran los ids de llave, nunca el secreto.
   const secrets = new SecretsManager({ active: env.jwtSecret, previous: env.jwtSecretPrevious });
   logger.info("jwt.llavero", secrets.status());
 
@@ -49,7 +51,16 @@ async function main() {
     auditLogger,
   });
 
-  const app = buildApp({ citizenSagaService });
+  const authService = new AuthService({
+    citizenRepository,
+    refreshSessionRepository: new RefreshSessionRepository(),
+    secrets,
+    auditLogger,
+    accessExpiresIn: env.jwtAccessExpiresIn,
+    refreshExpiresIn: env.jwtRefreshExpiresIn,
+  });
+
+  const app = buildApp({ citizenSagaService, authService, secrets });
   const server = createServer(app, env.tls);
   server.listen(env.port, () => {
     const transport = env.tls.certPath ? (env.tls.caPath ? "mTLS" : "TLS") : "http";
