@@ -1,6 +1,34 @@
 const axios = require("axios");
 const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
 
+const OPERATOR_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
+
+/**
+ * El Swagger dice que getOperators devuelve OperatorId/OperatorName, pero el sandbox REAL devuelve
+ * `_id` y `operatorName` (verificado 2026-09-19 sobre 71 operadores), y `transferAPIURL` viene con
+ * un espacio inicial y solo en algunos. Se aceptan ambas formas para no depender de ninguna.
+ */
+function normalizeOperator(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const id = raw._id ?? raw.OperatorId ?? raw.operatorId ?? raw.id;
+  if (!id) return null;
+  const transfer = raw.transferAPIURL ?? raw.transferApiUrl;
+  return {
+    id: String(id),
+    name: String(raw.operatorName ?? raw.OperatorName ?? raw.name ?? "").trim(),
+    transferApiUrl: typeof transfer === "string" && transfer.trim() ? transfer.trim() : null,
+    participants: Array.isArray(raw.participants) ? raw.participants : [],
+  };
+}
+
+/** registerOperator responde el operatorId como texto plano (a veces entre comillas), no como objeto. */
+function parseOperatorId(data) {
+  let candidate = data;
+  if (data && typeof data === "object") candidate = data._id ?? data.operatorId ?? data.OperatorId ?? data.id;
+  if (typeof candidate === "string") candidate = candidate.trim().replace(/^"|"$/g, "");
+  return typeof candidate === "string" && OPERATOR_ID_RE.test(candidate) ? candidate : null;
+}
+
 /**
  * Cliente HTTP hacia GovCarpeta. Nombres de campo verificados contra el Swagger real
  * (ver docs/GOVCARPETA_CONTRATO.md en la raiz del repo) -- no son suposiciones.
@@ -38,6 +66,7 @@ class GovCarpetaClient {
       try {
         return await fn();
       } catch (err) {
+        if (err.nonRetryable) throw err; // error determinista (ej. cuerpo inesperado): reintentar no lo arregla
         lastError = err;
         const status = err.response && err.response.status;
         const isTransient = status === undefined || status === 500;
@@ -85,6 +114,49 @@ class GovCarpetaClient {
       err.response = res;
       throw err;
     }
+  }
+
+  /** GET /apis/getOperators -- directorio de operadores del ecosistema (idempotente, se reintenta). */
+  async listOperators() {
+    return this._withRetry(async () => {
+      const res = await this.http.get(`${this.baseUrl}/apis/getOperators`, { headers: this._traceHeaders() });
+      if (!Array.isArray(res.data)) {
+        throw Object.assign(new Error("getOperators no devolvio una lista"), { nonRetryable: true });
+      }
+      return res.data.map(normalizeOperator).filter(Boolean);
+    });
+  }
+
+  /**
+   * POST /apis/registerOperator -- da de alta al operador y devuelve su operatorId.
+   * NO se reintenta: cada exito crea un operador NUEVO en un directorio compartido y sin endpoint de
+   * borrado, asi que un reintento ciego (ej. respuesta perdida) duplicaria el registro.
+   * `payloadStyle` cubre la inconsistencia del Swagger entre `required` (nameOperator, adress) y
+   * `properties` (name, address): por defecto se envian ambos juegos de nombres.
+   */
+  async registerOperator({ name, address, contactMail, participants }, { payloadStyle = "union" } = {}) {
+    const byProperties = { name, address };
+    const byRequired = { nameOperator: name, adress: address };
+    const names = payloadStyle === "properties" ? byProperties : payloadStyle === "required" ? byRequired : { ...byProperties, ...byRequired };
+    const res = await this.http.post(
+      `${this.baseUrl}/apis/registerOperator`,
+      { ...names, contactMail, participants },
+      { validateStatus: () => true, headers: this._traceHeaders() }
+    );
+    if (res.status !== 201) {
+      const err = new Error(`registerOperator respondio ${res.status}, se esperaba 201`);
+      err.response = res;
+      throw err;
+    }
+    const operatorId = parseOperatorId(res.data);
+    if (!operatorId) {
+      // 201 pero sin un id utilizable: el operador pudo quedar creado. Se distingue para no perderlo.
+      const err = new Error("registerOperator respondio 201 pero el cuerpo no contiene un operatorId valido");
+      err.code = "OPERATOR_CREATED_WITHOUT_ID";
+      err.response = res;
+      throw err;
+    }
+    return { operatorId };
   }
 
   /** DELETE /apis/unregisterCitizen -- compensacion de la saga (best-effort, si falla se reintenta). */
