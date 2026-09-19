@@ -239,6 +239,19 @@ describe("ciudadano.registrado que no llego al broker se reenvia", () => {
     expect((await Citizen.findById(c._id)).eventoPublicado).toBe(true);
   });
 
+  test("con el broker COLGADO el registro responde 201 en segundos (no un 504 de un registro que si quedo hecho) y el evento queda pendiente", async () => {
+    const pub = publisher(() => new Promise(() => {})); // nunca confirma, como un connect que tarda 24 s
+    const govClient = { validateCitizen: async () => ({ available: true }), registerCitizen: async () => {}, unregisterCitizen: async () => {} };
+    const app = buildApp({ citizenSagaService: new CitizenSagaService({ citizenRepository: new CitizenRepository(), govCarpetaClient: govClient, eventPublisher: pub, eventPublishTimeoutMs: 150 }) });
+
+    const started = Date.now();
+    const res = await request(app).post("/api/v1/citizens").send({ documento: 1555666779, nombre: "Ana", direccion: "d", correo: "ana@e.co", password: "Sup3rSecreta!" });
+
+    expect(res.status).toBe(201);
+    expect(Date.now() - started).toBeLessThan(3000);
+    expect(await Citizen.findOne({ documento: 1555666779 })).toMatchObject({ estado: "activo", eventoPublicado: false });
+  });
+
   test("un registro normal (broker sano) queda marcado como publicado desde el inicio", async () => {
     const pub = publisher();
     const govClient = { validateCitizen: async () => ({ available: true }), registerCitizen: async () => {}, unregisterCitizen: async () => {} };

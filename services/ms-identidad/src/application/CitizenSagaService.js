@@ -48,7 +48,8 @@ function isDefinitiveRejection(err) {
 }
 
 class CitizenSagaService {
-  constructor({ citizenRepository, govCarpetaClient, eventPublisher, auditLogger }) {
+  constructor({ citizenRepository, govCarpetaClient, eventPublisher, auditLogger, eventPublishTimeoutMs }) {
+    this.eventPublishTimeoutMs = eventPublishTimeoutMs;
     this.citizenRepository = citizenRepository;
     this.govCarpetaClient = govCarpetaClient;
     this.eventPublisher = eventPublisher;
@@ -190,7 +191,7 @@ class CitizenSagaService {
     // activo y confirmado en GovCarpeta en este punto -- un fallo de RabbitMQ (broker caido,
     // nack) no debe hacer fallar el registro (ADR-04: la notificacion no es camino critico).
     // Se registra el fallo para reconciliacion/alerta a soporte en vez de propagar el error.
-    if (await publishCitizenRegistered(this.eventPublisher, activeCitizen)) {
+    if (await publishCitizenRegistered(this.eventPublisher, activeCitizen, { timeoutMs: this.eventPublishTimeoutMs })) {
       await this.citizenRepository.markEventPublished(activeCitizen._id).catch((err) => logger.error("saga.marca_evento_fallo", { err }));
     } // si no, queda eventoPublicado:false y PendingRegistrationReconciler lo reenvia
 

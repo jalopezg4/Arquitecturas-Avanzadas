@@ -50,6 +50,7 @@ async function main() {
     govCarpetaClient,
     eventPublisher,
     auditLogger,
+    eventPublishTimeoutMs: env.eventPublishTimeoutMs,
   });
 
   if (env.reconcile.intervalMs > 0) {
