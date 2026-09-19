@@ -40,10 +40,11 @@ function isValidDocumento(v) {
  * compensa con unregisterCitizen (el ciudadano NO debe quedar huerfano).
  */
 class CitizenSagaService {
-  constructor({ citizenRepository, govCarpetaClient, eventPublisher }) {
+  constructor({ citizenRepository, govCarpetaClient, eventPublisher, auditLogger }) {
     this.citizenRepository = citizenRepository;
     this.govCarpetaClient = govCarpetaClient;
     this.eventPublisher = eventPublisher;
+    this.auditLogger = auditLogger;
   }
 
   _validateInput({ documento, nombre, direccion, correo, password }) {
@@ -71,11 +72,45 @@ class CitizenSagaService {
     return `${documento}-${crypto.randomBytes(4).toString("hex")}@carpetacolombia.co`;
   }
 
+  /**
+   * Registra en la bitacora (HT-04). Es best-effort: un fallo de auditoria no debe tumbar un
+   * registro ya confirmado en GovCarpeta, se reporta para reconciliacion.
+   */
+  async _audit(documento, outcome, reason) {
+    if (!this.auditLogger) return;
+    try {
+      await this.auditLogger.record({
+        actor: String(documento),
+        actorType: "ciudadano",
+        action: "ciudadano.registrar",
+        resource: `ciudadano:${documento}`,
+        resourceOwner: String(documento),
+        outcome,
+        reason,
+      });
+    } catch (auditErr) {
+      // eslint-disable-next-line no-console
+      console.error(`No se pudo registrar en bitacora ciudadano.registrar (${documento}):`, auditErr);
+    }
+  }
+
   async register({ documento, nombre, direccion, correo, password }) {
     this._validateInput({ documento, nombre, direccion, correo, password });
     // Normaliza a Number una vez validado -- GovCarpeta y el esquema de Mongo esperan number.
     documento = Number(documento);
 
+    // Los errores de validacion no se auditan: aun no hay un actor identificable.
+    try {
+      const result = await this._runSaga({ documento, nombre, direccion, correo, password });
+      await this._audit(documento, "exito");
+      return result;
+    } catch (err) {
+      await this._audit(documento, err instanceof ConflictError ? "rechazo" : "fallo", err.message);
+      throw err;
+    }
+  }
+
+  async _runSaga({ documento, nombre, direccion, correo, password }) {
     const existing = await this.citizenRepository.findByDocumento(documento);
     if (existing) {
       throw new ConflictError("El documento ya esta registrado");
