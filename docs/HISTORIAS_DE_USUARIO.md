@@ -39,7 +39,7 @@ Como ciudadano colombiano quiero registrarme ante un operador de Carpeta Ciudada
 - ✅ Si falla después de confirmado en GovCarpeta, se ejecuta `unregisterCitizen` como compensación
 - ✅ La dirección única es inmutable y tiene restricción de unicidad a nivel de base de datos (índice único en MongoDB, no solo validación en código — ver nota de alcance de implementación: esta entrega usa MongoDB en todos los servicios, no PostgreSQL como en el diseño políglota objetivo)
 - ✅ Publica `CiudadanoRegistrado` en RabbitMQ solo cuando el estado ya es `activo`
-- ✅ Consumidores (`ms-documentos`, `ms-notificaciones`) son idempotentes ante reintento del mismo evento
+- ✅ Consumidores (`ms-documentos`, `ms-notificaciones`) son idempotentes ante reintento del mismo evento. `ms-documentos` crea la carpeta al recibir `ciudadano.registrado`; **no** guarda aún la cédula firmada por la Registraduría (simulada). Los registros que quedaron `pendiente` por un fallo dudoso y los eventos que no llegaron al broker se reconcilian solos (ver `docs/SEGURIDAD.md`, sección 11)
 - ✅ Respuesta 201 con `{ciudadanoId, direccionUnica}`; 409 si documento ya existe; 400 si validación falla
 
 **Tests Unitarios a implementar:**

@@ -29,6 +29,8 @@ function makeRepo() {
       c.estado = "activo";
       return c;
     },
+    markEventPublished: async () => {},
+    deletePending: async () => ({ deletedCount: 1 }),
   };
 }
 

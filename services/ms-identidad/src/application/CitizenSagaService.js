@@ -1,5 +1,6 @@
 const argon2 = require("argon2");
 const crypto = require("crypto");
+const { publishCitizenRegistered } = require("./events");
 const logger = require("../tracing/logger");
 
 class ValidationError extends Error {
@@ -47,7 +48,8 @@ function isDefinitiveRejection(err) {
 }
 
 class CitizenSagaService {
-  constructor({ citizenRepository, govCarpetaClient, eventPublisher, auditLogger }) {
+  constructor({ citizenRepository, govCarpetaClient, eventPublisher, auditLogger, eventPublishTimeoutMs }) {
+    this.eventPublishTimeoutMs = eventPublishTimeoutMs;
     this.citizenRepository = citizenRepository;
     this.govCarpetaClient = govCarpetaClient;
     this.eventPublisher = eventPublisher;
@@ -189,24 +191,9 @@ class CitizenSagaService {
     // activo y confirmado en GovCarpeta en este punto -- un fallo de RabbitMQ (broker caido,
     // nack) no debe hacer fallar el registro (ADR-04: la notificacion no es camino critico).
     // Se registra el fallo para reconciliacion/alerta a soporte en vez de propagar el error.
-    try {
-      await this.eventPublisher.publish("ciudadano.registrado", {
-        ciudadanoId: activeCitizen._id.toString(),
-        documento: activeCitizen.documento,
-        direccionUnica: activeCitizen.direccionUnica,
-        // Los consumidores (ms-notificaciones, ms-documentos) necesitan a quien avisar; el evento es interno (broker con
-        // TLS en despliegue) y viaja solo a colas propias. Nunca la contrasena ni su resumen.
-        nombre: activeCitizen.nombre,
-        correo: activeCitizen.correo,
-      });
-    } catch (err) {
-      logger.error("saga.paso_fallido", {
-        step: "publicar_evento",
-        ciudadanoId: activeCitizen._id.toString(),
-        note: "requiere reconciliacion",
-        err,
-      });
-    }
+    if (await publishCitizenRegistered(this.eventPublisher, activeCitizen, { timeoutMs: this.eventPublishTimeoutMs })) {
+      await this.citizenRepository.markEventPublished(activeCitizen._id).catch((err) => logger.error("saga.marca_evento_fallo", { err }));
+    } // si no, queda eventoPublicado:false y PendingRegistrationReconciler lo reenvia
 
     logger.info("saga.registro.completo", { ciudadanoId: activeCitizen._id.toString() });
     return { ciudadanoId: activeCitizen._id.toString(), direccionUnica: activeCitizen.direccionUnica };

@@ -14,6 +14,8 @@ function makeFakeRepo(overrides = {}) {
       citizen.estado = "activo";
       return citizen;
     }),
+    markEventPublished: jest.fn(async () => {}),
+    deletePending: jest.fn(async () => ({ deletedCount: 1 })),
     ...overrides,
   };
 }

@@ -19,6 +19,11 @@ class DocumentRepository {
     return { items, total };
   }
 
+  /** Documentos cuyo evento `documento.cargado` no se pudo publicar, con al menos `olderThan` de antiguedad. */
+  async findUnpublished({ olderThan, limit }) {
+    return Document.find({ eventoPublicado: false, createdAt: { $lte: olderThan } }).sort({ createdAt: 1 }).limit(limit).lean();
+  }
+
   async markEventPublished(id) {
     await Document.updateOne({ _id: id }, { eventoPublicado: true });
   }

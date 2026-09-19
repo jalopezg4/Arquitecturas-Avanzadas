@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const logger = require("../tracing/logger");
+const { documentoCargadoPayload } = require("./events");
 const { ESTADOS } = require("../domain/Document");
 
 class ValidationError extends Error {
@@ -246,20 +247,12 @@ class DocumentService {
   }
 
   async _publish(doc) {
-    const payload = {
-      eventId: crypto.randomUUID(), // el consumidor lo usa para ser idempotente ante reintentos
-      documentoId: doc._id.toString(),
-      ciudadanoId: doc.ciudadanoId,
-      titulo: doc.titulo,
-      entidadAvaladora: doc.entidadAvaladora,
-      estado: doc.estado,
-      cargadoEn: doc.createdAt.toISOString(),
-    };
+    const payload = documentoCargadoPayload(doc); // mismo mensaje que reenvia EventReconciler si esta publicacion falla
     try {
       await withTimeout(this.eventPublisher.publish("documento.cargado", payload), this.eventPublishTimeoutMs);
       await this.documentRepository.markEventPublished(doc._id);
     } catch (err) {
-      logger.error("documento.evento_no_publicado", { documentoId: payload.documentoId, note: "requiere reconciliacion", err });
+      logger.error("documento.evento_no_publicado", { documentoId: payload.documentoId, note: "lo reenvia EventReconciler", err });
     }
   }
 }
