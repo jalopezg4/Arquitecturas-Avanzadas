@@ -35,6 +35,24 @@
 
 Si el registro falla sin confirmarse (timeout, 500), **no lo repitas a ciegas**: el script ya revisa el directorio y, si el operador quedó creado, lo recupera y muestra su id. Si aun así hay duda, busca el nombre en `GET /apis/getOperators`.
 
+## Registro realizado (2026-09-19)
+
+Nuestro operador **ya está registrado** en el sandbox de GovCarpeta. **No volver a ejecutar el registro.**
+
+| | |
+|---|---|
+| Nombre (`OPERATOR_NAME`) | **MiFolio** |
+| `OPERATOR_ID` | `6aae9153b7655900026073f1` |
+| Integrantes publicados | Jennifer Andrea Lopez Gomez, Julian Giraldo Chica, Tomas Echavarria Gil |
+
+Es información pública del directorio (`GET /apis/getOperators`), no un secreto. **Cada integrante lo pone en su configuración local**:
+
+- `services/ms-identidad/.env` (ignorado por git): `OPERATOR_ID=6aae9153b7655900026073f1` y `OPERATOR_NAME=MiFolio`, además de lo que trae `.env.example` (sobre todo `NODE_ENV=development`, obligatorio).
+- Si usan `docker compose`: en un `.env` en la **raíz** del repo (también ignorado): `OPERATOR_ID=6aae9153b7655900026073f1`. El `OPERATOR_NAME` por defecto del compose ya es `MiFolio`.
+- `OPERATOR_NAME` **debe coincidir** con el nombre registrado: `registerCitizen` lo envía a GovCarpeta.
+
+**Qué se verificó y qué no.** Tras el registro, el directorio muestra **una sola** entrada `MiFolio` (72 operadores, uno más que antes) con el `_id` de arriba y los tres integrantes. El directorio **no devuelve** la dirección ni el correo de contacto, así que no se pueden comprobar desde fuera. La respuesta del `POST` **no se pudo interpretar como un id** y el script recuperó el operador del directorio (ver `docs/GOVCARPETA_CONTRATO.md`); no se conserva la respuesta cruda.
+
 ## Después del registro
 
 - `OPERATOR_ID` en el `.env` de cada integrante → `registerCitizen` (HU-01) funciona contra el GovCarpeta real.

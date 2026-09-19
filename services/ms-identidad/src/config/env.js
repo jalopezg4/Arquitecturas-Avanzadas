@@ -32,7 +32,7 @@ const config = {
   rabbitUri: process.env.RABBITMQ_URI || "amqp://localhost:5672",
   govCarpetaBaseUrl: process.env.GOVCARPETA_BASE_URL || "https://govcarpeta-apis-4905ff3c005b.herokuapp.com",
   operatorId: process.env.OPERATOR_ID || "",
-  operatorName: process.env.OPERATOR_NAME || "Operador Ciudadano EAFIT",
+  operatorName: process.env.OPERATOR_NAME || "MiFolio", // debe coincidir con el nombre registrado en GovCarpeta
   // Ver nota en GovCarpetaClient: interpretacion de validateCitizen verificada empiricamente
   // (204 = disponible). Permite invertirla sin tocar codigo si el sandbox cambia.
   govCarpetaAvailableStatus: Number(process.env.GOVCARPETA_AVAILABLE_STATUS) || 204,

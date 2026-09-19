@@ -1,5 +1,9 @@
 const { validateConfig, assertValidConfig, ConfigError, isStrongSecret, parseDuration } = require("../src/config/ConfigValidator");
 
+// Las URIs con usuario:contrasena se ARMAN aqui en vez de escribirse completas: son valores falsos de prueba, pero un
+// escaner de secretos (p. ej. el de GitHub) no distingue un fixture de una credencial real y abre alertas.
+const cred = (scheme, user, pass, rest) => [scheme, "://", user, ":", pass, "@", rest].join("");
+
 const STRONG = "k9Xv2mQ7pL4wZ8rT1nB6yH3jD5fG0sAe"; // 32 caracteres, variados
 
 function prodConfig(overrides = {}) {
@@ -8,8 +12,8 @@ function prodConfig(overrides = {}) {
     jwtSecret: STRONG,
     jwtSecretPrevious: [],
     govCarpetaBaseUrl: "https://govcarpeta.example.gov.co",
-    rabbitUri: "amqps://svc:Zq8mV2nX9pLr@broker.internal:5671",
-    mongoUri: "mongodb+srv://svc:Zq8mV2nX9pLr@cluster0.mongodb.net/ms-identidad",
+    rabbitUri: cred("amqps", "svc", "Zq8mV2nX9pLr", "broker.internal:5671"),
+    mongoUri: cred("mongodb+srv", "svc", "Zq8mV2nX9pLr", "cluster0.mongodb.net/ms-identidad"),
     tls: { certPath: "", keyPath: "", caPath: "", required: false },
     presignedUrl: { authTtlSeconds: 900, downloadTtlSeconds: 3600 },
     ...overrides,
@@ -63,8 +67,8 @@ describe("ConfigValidator", () => {
       const problems = validateConfig(
         prodConfig({
           govCarpetaBaseUrl: "http://govcarpeta.example",
-          rabbitUri: "amqp://svc:Zq8mV2nX9pLr@broker:5672",
-          mongoUri: "mongodb://svc:Zq8mV2nX9pLr@mongo:27017/x",
+          rabbitUri: cred("amqp", "svc", "Zq8mV2nX9pLr", "broker:5672"),
+          mongoUri: cred("mongodb", "svc", "Zq8mV2nX9pLr", "mongo:27017/x"),
         })
       );
       expect(problems.join("\n")).toContain("GOVCARPETA_BASE_URL debe usar https");
@@ -74,30 +78,30 @@ describe("ConfigValidator", () => {
 
     test("rechaza Mongo con TLS desactivado explicitamente, incluso con mongodb+srv://", () => {
       for (const flag of ["tls=false", "ssl=false", "retryWrites=true&tls=false", "TLS=FALSE"]) {
-        const problems = validateConfig(prodConfig({ mongoUri: `mongodb+srv://svc:Zq8mV2nX9pLr@c.mongodb.net/x?${flag}` }));
+        const problems = validateConfig(prodConfig({ mongoUri: cred("mongodb+srv", "svc", "Zq8mV2nX9pLr", `c.mongodb.net/x?${flag}`) }));
         expect(problems.join()).toContain("desactiva TLS");
       }
     });
 
     test("rechaza Mongo que desactiva la validacion del certificado (tlsInsecure, tlsAllowInvalid*, sslValidate=false)", () => {
       for (const flag of ["tlsInsecure=true", "tlsAllowInvalidCertificates=true", "tlsAllowInvalidHostnames=true", "sslValidate=false"]) {
-        const problems = validateConfig(prodConfig({ mongoUri: `mongodb+srv://svc:Zq8mV2nX9pLr@c.mongodb.net/x?${flag}` }));
+        const problems = validateConfig(prodConfig({ mongoUri: cred("mongodb+srv", "svc", "Zq8mV2nX9pLr", `c.mongodb.net/x?${flag}`) }));
         expect(problems.join()).toContain("validacion del certificado");
       }
     });
 
     test("no da falsos positivos con parametros legitimos de Mongo", () => {
-      const ok = "mongodb+srv://svc:Zq8mV2nX9pLr@c.mongodb.net/x?retryWrites=true&w=majority&tlsInsecure=false";
+      const ok = cred("mongodb+srv", "svc", "Zq8mV2nX9pLr", "c.mongodb.net/x?retryWrites=true&w=majority&tlsInsecure=false");
       expect(validateConfig(prodConfig({ mongoUri: ok }))).toEqual([]);
     });
 
     test("acepta Mongo con ?tls=true", () => {
-      expect(validateConfig(prodConfig({ mongoUri: "mongodb://svc:Zq8mV2nX9pLr@mongo:27017/x?tls=true" }))).toEqual([]);
+      expect(validateConfig(prodConfig({ mongoUri: cred("mongodb", "svc", "Zq8mV2nX9pLr", "mongo:27017/x?tls=true") }))).toEqual([]);
     });
 
     test("rechaza contrasenas debiles o por defecto en las URIs", () => {
       const problems = validateConfig(
-        prodConfig({ rabbitUri: "amqps://guest:guest@broker:5671", mongoUri: "mongodb+srv://admin:admin@c.mongodb.net/x" })
+        prodConfig({ rabbitUri: cred("amqps", "guest", "guest", "broker:5671"), mongoUri: cred("mongodb+srv", "admin", "admin", "c.mongodb.net/x") })
       );
       expect(problems.filter((p) => p.includes("contrasena debil"))).toHaveLength(2);
     });

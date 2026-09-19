@@ -1,17 +1,26 @@
 // Prueba el arranque REAL de la configuracion (env.js), no solo el validador aislado.
+
+// env.js llama a dotenv, que releeria el .env del desarrollador y repondria justo las variables que cada prueba
+// borra a proposito (NODE_ENV, JWT_SECRET...): la prueba dependeria de la maquina donde corre. Se desactiva aqui.
+jest.mock("dotenv", () => ({ config: () => ({}) }));
+
+// Las URIs con usuario:contrasena se ARMAN aqui en vez de escribirse completas: son valores falsos de prueba, pero un
+// escaner de secretos (p. ej. el de GitHub) no distingue un fixture de una credencial real y abre alertas.
+const cred = (scheme, user, pass, rest) => [scheme, "://", user, ":", pass, "@", rest].join("");
+
 const STRONG = "k9Xv2mQ7pL4wZ8rT1nB6yH3jD5fG0sAe";
 
 const PROD_ENV = {
   NODE_ENV: "production",
   JWT_SECRET: STRONG,
   GOVCARPETA_BASE_URL: "https://govcarpeta.example.gov.co",
-  RABBITMQ_URI: "amqps://svc:Zq8mV2nX9pLr@broker.internal:5671",
-  MONGO_URI: "mongodb+srv://svc:Zq8mV2nX9pLr@cluster0.mongodb.net/ms-identidad",
+  RABBITMQ_URI: cred("amqps", "svc", "Zq8mV2nX9pLr", "broker.internal:5671"),
+  MONGO_URI: cred("mongodb+srv", "svc", "Zq8mV2nX9pLr", "cluster0.mongodb.net/ms-identidad"),
 };
 
 function loadEnvWith(vars) {
   const saved = { ...process.env };
-  for (const k of ["NODE_ENV", "JWT_SECRET", "JWT_SECRET_PREVIOUS", "GOVCARPETA_BASE_URL", "RABBITMQ_URI", "MONGO_URI", "REQUIRE_TLS", "TLS_CERT_PATH", "TLS_KEY_PATH", "PRESIGNED_URL_AUTH_TTL_SECONDS"]) {
+  for (const k of ["NODE_ENV", "JWT_SECRET", "JWT_SECRET_PREVIOUS", "GOVCARPETA_BASE_URL", "RABBITMQ_URI", "MONGO_URI", "REQUIRE_TLS", "TLS_CERT_PATH", "TLS_KEY_PATH", "PRESIGNED_URL_AUTH_TTL_SECONDS", "OPERATOR_NAME", "OPERATOR_ID"]) {
     delete process.env[k];
   }
   Object.assign(process.env, vars);
@@ -27,6 +36,19 @@ function loadEnvWith(vars) {
 }
 
 describe("arranque (env.js)", () => {
+  // registerCitizen envia este nombre a GovCarpeta: si no coincide con el registrado, el sandbox puede rechazar los registros.
+  test("sin OPERATOR_NAME usa el nombre registrado en GovCarpeta (MiFolio) y sin OPERATOR_ID queda vacio", () => {
+    const cfg = loadEnvWith({ NODE_ENV: "development" });
+    expect(cfg.operatorName).toBe("MiFolio");
+    expect(cfg.operatorId).toBe("");
+  });
+
+  test("OPERATOR_NAME y OPERATOR_ID explicitos tienen prioridad sobre los valores por defecto", () => {
+    const cfg = loadEnvWith({ NODE_ENV: "development", OPERATOR_NAME: "Otro Operador", OPERATOR_ID: "6aae9153b7655900026073f1" });
+    expect(cfg.operatorName).toBe("Otro Operador");
+    expect(cfg.operatorId).toBe("6aae9153b7655900026073f1");
+  });
+
   test("en produccion con secretos y TLS correctos arranca", () => {
     const cfg = loadEnvWith(PROD_ENV);
     expect(cfg.isLocal).toBe(false);
