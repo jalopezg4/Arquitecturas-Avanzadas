@@ -7,7 +7,7 @@ const Citizen = require("../src/domain/Citizen");
 const AuditEntry = require("../src/domain/AuditEntry");
 const CitizenRepository = require("../src/infrastructure/CitizenRepository");
 const AuditRepository = require("../src/infrastructure/AuditRepository");
-const RefreshTokenRepository = require("../src/infrastructure/RefreshTokenRepository");
+const RefreshSessionRepository = require("../src/infrastructure/RefreshSessionRepository");
 const AuditLogger = require("../src/infrastructure/AuditLogger");
 const SecretsManager = require("../src/security/SecretsManager");
 const logger = require("../src/tracing/logger");
@@ -40,7 +40,7 @@ beforeEach(() => {
   clock = { now: new Date("2026-09-20T10:00:00Z") };
   service = new AuthService({
     citizenRepository: repo,
-    refreshTokenRepository: new RefreshTokenRepository(),
+    refreshSessionRepository: new RefreshSessionRepository(),
     secrets,
     auditLogger: new AuditLogger({ auditRepository: new AuditRepository() }),
     now: () => clock.now,
@@ -115,7 +115,7 @@ describe("AuthService.login() -- credenciales y tokens", () => {
 
   test("respeta la vigencia configurada (no la fija en el codigo)", async () => {
     await createCitizen();
-    const custom = new AuthService({ citizenRepository: repo, refreshTokenRepository: new RefreshTokenRepository(), secrets, accessExpiresIn: "10m", refreshExpiresIn: "1d" });
+    const custom = new AuthService({ citizenRepository: repo, refreshSessionRepository: new RefreshSessionRepository(), secrets, accessExpiresIn: "10m", refreshExpiresIn: "1d" });
 
     const res = await custom.login({ documento: DOC, password: PASSWORD });
 
@@ -173,6 +173,61 @@ describe("AuthService.login() -- rechazo generico (no revela si el documento exi
     }
     expect(verify).not.toHaveBeenCalled();
     expect((await reload()).intentosFallidos).toBe(0);
+  });
+});
+
+describe("AuthService.login() -- hallazgos de la revision (concurrencia y variante de Argon2)", () => {
+  test("un login correcto que EMPEZO desbloqueado no entra si la cuenta se bloquea mientras se verifica el password", async () => {
+    const citizen = await createCitizen();
+    const realVerify = argon2.verify;
+    // Simula los 5 intentos concurrentes: la cuenta se bloquea justo durante la verificacion Argon2 de este login.
+    jest.spyOn(argon2, "verify").mockImplementation(async (...args) => {
+      await Citizen.updateOne({ _id: citizen._id }, { bloqueadoHasta: new Date(clock.now.getTime() + 10 * 60 * 1000), intentosFallidos: 5 });
+      return realVerify(...args);
+    });
+
+    const err = await service.login({ documento: DOC, password: PASSWORD }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(InvalidCredentialsError);
+    const entry = await AuditEntry.findOne({ action: "ciudadano.login" }).lean();
+    expect([entry.outcome, entry.reason]).toEqual(["rechazo", "cuenta_bloqueada"]);
+    expect(await require("../src/domain/RefreshSession").countDocuments()).toBe(0); // ni siquiera se abrio una sesion
+  });
+
+  test("lo mismo si la cuenta deja de estar activa durante la verificacion", async () => {
+    const citizen = await createCitizen();
+    const realVerify = argon2.verify;
+    jest.spyOn(argon2, "verify").mockImplementation(async (...args) => {
+      await Citizen.updateOne({ _id: citizen._id }, { estado: "transferido" });
+      return realVerify(...args);
+    });
+
+    await expect(service.login({ documento: DOC, password: PASSWORD })).rejects.toThrow(InvalidCredentialsError);
+    expect((await AuditEntry.findOne({ action: "ciudadano.login" }).lean()).reason).toBe("estado_transferido");
+  });
+
+  test.each([
+    ["argon2i", { type: argon2.argon2i }],
+    ["argon2d", { type: argon2.argon2d }],
+  ])("un resumen %s (no Argon2id) NO autentica aunque el password sea correcto", async (_name, options) => {
+    await createCitizen({ passwordHash: await argon2.hash(PASSWORD, options) });
+
+    const err = await service.login({ documento: DOC, password: PASSWORD }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(InvalidCredentialsError);
+    expect(err.message).toBe("credenciales invalidas"); // misma respuesta: no se revela el motivo
+    expect((await AuditEntry.findOne({ action: "ciudadano.login" }).lean()).reason).toBe("resumen_no_argon2id");
+  });
+
+  test("con un resumen no Argon2id igual se hace una verificacion (tiempo uniforme) pero NUNCA contra ese resumen", async () => {
+    const legacy = await argon2.hash(PASSWORD, { type: argon2.argon2i });
+    await createCitizen({ passwordHash: legacy });
+    const verify = jest.spyOn(argon2, "verify");
+
+    await service.login({ documento: DOC, password: PASSWORD }).catch(() => {});
+
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(verify).not.toHaveBeenCalledWith(legacy, expect.anything());
   });
 });
 
@@ -319,7 +374,7 @@ describe("AuditLogger.record() -- bitacora de accesos (HT-04)", () => {
     logger.setSink((l) => lines.push(l));
     const flaky = new AuthService({
       citizenRepository: repo,
-      refreshTokenRepository: new RefreshTokenRepository(),
+      refreshSessionRepository: new RefreshSessionRepository(),
       secrets,
       auditLogger: { record: async () => { throw new Error("mongo caido"); } },
     });

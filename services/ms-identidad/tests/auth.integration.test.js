@@ -9,7 +9,7 @@ const Citizen = require("../src/domain/Citizen");
 const AuditEntry = require("../src/domain/AuditEntry");
 const CitizenRepository = require("../src/infrastructure/CitizenRepository");
 const AuditRepository = require("../src/infrastructure/AuditRepository");
-const RefreshTokenRepository = require("../src/infrastructure/RefreshTokenRepository");
+const RefreshSessionRepository = require("../src/infrastructure/RefreshSessionRepository");
 const AuditLogger = require("../src/infrastructure/AuditLogger");
 const SecretsManager = require("../src/security/SecretsManager");
 const requireAuth = require("../src/security/requireAuth");
@@ -49,7 +49,7 @@ beforeEach(() => {
   };
   app = buildApp({
     citizenSagaService: new CitizenSagaService({ citizenRepository, govCarpetaClient, eventPublisher: { publish: async () => {} }, auditLogger }),
-    authService: new AuthService({ citizenRepository, refreshTokenRepository: new RefreshTokenRepository(), secrets, auditLogger }),
+    authService: new AuthService({ citizenRepository, refreshSessionRepository: new RefreshSessionRepository(), secrets, auditLogger }),
     secrets,
   });
 });

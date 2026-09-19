@@ -31,6 +31,20 @@ class CitizenRepository {
     );
   }
 
+  /**
+   * Aceptacion ATOMICA de un login con password correcto: solo prospera si la cuenta sigue activa y NO bloqueada
+   * en este instante, y en la misma operacion pone el contador en cero. Sin esto, un login que empezo antes de que
+   * otros intentos bloquearan la cuenta usaria un estado ya viejo (la verificacion Argon2 tarda) y entraria igual.
+   * Devuelve el ciudadano actualizado, o null si ya no se puede aceptar.
+   */
+  async acceptLogin(id, now) {
+    return Citizen.findOneAndUpdate(
+      { _id: id, estado: "activo", $or: [{ bloqueadoHasta: null }, { bloqueadoHasta: { $lte: now } }] },
+      { intentosFallidos: 0, bloqueadoHasta: null },
+      { new: true }
+    );
+  }
+
   /** Login exitoso, o bloqueo ya vencido: contador en cero y sin bloqueo. */
   async resetLoginAttempts(id) {
     return Citizen.findByIdAndUpdate(id, { intentosFallidos: 0, bloqueadoHasta: null }, { new: true });

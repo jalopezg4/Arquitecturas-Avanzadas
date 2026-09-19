@@ -6,10 +6,10 @@ const { MongoMemoryServer } = require("mongodb-memory-server");
 
 const buildApp = require("../src/app");
 const Citizen = require("../src/domain/Citizen");
-const RefreshToken = require("../src/domain/RefreshToken");
+const RefreshSession = require("../src/domain/RefreshSession");
 const AuditEntry = require("../src/domain/AuditEntry");
 const CitizenRepository = require("../src/infrastructure/CitizenRepository");
-const RefreshTokenRepository = require("../src/infrastructure/RefreshTokenRepository");
+const RefreshSessionRepository = require("../src/infrastructure/RefreshSessionRepository");
 const AuditRepository = require("../src/infrastructure/AuditRepository");
 const AuditLogger = require("../src/infrastructure/AuditLogger");
 const SecretsManager = require("../src/security/SecretsManager");
@@ -44,7 +44,7 @@ beforeEach(() => {
   clock = { now: new Date() }; // hora real: los JWT validan `exp` con el reloj del sistema
   service = new AuthService({
     citizenRepository: new CitizenRepository(),
-    refreshTokenRepository: new RefreshTokenRepository(),
+    refreshSessionRepository: new RefreshSessionRepository(),
     secrets,
     auditLogger: new AuditLogger({ auditRepository: new AuditRepository() }),
     now: () => clock.now,
@@ -109,7 +109,7 @@ describe("AuthService.refresh() -- rotacion de un solo uso", () => {
 
     const err = await fail(() => service.refresh({ refreshToken: legit.refreshToken })); // el token nuevo ya no sirve
     expect(err).toBeInstanceOf(InvalidTokenError);
-    expect(await RefreshToken.countDocuments({ revokedAt: null })).toBe(0);
+    expect(await RefreshSession.countDocuments({ revokedAt: null })).toBe(0);
   });
 
   test("la reutilizacion queda en la bitacora, con accion ciudadano.refresh", async () => {
@@ -132,6 +132,69 @@ describe("AuthService.refresh() -- rotacion de un solo uso", () => {
 
     expect(results.filter((r) => r.accessToken)).toHaveLength(1);
     expect(results.filter((r) => r instanceof InvalidTokenError)).toHaveLength(4);
+    // y como hubo reutilizacion, la sesion se revoco: el refresh que se llevo el ganador tampoco sirve
+    const winner = results.find((r) => r.refreshToken);
+    expect(await fail(() => service.refresh({ refreshToken: winner.refreshToken }))).toBeInstanceOf(InvalidTokenError);
+  });
+
+  test("INTERLEAVING FORZADO: si el perdedor revoca ANTES de que el ganador termine de emitir, el token del ganador igual queda invalido", async () => {
+    await createCitizen();
+    const repo = new RefreshSessionRepository();
+    let revoked;
+    const revokedFirst = new Promise((resolve) => (revoked = resolve));
+    const realRevoke = repo.revokeAllFor.bind(repo);
+    repo.revokeAllFor = async (...args) => {
+      const n = await realRevoke(...args);
+      revoked();
+      return n;
+    };
+    // El ganador consume el token, y su emision se retiene hasta que el perdedor ya haya revocado.
+    const realRotate = repo.rotate.bind(repo);
+    repo.rotate = async (...args) => {
+      const outcome = await realRotate(...args);
+      if (outcome.status === "ok") await revokedFirst;
+      return outcome;
+    };
+    const svc = new AuthService({ citizenRepository: new CitizenRepository(), refreshSessionRepository: repo, secrets, now: () => clock.now });
+    const { refreshToken } = await svc.login({ documento: DOC, password: PASSWORD });
+
+    const results = await Promise.all([svc.refresh({ refreshToken }).catch((e) => e), svc.refresh({ refreshToken }).catch((e) => e)]);
+
+    const winner = results.find((r) => r.refreshToken);
+    expect(winner).toBeDefined(); // el ganador si recibio su par...
+    const err = await svc.refresh({ refreshToken: winner.refreshToken }).catch((e) => e);
+    expect(err).toBeInstanceOf(InvalidTokenError); // ...pero ya no le sirve
+  });
+
+  test("la reutilizacion revoca TODAS las sesiones del ciudadano, no solo la afectada (p. ej. otro dispositivo)", async () => {
+    await createCitizen();
+    const phone = await loginOk();
+    const laptop = await loginOk();
+    await service.refresh({ refreshToken: phone.refreshToken });
+
+    await fail(() => service.refresh({ refreshToken: phone.refreshToken })); // reutilizacion en el telefono
+
+    expect(await fail(() => service.refresh({ refreshToken: laptop.refreshToken }))).toBeInstanceOf(InvalidTokenError);
+    expect(await RefreshSession.countDocuments({ revokedAt: null })).toBe(0);
+  });
+
+  test("un refresh token de una sesion ya revocada se rechaza y queda en la bitacora como refresh_revocado", async () => {
+    await createCitizen();
+    const { refreshToken } = await loginOk();
+    const citizen = await Citizen.findOne();
+    await new RefreshSessionRepository().revokeAllFor(citizen._id, new Date());
+
+    expect(await fail(() => service.refresh({ refreshToken }))).toBeInstanceOf(InvalidTokenError);
+    const entry = await AuditEntry.findOne({ action: "ciudadano.refresh" }).lean();
+    expect(entry.reason).toBe("refresh_revocado");
+  });
+
+  test("un refresh token sin sesion (sin claim fam) no se canjea", async () => {
+    await createCitizen();
+    const sub = String((await Citizen.findOne())._id);
+    const noFam = secrets.sign({ typ: "refresh" }, { issuer: "ms-identidad", subject: sub, expiresIn: 900, jwtid: "abc" });
+
+    expect(await fail(() => service.refresh({ refreshToken: noFam }))).toBeInstanceOf(InvalidTokenError);
   });
 });
 
@@ -159,7 +222,7 @@ describe("AuthService.refresh() -- lo que NO se puede canjear", () => {
     await createCitizen();
     const { refreshToken } = await loginOk();
     const { sub, jti } = jwt.decode(refreshToken);
-    const disguised = secrets.sign({ typ: "access" }, { issuer: "ms-identidad", subject: sub, expiresIn: 900, jwtid: jti });
+    const disguised = secrets.sign({ typ: "access", fam: jwt.decode(refreshToken).fam }, { issuer: "ms-identidad", subject: sub, expiresIn: 900, jwtid: jti });
 
     expect(await fail(() => service.refresh({ refreshToken: disguised }))).toBeInstanceOf(InvalidTokenError);
     // y el refresh legitimo sigue sin gastarse: el rechazo fue por tipo, antes de consumirlo
@@ -169,7 +232,7 @@ describe("AuthService.refresh() -- lo que NO se puede canjear", () => {
   test("un refresh token con firma valida pero NUNCA emitido por el servicio no se acepta", async () => {
     await createCitizen();
     const sub = String((await Citizen.findOne())._id);
-    const unregistered = secrets.sign({ typ: "refresh" }, { issuer: "ms-identidad", subject: sub, expiresIn: 900, jwtid: "nunca-emitido" });
+    const unregistered = secrets.sign({ typ: "refresh", fam: "sesion-nunca-emitida" }, { issuer: "ms-identidad", subject: sub, expiresIn: 900, jwtid: "nunca-emitido" });
 
     expect(await fail(() => service.refresh({ refreshToken: unregistered }))).toBeInstanceOf(InvalidTokenError);
   });
@@ -200,17 +263,18 @@ describe("AuthService.refresh() -- lo que NO se puede canjear", () => {
 });
 
 describe("Registro de refresh tokens", () => {
-  test("solo se guarda el jti y la expiracion, nunca el token; expira con el token (indice TTL)", async () => {
+  test("solo se guardan identificadores y la expiracion, nunca el token; expira con el token (indice TTL)", async () => {
     await createCitizen();
     const { refreshToken } = await loginOk();
 
-    const stored = await RefreshToken.findOne().lean();
+    const stored = await RefreshSession.findOne().lean();
 
-    expect(stored.jti).toBe(jwt.decode(refreshToken).jti);
+    expect(stored.currentJti).toBe(jwt.decode(refreshToken).jti);
+    expect(stored.familia).toBe(jwt.decode(refreshToken).fam);
     expect(JSON.stringify(stored)).not.toContain(refreshToken);
     expect(Math.abs(stored.expiresAt.getTime() - jwt.decode(refreshToken).exp * 1000)).toBeLessThan(1000); // el JWT trunca a segundos
-    await RefreshToken.createIndexes(); // dropDatabase() de otras pruebas borra los indices; se piden de nuevo a Mongo
-    const indexes = await RefreshToken.collection.indexes();
+    await RefreshSession.createIndexes(); // dropDatabase() de otras pruebas borra los indices; se piden de nuevo a Mongo
+    const indexes = await RefreshSession.collection.indexes();
     expect(indexes.some((i) => i.key.expiresAt === 1 && i.expireAfterSeconds === 0)).toBe(true);
   });
 
@@ -218,7 +282,7 @@ describe("Registro de refresh tokens", () => {
     await createCitizen();
     const broken = new AuthService({
       citizenRepository: new CitizenRepository(),
-      refreshTokenRepository: { create: async () => { throw new Error("mongo caido"); } },
+      refreshSessionRepository: { createSession: async () => { throw new Error("mongo caido"); } },
       secrets,
     });
 

@@ -3,7 +3,7 @@ const env = require("./config/env");
 const logger = require("./tracing/logger");
 const buildApp = require("./app");
 const CitizenRepository = require("./infrastructure/CitizenRepository");
-const RefreshTokenRepository = require("./infrastructure/RefreshTokenRepository");
+const RefreshSessionRepository = require("./infrastructure/RefreshSessionRepository");
 const GovCarpetaClient = require("./infrastructure/GovCarpetaClient");
 const EventPublisher = require("./infrastructure/EventPublisher");
 const AuditLogger = require("./infrastructure/AuditLogger");
@@ -53,7 +53,7 @@ async function main() {
 
   const authService = new AuthService({
     citizenRepository,
-    refreshTokenRepository: new RefreshTokenRepository(),
+    refreshSessionRepository: new RefreshSessionRepository(),
     secrets,
     auditLogger,
     accessExpiresIn: env.jwtAccessExpiresIn,
