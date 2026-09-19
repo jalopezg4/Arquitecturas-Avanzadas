@@ -202,11 +202,11 @@ describe("DocumentService.upload() -- evento DocumentoCargado y respuesta sin es
     const [routingKey, payload] = publisher.publish.mock.calls[0];
     expect(routingKey).toBe("documento.cargado");
     expect(payload).toMatchObject({ documentoId: res.documentoId, ciudadanoId: OWNER, titulo: "Diploma de grado", entidadAvaladora: "Universidad EAFIT", estado: "temporal" });
-    expect(payload.eventId).toMatch(/^[0-9a-f-]{36}$/); // clave de idempotencia para el consumidor
+    expect(payload.eventId).toBe(res.documentoId); // deterministico: un reenvio del mismo documento es el MISMO evento
     expect(payload.cargadoEn).toBeTruthy();
   });
 
-  test("cada carga lleva un eventId distinto", async () => {
+  test("cada documento lleva un eventId distinto", async () => {
     await fill(2);
     const ids = publisher.publish.mock.calls.map((c) => c[1].eventId);
     expect(new Set(ids).size).toBe(2);

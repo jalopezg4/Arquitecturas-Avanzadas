@@ -12,6 +12,7 @@ const SecretsManager = require("./security/SecretsManager");
 const createServer = require("./transport/createServer");
 const { CitizenSagaService } = require("./application/CitizenSagaService");
 const { AuthService } = require("./application/AuthService");
+const PendingRegistrationReconciler = require("./application/PendingRegistrationReconciler");
 
 async function main() {
   await mongoose.connect(env.mongoUri);
@@ -50,6 +51,10 @@ async function main() {
     eventPublisher,
     auditLogger,
   });
+
+  if (env.reconcile.intervalMs > 0) {
+    new PendingRegistrationReconciler({ citizenRepository, govCarpetaClient, eventPublisher, auditLogger, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
+  }
 
   const authService = new AuthService({
     citizenRepository,

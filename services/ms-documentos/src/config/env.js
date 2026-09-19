@@ -52,6 +52,11 @@ const config = {
   presignedDownloadTtlSeconds: toInt(process.env.PRESIGNED_URL_DOWNLOAD_TTL_SECONDS, 60 * 60),
   // Cuanto espera la confirmacion del broker antes de responder igual (la notificacion no es camino critico, ADR-04).
   eventPublishTimeoutMs: toInt(process.env.EVENT_PUBLISH_TIMEOUT_MS, 3000),
+  // Reenvio de eventos no publicados (0 desactiva el proceso). minAge evita reenviar uno cuya publicacion sigue en curso.
+  reconcile: {
+    intervalMs: toInt(process.env.RECONCILE_INTERVAL_MS, 60000),
+    minAgeMs: toInt(process.env.RECONCILE_MIN_AGE_MS, 60000),
+  },
   tls: {
     certPath: process.env.TLS_CERT_PATH || "",
     keyPath: process.env.TLS_KEY_PATH || "",

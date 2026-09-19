@@ -1,38 +1,57 @@
 const amqp = require("amqplib");
+const logger = require("../tracing/logger");
 const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
 
 const EXCHANGE = "carpeta-ciudadana.events";
 
-// ms-documentos y ms-notificaciones aun no existen como servicios corriendo (siguientes
-// HU en el plan de trabajo), pero el evento que ms-identidad publica en HU-01 es para
-// ellos. Sin una cola ligada al topic exchange, RabbitMQ descarta el mensaje al no haber
-// nadie suscrito -- por eso se pre-declaran aqui las colas que esos servicios usaran,
-// durables y ligadas a la routing key, para que los mensajes queden esperando en cola
-// hasta que esos consumidores existan. Declarar una cola es idempotente: cuando
-// ms-documentos/ms-notificaciones se implementen y declaren la misma cola, no se duplica.
+// ms-documentos y ms-notificaciones consumen el evento `ciudadano.registrado`. Sin una cola ligada al topic exchange,
+// RabbitMQ descarta el mensaje al no haber nadie suscrito; por eso se pre-declaran aqui las colas que usan, durables y
+// ligadas a la routing key, para que los mensajes queden esperando aunque el consumidor no este corriendo. Declarar una
+// cola es idempotente.
 const ANTICIPATED_BINDINGS = [
   { queue: "ms-documentos.ciudadano-registrado", routingKey: "ciudadano.registrado" },
   { queue: "ms-notificaciones.ciudadano-registrado", routingKey: "ciudadano.registrado" },
 ];
 
 class EventPublisher {
-  constructor(rabbitUri) {
+  constructor(rabbitUri, { connect = amqp.connect } = {}) {
     this.rabbitUri = rabbitUri;
+    this._connect = connect;
     this.channel = null;
+    this._connecting = null;
   }
 
-  async connect() {
-    const conn = await amqp.connect(this.rabbitUri);
-    // Canal confirmable: publish() solo resuelve cuando el broker confirma que aceptó
-    // (y, al ser `persistent`, persistió) el mensaje -- no basta con que el buffer local
-    // lo haya aceptado para escribir en el socket.
-    this.channel = await conn.createConfirmChannel();
-    await this.channel.assertExchange(EXCHANGE, "topic", { durable: true });
-
-    for (const { queue, routingKey } of ANTICIPATED_BINDINGS) {
-      await this.channel.assertQueue(queue, { durable: true });
-      await this.channel.bindQueue(queue, EXCHANGE, routingKey);
+  /** Abre (o reutiliza la apertura en curso de) la conexion: varias publicaciones simultaneas no abren varias. */
+  connect() {
+    if (!this._connecting) {
+      this._connecting = this._open().finally(() => {
+        this._connecting = null;
+      });
     }
+    return this._connecting;
+  }
+
+  async _open() {
+    const conn = await this._connect(this.rabbitUri);
+    // Sin un oyente de "error", amqplib lo relanza como excepcion no capturada y tumba el proceso.
+    conn.on("error", (err) => logger.error("publicador.conexion_error", { err }));
+    // Canal confirmable: publish() solo resuelve cuando el broker confirma que acepto (y, al ser `persistent`,
+    // persistio) el mensaje -- no basta con que el buffer local lo haya aceptado para escribir en el socket.
+    const channel = await conn.createConfirmChannel();
+    // Si el broker se reinicia, el canal queda muerto. Se olvida para que la siguiente publicacion reconecte: sin esto
+    // TODA publicacion fallaba hasta reiniciar el servicio.
+    const forget = () => {
+      if (this.channel === channel) this.channel = null;
+    };
+    conn.on("close", forget);
+    channel.on("close", forget);
+    channel.on("error", (err) => logger.error("publicador.canal_error", { err }));
+    await channel.assertExchange(EXCHANGE, "topic", { durable: true });
+    for (const { queue, routingKey } of ANTICIPATED_BINDINGS) {
+      await channel.assertQueue(queue, { durable: true });
+      await channel.bindQueue(queue, EXCHANGE, routingKey);
+    }
+    this.channel = channel;
   }
 
   /**
@@ -42,15 +61,16 @@ class EventPublisher {
    */
   async publish(routingKey, payload) {
     if (!this.channel) await this.connect();
+    const channel = this.channel;
     return new Promise((resolve, reject) => {
-      this.channel.publish(
+      channel.publish(
         EXCHANGE,
         routingKey,
         Buffer.from(JSON.stringify(payload)),
         {
           persistent: true,
           contentType: "application/json",
-          // El consumidor (ms-documentos, ms-notificaciones) retoma este trace-id al procesar.
+          // Los consumidores (ms-documentos, ms-notificaciones) retoman este trace-id al procesar.
           headers: getTraceId() ? { [TRACE_ID_HEADER]: getTraceId() } : {},
         },
         (err) => (err ? reject(err) : resolve())

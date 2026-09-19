@@ -14,6 +14,9 @@ const citizenSchema = new mongoose.Schema(
     intentosFallidos: { type: Number, default: 0 },
     bloqueadoHasta: { type: Date, default: null },
     direccionUnica: { type: String, required: true, unique: true, immutable: true },
+    // true cuando el broker confirmo `ciudadano.registrado`; false = hay que reenviarlo (PendingRegistrationReconciler).
+    // Los ciudadanos anteriores a este campo no lo tienen y no se reenvian.
+    eventoPublicado: { type: Boolean, default: false },
     estado: {
       type: String,
       enum: ["pendiente", "activo", "transferido"],

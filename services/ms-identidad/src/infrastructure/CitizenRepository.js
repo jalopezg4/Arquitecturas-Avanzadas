@@ -55,6 +55,25 @@ class CitizenRepository {
     return Citizen.deleteOne({ _id: id, estado: "pendiente" });
   }
 
+  /** Pendientes con al menos `olderThan` de antiguedad (los recientes pueden seguir dentro de su saga). */
+  async findStalePending({ olderThan, limit }) {
+    return Citizen.find({ estado: "pendiente", createdAt: { $lte: olderThan } }).sort({ createdAt: 1 }).limit(limit).lean();
+  }
+
+  /** Pendiente -> activo de forma condicional: devuelve el ciudadano, o null si ya no estaba pendiente. */
+  async activatePending(id) {
+    return Citizen.findOneAndUpdate({ _id: id, estado: "pendiente" }, { estado: "activo" }, { new: true });
+  }
+
+  /** Activos cuyo `ciudadano.registrado` no se pudo publicar. Solo los que tienen el campo en false explicito. */
+  async findUnpublishedActive({ olderThan, limit }) {
+    return Citizen.find({ estado: "activo", eventoPublicado: false, updatedAt: { $lte: olderThan } }).sort({ updatedAt: 1 }).limit(limit);
+  }
+
+  async markEventPublished(id) {
+    await Citizen.updateOne({ _id: id }, { eventoPublicado: true });
+  }
+
   async markActive(id) {
     const citizen = await Citizen.findByIdAndUpdate(id, { estado: "activo" }, { new: true });
     if (!citizen) throw new Error("Ciudadano no encontrado al marcar activo");
