@@ -7,6 +7,8 @@ const GovCarpetaClient = require("./infrastructure/GovCarpetaClient");
 const EventPublisher = require("./infrastructure/EventPublisher");
 const AuditLogger = require("./infrastructure/AuditLogger");
 const AuditRepository = require("./infrastructure/AuditRepository");
+const SecretsManager = require("./security/SecretsManager");
+const createServer = require("./transport/createServer");
 const { CitizenSagaService } = require("./application/CitizenSagaService");
 
 async function main() {
@@ -24,6 +26,10 @@ async function main() {
       "Ver docs/GOVCARPETA_CONTRATO.md.",
     { availableStatus: env.govCarpetaAvailableStatus }
   );
+
+  // Llavero de firma JWT (lo usara el login, HU-02). Solo se registran los ids de llave, nunca el secreto.
+  const secrets = new SecretsManager({ active: env.jwtSecret, previous: env.jwtSecretPrevious });
+  logger.info("jwt.llavero", secrets.status());
 
   const citizenRepository = new CitizenRepository();
   const govCarpetaClient = new GovCarpetaClient({
@@ -44,8 +50,10 @@ async function main() {
   });
 
   const app = buildApp({ citizenSagaService });
-  app.listen(env.port, () => {
-    logger.info("ms-identidad escuchando", { port: env.port });
+  const server = createServer(app, env.tls);
+  server.listen(env.port, () => {
+    const transport = env.tls.certPath ? (env.tls.caPath ? "mTLS" : "TLS") : "http";
+    logger.info("ms-identidad escuchando", { port: env.port, transport });
   });
 }
 

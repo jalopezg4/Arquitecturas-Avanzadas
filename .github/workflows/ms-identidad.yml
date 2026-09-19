@@ -23,11 +23,12 @@ jobs:
           cache: "npm"
           cache-dependency-path: services/ms-identidad/package-lock.json
       - run: npm ci
+      - run: npm run scan:secrets
       - run: npm test
 
   build:
     needs: test
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     defaults:
       run:
