@@ -164,6 +164,20 @@ describe("CitizenSagaService.register()", () => {
     );
   });
 
+  test("el evento lleva nombre y correo (para notificar) y NUNCA el password ni su resumen", async () => {
+    const publisher = { publish: jest.fn(async () => {}) };
+    const svc = new CitizenSagaService({ citizenRepository: makeFakeRepo(), govCarpetaClient: makeFakeGovCarpeta(), eventPublisher: publisher });
+
+    await svc.register(validInput);
+
+    const [, payload] = publisher.publish.mock.calls[0];
+    expect(payload).toMatchObject({ nombre: validInput.nombre, correo: validInput.correo });
+    const dump = JSON.stringify(payload);
+    expect(dump).not.toContain(validInput.password);
+    expect(dump).not.toContain("argon2");
+    expect(Object.keys(payload).sort()).toEqual(["ciudadanoId", "correo", "direccionUnica", "documento", "nombre"]);
+  });
+
   test("NO falla el registro si eventPublisher.publish() rechaza (evento no es camino critico, ADR-04)", async () => {
     const repo = makeFakeRepo();
     const gov = makeFakeGovCarpeta();

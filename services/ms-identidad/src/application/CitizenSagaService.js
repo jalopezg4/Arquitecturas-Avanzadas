@@ -184,6 +184,10 @@ class CitizenSagaService {
         ciudadanoId: activeCitizen._id.toString(),
         documento: activeCitizen.documento,
         direccionUnica: activeCitizen.direccionUnica,
+        // Los consumidores (ms-notificaciones, ms-documentos) necesitan a quien avisar; el evento es interno (broker con
+        // TLS en despliegue) y viaja solo a colas propias. Nunca la contrasena ni su resumen.
+        nombre: activeCitizen.nombre,
+        correo: activeCitizen.correo,
       });
     } catch (err) {
       logger.error("saga.paso_fallido", {

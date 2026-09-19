@@ -1,0 +1,33 @@
+{
+  "name": "ms-notificaciones",
+  "version": "1.0.0",
+  "description": "Notificaciones por correo - Operador Carpeta Ciudadana (HU-03: confirmacion de carga; HU-01: bienvenida)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "jest",
+    "scan:secrets": "node scripts/scan-secrets.js"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.5.0",
+    "nodemailer": "^6.9.14"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^9.4.0",
+    "smtp-server": "^3.13.4",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testTimeout": 30000,
+    "maxWorkers": 2,
+    "setupFiles": [
+      "./tests/setupEnv.js"
+    ]
+  }
+}

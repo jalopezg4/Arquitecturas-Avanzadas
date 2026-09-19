@@ -15,7 +15,7 @@ Microservicios, cada uno propietario exclusivo de su base de datos. Comunicació
 | `ms-documentos` | Carga, consulta, descarga, custodia | HU-03, HU-08, HU-09, HU-10 |
 | `ms-autenticacion` | Autenticación documental con GovCarpeta | HU-04 |
 | `ms-interoperabilidad` | Transferencias entre operadores | HU-05a, HU-05b, HU-05c |
-| `ms-notificaciones` | Correo y SMS | consumidor transversal |
+| `ms-notificaciones` | Correo y SMS | consumidor transversal (HU-03 confirmación de carga, HU-01 bienvenida; solo correo por ahora) |
 | (por definir E3) | Compartición, Analítica, Premium | HU-06.x, HU-07.x |
 
 ## Decisiones clave que afectan el código (ADRs 2-6)

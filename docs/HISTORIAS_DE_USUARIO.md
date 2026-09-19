@@ -131,7 +131,7 @@ Como ciudadano quiero cargar un documento a mi carpeta, para conservarlo de form
 - ✅ Archivo se sube a object storage S3-compatible; solo se guarda la **clave**, nunca el binario, en MongoDB
 - ✅ Metadatos persistidos en estado `temporal`
 - ✅ Publica `DocumentoCargado` y responde 201 **antes** de esperar el envío de la notificación
-- 🟡 **Pendiente (siguiente PR de HU-03):** `ms-notificaciones` consume el evento de forma asíncrona e idempotente. `ms-documentos` ya publica `documento.cargado` con `eventId` y la cola durable `ms-notificaciones.documento-cargado` queda pre-declarada (verificado con RabbitMQ real: los mensajes esperan en la cola). Además, `ciudadano.registrado` **no trae el correo** del ciudadano: hay que ampliar ese evento para que el consumidor sepa a quién escribir
+- ✅ `ms-notificaciones` consume `documento.cargado` de forma asíncrona e **idempotente** (clave única por `eventId` con reclamo atómico) y envía el correo de confirmación; reintenta con retroceso exponencial y manda a cola de fallidos lo que no puede procesar. Para saber a quién escribir, `ciudadano.registrado` ahora lleva `nombre` y `correo`. Detalle en `docs/SEGURIDAD.md`, sección 8
 - ✅ Respuesta 201 `{documentoId, url}`; 403 si no es dueño; 409 si cuota llena
 
 **Tests Unitarios a implementar:**
@@ -142,7 +142,7 @@ ms-documentos: DocumentService.upload() guarda solo la clave del objeto, no el b
 ms-documentos: DocumentService.upload() persiste en estado temporal
 ms-documentos: DocumentService.upload() publica DocumentoCargado y responde sin esperar al consumidor
 ms-documentos: ObjectStorageAdapter.upload() genera clave única por ciudadano
-ms-notificaciones: consumer de DocumentoCargado envía correo de confirmación (idempotente ante reintento)
+ms-notificaciones: consumer de DocumentoCargado envía correo de confirmación (idempotente ante reintento, también con entregas simultáneas)
 POST /documents integración: 201, 403 (no dueño), 409 (cuota llena)
 ```
 
