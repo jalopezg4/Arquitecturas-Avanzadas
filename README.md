@@ -77,7 +77,7 @@ Para ver los registros de un servicio: `docker compose logs -f ms-documentos`. P
 
 ### 5. Probar el flujo completo (por el gateway, puerto 3000)
 
-Registro (consulta el sandbox real de GovCarpeta y **crea un registro real en él**: use una cédula de prueba de exactamente 10 dígitos que no esté afiliada; se da de baja con `DELETE /apis/unregisterCitizen`):
+Registro (consulta el sandbox real de GovCarpeta y **crea un registro real en él**: use una cédula de prueba que no esté afiliada (el sandbox rechaza con `501` algunas identificaciones, p. ej. de 9 dígitos, sin que esté documentada la regla); se da de baja con `DELETE /apis/unregisterCitizen`):
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/citizens -H "Content-Type: application/json"   -d '{"documento":"1000000001","nombre":"Ana Perez","direccion":"Calle 1 # 2-3","correo":"ana@ejemplo.com","password":"Clave-segura-123"}'
