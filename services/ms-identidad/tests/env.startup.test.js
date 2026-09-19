@@ -20,7 +20,7 @@ const PROD_ENV = {
 
 function loadEnvWith(vars) {
   const saved = { ...process.env };
-  for (const k of ["NODE_ENV", "JWT_SECRET", "JWT_SECRET_PREVIOUS", "GOVCARPETA_BASE_URL", "RABBITMQ_URI", "MONGO_URI", "REQUIRE_TLS", "TLS_CERT_PATH", "TLS_KEY_PATH", "PRESIGNED_URL_AUTH_TTL_SECONDS"]) {
+  for (const k of ["NODE_ENV", "JWT_SECRET", "JWT_SECRET_PREVIOUS", "GOVCARPETA_BASE_URL", "RABBITMQ_URI", "MONGO_URI", "REQUIRE_TLS", "TLS_CERT_PATH", "TLS_KEY_PATH", "PRESIGNED_URL_AUTH_TTL_SECONDS", "OPERATOR_NAME", "OPERATOR_ID"]) {
     delete process.env[k];
   }
   Object.assign(process.env, vars);
@@ -36,6 +36,19 @@ function loadEnvWith(vars) {
 }
 
 describe("arranque (env.js)", () => {
+  // registerCitizen envia este nombre a GovCarpeta: si no coincide con el registrado, el sandbox puede rechazar los registros.
+  test("sin OPERATOR_NAME usa el nombre registrado en GovCarpeta (MiFolio) y sin OPERATOR_ID queda vacio", () => {
+    const cfg = loadEnvWith({ NODE_ENV: "development" });
+    expect(cfg.operatorName).toBe("MiFolio");
+    expect(cfg.operatorId).toBe("");
+  });
+
+  test("OPERATOR_NAME y OPERATOR_ID explicitos tienen prioridad sobre los valores por defecto", () => {
+    const cfg = loadEnvWith({ NODE_ENV: "development", OPERATOR_NAME: "Otro Operador", OPERATOR_ID: "6aae9153b7655900026073f1" });
+    expect(cfg.operatorName).toBe("Otro Operador");
+    expect(cfg.operatorId).toBe("6aae9153b7655900026073f1");
+  });
+
   test("en produccion con secretos y TLS correctos arranca", () => {
     const cfg = loadEnvWith(PROD_ENV);
     expect(cfg.isLocal).toBe(false);
