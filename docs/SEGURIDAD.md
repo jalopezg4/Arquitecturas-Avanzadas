@@ -109,6 +109,22 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 
 **Configuración de producción** (validada al arrancar): `S3_ENDPOINT` con `https://`, credenciales de storage obligatorias y que no sean las de tutorial (`minioadmin`...), bucket válido, `JWT_SECRET` fuerte y **el mismo que usa `ms-identidad`**.
 
+## 8. Notificaciones: consumo de eventos y correo (`ms-notificaciones`, HU-03 y HU-01)
+
+`ms-notificaciones` no expone API de negocio: consume `documento.cargado` (confirma la carga al ciudadano, RF-21) y `ciudadano.registrado` (guarda a quién avisar y da la bienvenida). Solo publica `/health` y `/ready`.
+
+| Aspecto | Decisión |
+|---|---|
+| A quién escribir | Copia **local** (`contacts`) de lo que publica `ms-identidad`: el evento `ciudadano.registrado` ahora lleva `nombre` y `correo` (antes no, y sin ellos no había a quién avisar). Nunca lleva el password ni su resumen (hay prueba) |
+| Idempotencia (RabbitMQ entrega "al menos una vez") | Cada aviso tiene una clave **única** por evento. Se **reclama de forma atómica** antes de enviar: 10 entregas simultáneas del mismo evento mandan exactamente 1 correo. Un aviso `fallido` se retoma al reentregarse; uno `enviando` abandonado (más viejo que `NOTIFICATION_STALE_CLAIM_MS`) lo retoma otro proceso; uno `enviado` nunca se reclama de nuevo |
+| Fallo del correo | Es transitorio: el mensaje vuelve a la cola con **retroceso exponencial** (1, 2, 4… hasta 60 s) y un **tope de 8 intentos**; agotado, va a la cola de fallidos con el motivo. Sin ese tope el servicio reintentaba cada segundo para siempre (lo mostró la prueba real con el SMTP caído: 5 intentos en 14 s con retroceso, ~14 con pausa fija) |
+| Mensajes imposibles de procesar | JSON inválido, campos faltantes, ciudadano sin contacto: van **directo** a `<cola>.fallidos` (sin reintentar) con `x-motivo-fallo`. Las colas las declaran también los publicadores (para que los mensajes esperen aunque este servicio no corra) y RabbitMQ rechaza redeclararlas con otros argumentos: por eso **el propio consumidor republica** en la cola de fallidos y solo entonces hace ACK; si no puede republicar, devuelve el mensaje (nunca se pierde) |
+| Correo | Puerto `EmailSender`: `console` (desarrollo: no envía, deja el aviso en Mongo) o `smtp` (nodemailer). **Fuera de local se exige `smtp`**: con `console` un aviso se marcaría "enviado" sin que nadie lo reciba. SMTP con `starttls` **no envía en claro** si el servidor no ofrece TLS (verificado contra un SMTP real); `SMTP_SECURITY=none` está prohibido fuera de local; plazos de conexión y de socket para no colgarse |
+| Texto del ciudadano en el correo | Se sanea (sin saltos de línea ni caracteres de control) y se recorta: un título con `\r\nBcc: ...` no puede agregar encabezados. Un correo con salto de línea o con varios destinatarios se rechaza |
+| Datos personales | El registro del aviso guarda tipo, estado, intentos y **asunto**, nunca el correo ni el cuerpo. Los logs no contienen correo, nombre ni título (hay prueba) |
+| Trazabilidad | Retoma el `x-trace-id` del mensaje: el trace-id de la carga aparece en gateway, `ms-documentos` y `ms-notificaciones` |
+| Resiliencia | Si RabbitMQ cae, los consumidores **reconectan solos** con espera creciente (verificado reiniciando el broker); si no está disponible al arrancar, el servicio no cae |
+
 ## Límites (qué NO cubre)
 
 - **Sin gestor de secretos** dedicado ni rotación automática de secretos: es rotación asistida por configuración.
@@ -120,4 +136,5 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 - **Sin cierre de sesión ni revocación del access token:** un access token robado vale hasta 15 minutos. Se revocan los refresh tokens solo ante reutilización; no hay `logout` (no está en la HU).
 - **El bloqueo es por cuenta, no por origen:** un atacante que conozca un documento puede bloquear esa cuenta 15 minutos con 5 intentos (denegación temporal). No hay limitación por IP: correspondería al gateway.
 - **Documentos (HU-03):** no hay análisis antivirus ni de contenido del PDF (solo tipo, firma y tamaño); el cifrado en reposo lo da el proveedor de storage, no el servicio; si el broker falla, el evento queda marcado `eventoPublicado:false` pero **no hay aún un proceso que lo reenvíe** (reconciliación manual); un `504` del gateway con una carga ya terminada por el servicio sigue siendo posible en un caso límite (el servicio se rinde antes, por configuración, pero no está garantizado por construcción); la carga certificada por una entidad emisora (HU-10) y la eliminación de documentos (que devolvería cupo) no están implementadas.
+- **Notificaciones (HU-03):** el contador de intentos por mensaje vive en memoria (si el proceso reinicia, la cuenta vuelve a empezar; solo alarga el reintento); un aviso enviado cuyo registro `enviado` no se pudo guardar y cuyo reclamo se vuelve "abandonado" podría reenviarse una vez pasado `NOTIFICATION_STALE_CLAIM_MS` (correo duplicado, nunca perdido); solo correo (no hay SMS ni bandeja del portal); no hay reproceso automático de la cola de fallidos (es manual); la bienvenida solo se envía para ciudadanos registrados con el evento ya enriquecido (los eventos antiguos, sin correo, van a fallidos); el `ciudadano.registrado` lleva nombre y correo por el broker interno (TLS fuera de local).
 - **`ms-gateway` es mínimo:** valida tokens, enruta por lista blanca, propaga el trace-id y expone TLS/mTLS opcional, pero no hace limitación de tasa (por IP o por cliente), no tiene circuit breaker ni balanceo entre réplicas de un mismo servicio, y sus rutas están en código (`src/routes.js`), no en una configuración dinámica. Como se dijo arriba, la limitación por origen (el bloqueo de cuentas por IP) le correspondería.

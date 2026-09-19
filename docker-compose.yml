@@ -65,6 +65,29 @@ services:
       - rabbitmq
       - minio
 
+  # Avisos por correo (HU-03 confirmacion de carga; HU-01 bienvenida). Por defecto EMAIL_TRANSPORT=console: NO envia nada,
+  # solo deja constancia del aviso en Mongo. Para enviar de verdad: EMAIL_TRANSPORT=smtp y SMTP_HOST/PORT/USER/PASS
+  # (fuera de este compose el servicio exige smtp y credenciales que no sean las de un tutorial).
+  ms-notificaciones:
+    build: ./services/ms-notificaciones
+    ports:
+      - "3003:3003"
+    environment:
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017/ms-notificaciones
+      RABBITMQ_URI: amqp://rabbitmq:5672
+      OPERATOR_NAME: ${OPERATOR_NAME:-MiFolio}
+      EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-console}
+      MAIL_FROM: ${MAIL_FROM:-no-responder@carpetacolombia.co}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+    depends_on:
+      - mongo
+      - rabbitmq
+
   ms-gateway:
     build: ./services/ms-gateway
     ports:
