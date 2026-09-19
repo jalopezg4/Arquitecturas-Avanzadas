@@ -53,7 +53,31 @@ Es información pública del directorio (`GET /apis/getOperators`), no un secret
 
 **Qué se verificó y qué no.** Tras el registro, el directorio muestra **una sola** entrada `MiFolio` (72 operadores, uno más que antes) con el `_id` de arriba y los tres integrantes. El directorio **no devuelve** la dirección ni el correo de contacto, así que no se pueden comprobar desde fuera. La respuesta del `POST` **no se pudo interpretar como un id** y el script recuperó el operador del directorio (ver `docs/GOVCARPETA_CONTRATO.md`); no se conserva la respuesta cruda.
 
+## Publicar el endpoint de transferencia (HU-05b)
+
+Para que **otros operadores** puedan iniciarnos una transferencia, hay que publicar ante GovCarpeta la dirección donde recibimos (`PUT /apis/registerTransferEndPoint`). Es una operación de infraestructura, una vez por ambiente, y **requiere el `OPERATOR_ID` de HU-11**.
+
+> ⚠️ **No publicar hasta que el endpoint exista y sea alcanzable desde internet** (`transferCitizen` y `transferCitizenConfirm` son HU-05c, y hace falta una URL pública desplegada). Publicar una dirección muerta hace que otros equipos intenten transferirnos ciudadanos y fallen. El script tiene **simulación por defecto**.
+
+Desde `services/ms-interoperabilidad`, con `OPERATOR_ID` y `PUBLIC_BASE_URL` (p. ej. `https://mifolio.example.co`) en el `.env`:
+
+```bash
+npm run publish:endpoint               # simulación: valida, consulta el directorio y muestra qué enviaría
+npm run publish:endpoint -- --confirm  # publica de verdad
+```
+
+Se publican `<base>/api/transferCitizen` (`endPoint`) y `<base>/api/transferCitizenConfirm` (`endPointConfirm`, indispensable para el protocolo de dos fases aunque el Swagger no lo exija). También se pueden dar por separado con `TRANSFER_ENDPOINT_URL` y `TRANSFER_CONFIRM_URL`.
+
+| Código de salida | Significado |
+|---|---|
+| 0 | Publicado (o recuperado: la respuesta se perdió pero el directorio ya lo refleja). Si el directorio aún no lo refleja, avisa sin fallar |
+| 1 | Error (GovCarpeta rechazó con 501/500, o no respondió; no se pudo consultar el directorio) |
+| 2 | Datos inválidos: falta `OPERATOR_ID` (registra primero el operador), el operador no existe en el directorio, o una dirección es interna (`localhost`, IPs privadas, credenciales en la URL…). No se envió nada |
+| 3 | **Ya estaba publicado.** No se envió nada. Para cambiarla a propósito: `--replace` |
+
+Notas: la dirección se comprueba contra el directorio real *antes* de enviar (el `PUT` es una actualización, no un alta, pero el issue pide no duplicar); las direcciones que ven otros operadores no pueden ser internas (en desarrollo local, `ALLOW_PRIVATE_OPERATOR_URLS=true`); el arranque del servicio **no** publica nada; el cliente que escribe está separado del que solo lee el directorio.
+
 ## Después del registro
 
 - `OPERATOR_ID` en el `.env` de cada integrante → `registerCitizen` (HU-01) funciona contra el GovCarpeta real.
-- HU-05b (publicar `endPoint`/`endPointConfirm`) usa este mismo `operatorId`.
+- HU-05b (publicar `endPoint`/`endPointConfirm`, ver arriba) usa este mismo `operatorId`.

@@ -235,8 +235,11 @@ Como operador quiero consultar `GET /apis/getOperators` para saber a qué operad
 
 ### HU-05b — Publicación de endpoint de transferencia (RF-35) — 2 pts
 Como operador quiero registrar mi propio endpoint de recepción (`PUT /apis/registerTransferEndPoint`) ante MinTIC, para que otros operadores puedan iniciarme transferencias. *(Misma naturaleza operacional que HU-11 — no es un flujo iniciado por el ciudadano.)*
-- ✅ Se ejecuta una vez por ambiente, igual que HU-11
-- ✅ Falla explícitamente si el endpoint ya está publicado
+- ✅ Se ejecuta una vez por ambiente, igual que HU-11 (`npm run publish:endpoint` en `ms-interoperabilidad`, simulación por defecto; el arranque del servicio no publica nada)
+- ✅ Requiere HU-11: sin `OPERATOR_ID`, o con uno que no existe en el directorio, falla remitiendo al registro del operador y no envía nada
+- ✅ Falla explícitamente si el endpoint ya está publicado (`exit 3`, sin enviar nada; `--replace` para cambiarlo a propósito)
+- ✅ Cuerpo verificado contra el Swagger real: `{idOperator, endPoint, endPointConfirm}` con `201` (el Gherkin original decía `{operatorId, transferEndpoint}` y `200`)
+- 🟡 **Pendiente operativo:** el `PUT` real no se ha ejecutado porque aún no hay endpoint de recepción en línea (`transferCitizen` es HU-05c) ni URL pública; publicar una dirección muerta haría fallar a otros equipos. Lo verificado contra el sandbox real es la simulación (solo lectura)
 
 ### HU-05c — Transferencia con saga de dos fases (RF-07, RF-08, RF-10, RF-17, RF-18) — 8 pts
 Como ciudadano quiero que mi cambio de operador se ejecute como una transacción segura: mis documentos y metadatos viajan directo al nuevo operador, y solo me borran del anterior cuando el nuevo confirma que ya me tiene completo.
