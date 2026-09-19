@@ -156,15 +156,4 @@ describe("Registro rechazado o dudoso por GovCarpeta: no bloquea el documento (h
     expect(await Citizen.countDocuments()).toBe(1);
   });
 
-  test.each([[123456789], [12345678901], ["12345"], ["0123456789"]])("400 si el documento (%p) no tiene exactamente 10 digitos: no se consulta ni se guarda nada", async (documento) => {
-    const gov = makeFakeGovCarpeta();
-    app = buildAppWithGovCarpeta(gov);
-
-    const res = await request(app).post("/api/v1/citizens").send({ ...validBody, documento });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/10 digitos|entero positivo/);
-    expect(gov.validateCitizen).not.toHaveBeenCalled();
-    expect(await Citizen.countDocuments()).toBe(0);
-  });
 });

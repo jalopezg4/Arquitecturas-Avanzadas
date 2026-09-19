@@ -61,11 +61,6 @@ class CitizenSagaService {
     if (!isValidDocumento(documento)) {
       throw new ValidationError("documento debe ser un numero entero positivo");
     }
-    // El sandbox de GovCarpeta rechaza (501) toda identificacion que no tenga exactamente 10 digitos: se corta aqui,
-    // antes de tocar nada, en vez de descubrirlo tras persistir al ciudadano.
-    if (!/^\d{10}$/.test(String(documento).trim())) {
-      throw new ValidationError("documento debe tener exactamente 10 digitos");
-    }
     if (!isNonEmptyString(nombre)) {
       throw new ValidationError("nombre debe ser una cadena no vacia");
     }
