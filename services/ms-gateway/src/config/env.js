@@ -30,6 +30,7 @@ const config = {
   upstreams: {
     IDENTIDAD_URL: process.env.IDENTIDAD_URL || "http://localhost:3001",
     DOCUMENTOS_URL: process.env.DOCUMENTOS_URL || "http://localhost:3002",
+    COMPARTICION_URL: process.env.COMPARTICION_URL || "http://localhost:3005",
   },
   upstreamTimeoutMs: Number(process.env.UPSTREAM_TIMEOUT_MS) || 10000,
   tls: {

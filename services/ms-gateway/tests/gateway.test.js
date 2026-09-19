@@ -188,6 +188,50 @@ describe("ms-documentos: POST /api/v1/citizens/:id/documents (HU-03)", () => {
   });
 });
 
+describe("ms-comparticion: POST /api/v1/institutions (HU-06.1, publica)", () => {
+  let comp;
+  let gw;
+  beforeEach(async () => {
+    comp = await startUpstream();
+    gw = buildApp({ secrets, upstreams: { IDENTIDAD_URL: upstream.url, COMPARTICION_URL: comp.url }, issuer: "ms-identidad", timeoutMs: 2000 });
+  });
+  afterEach(async () => {
+    await comp.close();
+  });
+
+  test("se reenvia SIN exigir token (la entidad aun no tiene cuenta), a ms-comparticion y no a otro servicio", async () => {
+    await request(gw).post("/api/v1/institutions").send({ nombre: "Universidad EAFIT" }).expect(201);
+
+    expect(comp.calls).toHaveLength(1);
+    expect(comp.calls[0]).toMatchObject({ method: "POST", path: "/api/v1/institutions", body: { nombre: "Universidad EAFIT" } });
+    expect(upstream.calls).toHaveLength(0);
+  });
+
+  test("reenvia el x-registration-token intacto (el servicio decide si lo exige)", async () => {
+    await request(gw).post("/api/v1/institutions").set("x-registration-token", "un-token-de-registro").send({}).expect(201);
+    expect(comp.calls[0].headers["x-registration-token"]).toBe("un-token-de-registro");
+  });
+
+  test.each([
+    ["GET", "/api/v1/institutions"],
+    ["PUT", "/api/v1/institutions"],
+    ["DELETE", "/api/v1/institutions"],
+    ["POST", "/api/v1/institutions/abc"],
+    ["POST", "/api/v1/institutions/"],
+    ["POST", "/api/v1/institution"],
+  ])("%s %s -> 404 (solo el registro esta expuesto) y no llega al destino", async (method, path) => {
+    const res = await request(gw)[method.toLowerCase()](path).send({});
+    expect(res.status).toBe(404);
+    expect(comp.calls).toHaveLength(0);
+  });
+
+  test("sin COMPARTICION_URL configurada la ruta responde 404 y no se reenvia a otro destino", async () => {
+    const res = await request(gateway).post("/api/v1/institutions").send({});
+    expect(res.status).toBe(404);
+    expect(upstream.calls).toHaveLength(0);
+  });
+});
+
 describe("Lista blanca de rutas: lo que no esta declarado no se reenvia", () => {
   test.each([
     ["GET", "/api/v1/citizens"], // el metodo no coincide (solo POST esta declarado)

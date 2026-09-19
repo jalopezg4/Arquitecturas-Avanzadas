@@ -280,6 +280,11 @@ Como ciudadano quiero armar paquetes documentales y autorizar el envío de los d
 
 ### HU-06.1 — Registro de entidad institucional (RF-37)
 Como entidad (notaría, universidad, empresa) quiero registrarme como institución en el operador, para tener una carpeta institucional que reciba paquetes documentales. **Prerrequisito de HU-06.2.** — 5 pts
+- ✅ `POST /api/v1/institutions` (pública, por el gateway) crea la entidad y su carpeta institucional propia en **una sola escritura** (nunca hay una entidad sin carpeta); responde `201 {institutionId}`; `400` con todos los problemas; `409` si el NIT ya está registrado (índice único; 8 registros simultáneos → 1 creado)
+- ✅ NIT validado con su dígito de verificación real (módulo 11 de la DIAN); las formas con o sin puntos y con o sin dígito cuentan como el mismo NIT
+- ✅ Prerrequisito de HU-06.2: `InstitutionService.hasInstitutionalFolder({nit})` dice si la entidad tiene carpeta institucional (entrega interna) o no (envío por correo, RF-26); un NIT inválido o inexistente es "no tiene carpeta", no un error
+- 🟡 **`PackageDeliveryService`** (el test del issue *detecta si la entidad tiene carpeta institucional o no*) **pertenece a HU-06.2** (issue #55, de otro integrante): aquí queda listo lo que va a consumir, con su prueba
+- 🟡 **El registro es autodeclarado**: nadie verifica que la entidad sea quien dice (el caso de estudio no define un proceso). Cada entidad nace con `verificada: false` y existe un `REGISTRATION_TOKEN` opcional. Ver `docs/SEGURIDAD.md`, sección 10
 
 ### HU-06.2 — Creación y entrega de paquete documental (RF-24, RF-25, RF-26)
 Como ciudadano quiero seleccionar varios documentos de mi carpeta y enviarlos juntos a una entidad, entregándolos a su carpeta institucional si está afiliada (RF-25) o por correo electrónico si no lo está (RF-26). — 8 pts
