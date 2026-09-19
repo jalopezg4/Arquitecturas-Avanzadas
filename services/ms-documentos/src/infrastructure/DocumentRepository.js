@@ -9,6 +9,16 @@ class DocumentRepository {
     return Document.findById(id);
   }
 
+  /** Pagina de documentos de UN ciudadano (filtra por dueno en la consulta misma), mas recientes primero. */
+  async listByOwner(ciudadanoId, { skip, limit }) {
+    const filter = { ciudadanoId };
+    const [items, total] = await Promise.all([
+      Document.find(filter).sort({ fecha: -1, _id: -1 }).skip(skip).limit(limit).lean(),
+      Document.countDocuments(filter),
+    ]);
+    return { items, total };
+  }
+
   async markEventPublished(id) {
     await Document.updateOne({ _id: id }, { eventoPublicado: true });
   }

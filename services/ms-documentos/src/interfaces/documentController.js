@@ -5,28 +5,35 @@ const { ValidationError, UnsupportedMediaTypeError, PayloadTooLargeError, QuotaE
  * El dueno de la carpeta es quien lleva el token: /citizens/:id/documents solo acepta que :id sea el sub del
  * token. Se comprueba ANTES de leer el archivo, y un intento sobre una carpeta ajena queda en la bitacora (RNF-07).
  */
-function requireOwner(auditLogger) {
+function requireOwner(auditLogger, action = "documento.cargar") {
   return async function owner(req, res, next) {
     if (req.auth.ciudadanoId === req.params.id) return next();
     try {
       await auditLogger.record({
         actor: req.auth.ciudadanoId,
         actorType: "ciudadano",
-        action: "documento.cargar",
+        action,
         resource: `carpeta:${req.params.id}`,
         resourceOwner: req.params.id,
         outcome: "rechazo",
         reason: "no_es_dueno",
       });
     } catch (err) {
-      logger.error("audit.write_failed", { action: "documento.cargar", err });
+      logger.error("audit.write_failed", { action, err });
     }
-    return res.status(403).json({ error: "solo el dueno de la carpeta puede cargar documentos en ella" });
+    return res.status(403).json({ error: "solo el dueno de la carpeta puede acceder a sus documentos" });
   };
 }
 
 function makeDocumentController(documentService) {
   return {
+    async list(req, res, next) {
+      try {
+        return res.status(200).json(await documentService.list({ ciudadanoId: req.params.id, page: req.query.page, pageSize: req.query.pageSize }));
+      } catch (err) {
+        return next(err);
+      }
+    },
     async upload(req, res, next) {
       try {
         const body = req.body || {};

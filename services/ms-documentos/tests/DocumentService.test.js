@@ -304,3 +304,121 @@ describe("DocumentService.upload() -- bitacora (HT-04) y logs", () => {
     expect(lines.join("\n")).toContain("audit.write_failed");
   });
 });
+
+describe("DocumentService.list() -- consulta paginada (HU-08)", () => {
+  const OTHER = "6aae9153b7655900026073f2";
+  const seed = (ciudadanoId, n, extra = {}) =>
+    Document.insertMany(
+      Array.from({ length: n }, (_, i) => ({
+        ciudadanoId,
+        titulo: `Doc ${i + 1}`,
+        entidadAvaladora: "Universidad EAFIT",
+        fecha: new Date(Date.UTC(2026, 0, i + 1)),
+        estado: "temporal",
+        storageKey: `ciudadanos/${ciudadanoId}/${i}-${Math.random()}.pdf`,
+        mimeType: "application/pdf",
+        tamanoBytes: 100,
+        sha256: "a".repeat(64),
+        ...extra,
+      }))
+    );
+
+  test("devuelve SOLO los documentos del ciudadano autenticado, nunca los de otro", async () => {
+    await seed(OWNER, 3);
+    await seed(OTHER, 4);
+
+    const res = await service.list({ ciudadanoId: OWNER });
+
+    expect(res.total).toBe(3);
+    expect(res.documentos).toHaveLength(3);
+    const ajenos = new Set((await Document.find({ ciudadanoId: OTHER }).lean()).map((d) => String(d._id)));
+    expect(res.documentos.some((d) => ajenos.has(d.documentoId))).toBe(false);
+  });
+
+  test("cada item trae documentoId, titulo, estado, entidadAvaladora y fechas; NO expone la clave del storage ni la huella", async () => {
+    await seed(OWNER, 1);
+
+    const [item] = (await service.list({ ciudadanoId: OWNER })).documentos;
+
+    expect(item).toMatchObject({ titulo: "Doc 1", estado: "temporal", entidadAvaladora: "Universidad EAFIT", mimeType: "application/pdf", tamanoBytes: 100 });
+    expect(item.documentoId).toMatch(/^[0-9a-f]{24}$/);
+    expect(item.fecha).toBeInstanceOf(Date);
+    expect(item.fechaCarga).toBeInstanceOf(Date);
+    expect(Object.keys(item).sort()).toEqual(["documentoId", "entidadAvaladora", "estado", "fecha", "fechaCarga", "mimeType", "tamanoBytes", "titulo"]);
+  });
+
+  test("por defecto pagina 1 de 10; el sobrante queda en la ultima pagina; totalPages es correcto", async () => {
+    await seed(OWNER, 25);
+
+    const p1 = await service.list({ ciudadanoId: OWNER });
+    const p3 = await service.list({ ciudadanoId: OWNER, page: "3" });
+
+    expect(p1).toMatchObject({ total: 25, currentPage: 1, pageSize: 10, totalPages: 3 });
+    expect(p1.documentos).toHaveLength(10);
+    expect(p3.documentos).toHaveLength(5);
+  });
+
+  test("las paginas no repiten ni saltan documentos, de la fecha mas reciente a la mas antigua", async () => {
+    await seed(OWNER, 7);
+
+    const pages = [1, 2, 3].map((page) => service.list({ ciudadanoId: OWNER, page, pageSize: 3 }));
+    const titles = (await Promise.all(pages)).flatMap((p) => p.documentos.map((d) => d.titulo));
+
+    expect(titles).toEqual(["Doc 7", "Doc 6", "Doc 5", "Doc 4", "Doc 3", "Doc 2", "Doc 1"]);
+  });
+
+  test("pageSize maximo 100: un valor mayor se limita a 100", async () => {
+    await seed(OWNER, 120);
+
+    const res = await service.list({ ciudadanoId: OWNER, pageSize: "500" });
+
+    expect(res.pageSize).toBe(100);
+    expect(res.documentos).toHaveLength(100);
+    expect(res.totalPages).toBe(2);
+  });
+
+  test("carpeta vacia -> documentos:[] y total:0 (no es un error)", async () => {
+    await seed(OTHER, 2);
+
+    expect(await service.list({ ciudadanoId: OWNER })).toEqual({ documentos: [], total: 0, currentPage: 1, pageSize: 10, totalPages: 0 });
+  });
+
+  test("una pagina fuera de rango devuelve lista vacia con el total real", async () => {
+    await seed(OWNER, 3);
+
+    expect(await service.list({ ciudadanoId: OWNER, page: "9" })).toMatchObject({ documentos: [], total: 3, currentPage: 9, totalPages: 1 });
+  });
+
+  test("muestra tambien los certificados (el estado se ve tal cual esta guardado)", async () => {
+    await seed(OWNER, 1, { estado: "certificado" });
+    await seed(OWNER, 1);
+
+    const estados = (await service.list({ ciudadanoId: OWNER })).documentos.map((d) => d.estado).sort();
+    expect(estados).toEqual(["certificado", "temporal"]);
+  });
+
+  test.each([
+    ["page 0", { page: "0" }],
+    ["page negativa", { page: "-1" }],
+    ["page decimal", { page: "1.5" }],
+    ["page con letras", { page: "abc" }],
+    ["page en notacion cientifica", { page: "1e3" }],
+    ["page enorme", { page: "9".repeat(12) }],
+    ["pageSize 0", { pageSize: "0" }],
+    ["pageSize negativo", { pageSize: "-5" }],
+    ["pageSize no numerico", { pageSize: "diez" }],
+    ["page repetida (arreglo)", { page: ["1", "2"] }],
+    ["page como objeto (operadores de Mongo)", { page: { $gt: "" } }],
+  ])("ValidationError con %s, sin consultar la base", async (_name, params) => {
+    const spy = jest.spyOn(Document, "find");
+    await expect(service.list({ ciudadanoId: OWNER, ...params })).rejects.toThrow(ValidationError);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  test("un ciudadanoId ausente o que no es texto (p. ej. un objeto con operadores de Mongo) es ValidationError", async () => {
+    for (const ciudadanoId of [undefined, "", { $ne: null }, 42]) {
+      await expect(service.list({ ciudadanoId })).rejects.toThrow(ValidationError);
+    }
+  });
+});
