@@ -23,7 +23,7 @@ Microservicios, cada uno propietario exclusivo de su base de datos. Comunicació
 - **Persistencia**: objetivo documentado es políglota (PostgreSQL para identidad/interoperabilidad, MongoDB para el resto). **Para esta entrega usamos MongoDB en todos** — ver nota de alcance en el README principal.
 - **Seguridad (ADR-06)**: ver `docs/SEGURIDAD.md` (secretos, TLS/mTLS, rotación). Contraseñas con **Argon2id** (no bcrypt). Tokens de sesión firmados de **15 minutos** + refresh token de vigencia mayor. Autorización verificada en cada microservicio, no solo en el gateway. URLs prefirmadas de vigencia limitada para exponer archivos a terceros (GovCarpeta: 15 min; descarga propia del ciudadano: 1 hora).
 - **Comunicación asíncrona y saga (ADR-04)**: el registro de ciudadano (HU-01) es una **saga orquestada por ms-identidad** con compensación explícita (`unregisterCitizen` si algo falla después de confirmar en GovCarpeta). Todo lo que no es camino crítico va por evento (RabbitMQ), con reintentos y cola de mensajes fallidos.
-- **Object storage**: compatible S3, solo se guarda la clave del objeto en la base de datos, nunca el binario.
+- **Object storage**: compatible S3, solo se guarda la clave del objeto en la base de datos, nunca el binario. En desarrollo local es **MinIO** (`quay.io/minio/minio`, ya no se publica en Docker Hub); en despliegue, S3 u otro proveedor compatible. Detalle de la carga en `docs/SEGURIDAD.md`, sección 7.
 
 ## Matriz de degradación (sección 4.5 del expediente)
 

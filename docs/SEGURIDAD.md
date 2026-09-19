@@ -86,6 +86,29 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 - **No parsea el cuerpo:** pasa como flujo hacia el servicio destino, sin reescribirlo.
 - **Servicios nuevos:** agregar la URL en `src/config/env.js` (`upstreams`) y sus rutas en `src/routes.js`. Todo lo que no se declare queda cerrado por defecto.
 
+## 7. Documentos: carga (`ms-documentos`, HU-03)
+
+`POST /api/v1/citizens/:id/documents` (multipart: campo `archivo` + `titulo`, `entidadAvaladora`, `fecha`, opcional `solicitudId`) responde `201 {documentoId, url}`.
+
+**Orden de las barreras** (quien no debe no hace que el servicio lea nada): 1) token válido, **revalidado en este servicio** además del gateway (ADR-06) → 2) el `sub` del token debe ser el `:id` de la carpeta, si no `403` y queda en la bitácora como `no_es_dueno` (RNF-07) → 3) recién entonces se lee el archivo → 4) validación → 5) cuota → 6) storage.
+
+| Aspecto | Decisión |
+|---|---|
+| Tipo de archivo | Solo PDF. Se exige el tipo declarado **y** la firma real (`%PDF-`): un ejecutable renombrado se rechaza (`415`) |
+| Tamaño | `MAX_UPLOAD_BYTES` (10 MB por defecto, tope duro 50 MB) → `413`. Un solo archivo, campo `archivo`; más archivos o campos → `400` |
+| Clave en el storage | `ciudadanos/<ciudadanoId>/<uuid>.pdf`. **Nada que envíe el usuario** (nombre de archivo, título) entra en la clave: sin recorrido de rutas ni colisiones entre ciudadanos |
+| Qué se guarda en Mongo | Solo metadatos y la **clave** del objeto, nunca el binario. Además la huella SHA-256 (base de la autenticación, HU-04) |
+| Cuota (RNF-04) | `QUOTA_NO_CERTIFICADOS` (5) por ciudadano, solo para documentos `temporal`; los `certificado` no cuentan. El cupo se **reserva de forma atómica** antes de subir nada (contador en Mongo con incremento condicional): 10 cargas simultáneas con cuota 5 dan exactamente 5 éxitos y 5 `409`, y el rechazado nunca sube el archivo |
+| Fallos a mitad de camino | Compensación: si falla el storage se devuelve el cupo (`503`); si falla guardar los metadatos se **borra el objeto** subido y se devuelve el cupo |
+| URL de descarga | Prefirmada, **1 hora como máximo** (ADR-06), firmada para el endpoint *público* del storage. Alterar la clave da `403` |
+| Evento `documento.cargado` | Se publica **después** de guardar; la respuesta no espera al consumidor. Si el broker no confirma en `EVENT_PUBLISH_TIMEOUT_MS` o lo rechaza, la carga **no falla** (ADR-04): el documento queda con `eventoPublicado: false` para reconciliar. Lleva un `eventId` para que el consumidor sea idempotente |
+| Trazabilidad | `multer` procesa el cuerpo con eventos de stream que salen del contexto asíncrono; se **restaura** el trace-id después de leer el archivo (si no, el servicio, los logs y la bitácora lo perdían: lo detectó una prueba) |
+| Logs y bitácora | Sin título, entidad ni contenido; solo identificadores |
+
+**El storage debe rendirse antes que el gateway.** El SDK de S3 reintenta por defecto durante mucho más que el plazo del gateway (10 s) y, además, **solo avisa** al pasarse del `requestTimeout` sin abortar la petición: con el storage caído el cliente veía un `504` y la carga terminaba igual cuando el storage volvía (un reintento del cliente habría duplicado el documento y la cuota). Ahora el cliente S3 usa 2 intentos, `throwOnRequestTimeout` y plazos cortos (`S3_CONNECT_TIMEOUT_MS`, `S3_REQUEST_TIMEOUT_MS`), y el arranque **rechaza** una configuración cuyos 2 intentos no quepan antes del gateway. Verificado con MinIO real: con el storage caído responde `503` en 3–6 s, la cuota queda exacta y no aparecen documentos fantasma.
+
+**Configuración de producción** (validada al arrancar): `S3_ENDPOINT` con `https://`, credenciales de storage obligatorias y que no sean las de tutorial (`minioadmin`...), bucket válido, `JWT_SECRET` fuerte y **el mismo que usa `ms-identidad`**.
+
 ## Límites (qué NO cubre)
 
 - **Sin gestor de secretos** dedicado ni rotación automática de secretos: es rotación asistida por configuración.
@@ -96,4 +119,5 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 - **Llave simétrica compartida (HS256):** todo servicio que verifica tokens conoce la llave que también firma. Un servicio comprometido podría emitir tokens. Pasar a llaves asimétricas (RS256/ES256, con clave pública en cada servicio) es la mejora natural; queda fuera de esta entrega.
 - **Sin cierre de sesión ni revocación del access token:** un access token robado vale hasta 15 minutos. Se revocan los refresh tokens solo ante reutilización; no hay `logout` (no está en la HU).
 - **El bloqueo es por cuenta, no por origen:** un atacante que conozca un documento puede bloquear esa cuenta 15 minutos con 5 intentos (denegación temporal). No hay limitación por IP: correspondería al gateway.
+- **Documentos (HU-03):** no hay análisis antivirus ni de contenido del PDF (solo tipo, firma y tamaño); el cifrado en reposo lo da el proveedor de storage, no el servicio; si el broker falla, el evento queda marcado `eventoPublicado:false` pero **no hay aún un proceso que lo reenvíe** (reconciliación manual); un `504` del gateway con una carga ya terminada por el servicio sigue siendo posible en un caso límite (el servicio se rinde antes, por configuración, pero no está garantizado por construcción); la carga certificada por una entidad emisora (HU-10) y la eliminación de documentos (que devolvería cupo) no están implementadas.
 - **`ms-gateway` es mínimo:** valida tokens, enruta por lista blanca, propaga el trace-id y expone TLS/mTLS opcional, pero no hace limitación de tasa (por IP o por cliente), no tiene circuit breaker ni balanceo entre réplicas de un mismo servicio, y sus rutas están en código (`src/routes.js`), no en una configuración dinámica. Como se dijo arriba, la limitación por origen (el bloqueo de cuentas por IP) le correspondería.
