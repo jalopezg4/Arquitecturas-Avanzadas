@@ -50,6 +50,26 @@ Crear un segundo usuario con los mismos permisos, desplegar con sus credenciales
 
 Política de expiración configurable y validada al arrancar: `PRESIGNED_URL_AUTH_TTL_SECONDS` (autenticación en GovCarpeta, tope 900 s) y `PRESIGNED_URL_DOWNLOAD_TTL_SECONDS` (descarga del ciudadano, tope 3600 s). Un valor por encima del tope impide arrancar. Todavía no existe almacenamiento de objetos: HU-03/HU-04/HU-09 deben leer estos valores, y el bucket debe configurar su propia política.
 
+## 5. Sesiones: login, tokens y bloqueo (HU-02)
+
+`POST /api/v1/auth/login` recibe `{documento, password}` y responde `200 {accessToken, refreshToken, expiresIn: 900}` (con `Cache-Control: no-store`).
+
+| Aspecto | Decisión |
+|---|---|
+| Contraseña | Se verifica con **Argon2id** contra el resumen guardado. Nunca se guarda ni se registra la contraseña |
+| Access token | JWT de **15 minutos** (`typ: access`). `JWT_ACCESS_EXPIRES_IN` no puede superar 15 m: el servicio **no arranca** si se configura más (p. ej. `24h`) |
+| Refresh token | JWT de mayor vigencia (`JWT_REFRESH_EXPIRES_IN`, 7 d por defecto; debe ser mayor que el de acceso). **Un solo uso**: `POST /api/v1/auth/refresh` lo canjea por un par nuevo |
+| Contenido del token | `sub` = id interno del ciudadano, `iss`, `typ`, `jti`. **No** lleva documento, correo ni nada personal (un JWT está firmado, no cifrado) |
+| Error de credenciales | Siempre `401 {"error":"credenciales invalidas"}`, sin distinguir documento inexistente, contraseña incorrecta, cuenta bloqueada o no activa |
+| Enumeración por tiempo | Si el documento no existe se verifica igual contra un resumen Argon2id descartable: la respuesta tarda lo mismo |
+| Bloqueo | Al **5.º intento fallido** la cuenta se bloquea **15 minutos**. Durante el bloqueo hasta la contraseña correcta se rechaza (mismo 401), **sin contar más intentos** (así un atacante no puede mantener bloqueada a la víctima indefinidamente). Al vencer, el contador empieza de cero |
+| Atomicidad | El contador y el bloqueo se actualizan en una sola operación de Mongo; intentos simultáneos no se pierden (probado con 8 fallos en paralelo) |
+| Bitácora | Cada intento queda en `audit_logs` (`ciudadano.login`): éxito, fallo, rechazo (`cuenta_bloqueada`, `estado_*`, `documento_no_registrado`) con el `traceId` |
+
+**Rotación del refresh token.** Cada refresh token tiene un `jti` que se registra al emitirlo (`refreshtokens`, índice TTL que lo purga al expirar; solo el `jti`, nunca el token). Al canjearlo se marca como usado de forma atómica. Si alguien presenta un refresh token **ya usado**, se interpreta como posible robo: se **revocan todos** los refresh tokens del ciudadano, se registra `refresh_reutilizado` en la bitácora y hay que iniciar sesión de nuevo. Una cuenta bloqueada o que ya no está `activa` (p. ej. transferida) tampoco renueva sesión. Consecuencia conocida: dos canjes simultáneos del mismo token hacen que uno gane y el otro dispare la revocación (mejor cerrar sesiones de más que dejar un token robado vivo).
+
+**Cada servicio valida el token por sí mismo (ADR-06).** `src/security/requireAuth.js` verifica firma (llavero de la sección 3, algoritmo fijado a HS256), expiración, emisor y que sea un token de **acceso**: un refresh token no sirve para llamar a la API. Cada microservicio debe montarlo con **su propio** `SecretsManager` (misma llave compartida), sin llamar a `ms-identidad` ni confiar en que el gateway ya validó. Probado con un segundo servicio simulado: acepta el token válido (también tras rotar la llave), rechaza el expirado, el firmado con otra llave, `alg=none`, el alterado y el refresh.
+
 ## Límites (qué NO cubre)
 
 - **Sin gestor de secretos** dedicado ni rotación automática de secretos: es rotación asistida por configuración.
@@ -57,3 +77,7 @@ Política de expiración configurable y validada al arrancar: `PRESIGNED_URL_AUT
 - **Solo `ms-identidad`**: el criterio "credenciales por servicio" y el tráfico entre servicios reales no se pueden demostrar hasta que existan otros servicios.
 - El escáner detecta patrones comunes, no todo secreto posible; no sustituye una revisión ni un escáner de historial de git.
 - Las URLs prefirmadas están solo como política de configuración, sin uso todavía.
+- **Llave simétrica compartida (HS256):** todo servicio que verifica tokens conoce la llave que también firma. Un servicio comprometido podría emitir tokens. Pasar a llaves asimétricas (RS256/ES256, con clave pública en cada servicio) es la mejora natural; queda fuera de esta entrega.
+- **Sin cierre de sesión ni revocación del access token:** un access token robado vale hasta 15 minutos. Se revocan los refresh tokens solo ante reutilización; no hay `logout` (no está en la HU).
+- **El bloqueo es por cuenta, no por origen:** un atacante que conozca un documento puede bloquear esa cuenta 15 minutos con 5 intentos (denegación temporal). No hay limitación por IP: correspondería al gateway.
+- **`ms-gateway` aún no existe:** el middleware de token está listo y probado, pero la validación en el gateway se podrá probar cuando el servicio exista.

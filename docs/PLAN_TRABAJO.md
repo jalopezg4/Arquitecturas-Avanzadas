@@ -73,7 +73,9 @@ Requiere las Fases 1 y 2 completadas.
 | 3 | Tomás Echavarría Gil | 37 |
 | **Total pendiente** | | **112** |
 
-Puntos ya completados (HU-01, HT-01, HT-08): 21. **Total del proyecto: 133 puntos.**
+Puntos ya completados fuera de las fases (HU-01, HT-01, HT-08): 21. **Total del proyecto: 133 puntos.**
+
+**Avance de la Fase 1:** HT-04 (3), HT-06 (5), HT-07 (3) y HU-02 (5) = 16 de 41 puntos. HU-11 (2 pts) tiene el script listo y mergeado; falta ejecutar el registro real del operador antes de darla por completa.
 
 ## Regla de ejecución
 

@@ -80,12 +80,14 @@ Como ciudadano ya registrado quiero iniciar sesión con mis credenciales, para a
 
 **Criterios de Aceptación:**
 - ✅ Password se verifica con **Argon2id**, no bcrypt
-- ✅ Token de acceso expira en **15 minutos** (no 24h); token de renovación con vigencia mayor y de un solo uso por rotación
-- ✅ Middleware de `ms-gateway` valida el token, y **cada microservicio lo vuelve a validar** (autorización no delegada solo al gateway — ADR-06)
+- ✅ Token de acceso expira en **15 minutos** (no 24h; el servicio no arranca si se configura más); token de renovación con vigencia mayor y de un solo uso por rotación (`POST /api/v1/auth/refresh`, con detección de reutilización)
+- 🟡 **Parcial:** el middleware `requireAuth` (verifica firma, expiración, emisor y tipo de token) está implementado y probado en `ms-identidad` y contra un segundo servicio simulado con su propio llavero (revalidación independiente, ADR-06). **`ms-gateway` no existe todavía**, así que la validación en el gateway queda pendiente hasta que se cree el servicio
 - ✅ Respuesta 401 genérica sin distinguir "usuario no existe" de "password incorrecta"
-- ✅ Contador de intentos fallidos por ciudadano; bloqueo temporal al 5º intento
-- ✅ Registro en bitácora: ciudadano, timestamp, resultado (éxito/fallo)
+- ✅ Contador de intentos fallidos por ciudadano; bloqueo de 15 minutos al 5º intento (atómico; durante el bloqueo no se cuentan más intentos)
+- ✅ Registro en bitácora: ciudadano, timestamp, resultado (éxito/fallo/rechazo) y `traceId`
 - ✅ No involucra a GovCarpeta ni a la Registraduría (operación 100% local)
+
+Detalle de las decisiones de seguridad (tiempo uniforme, bloqueo, rotación, límites): `docs/SEGURIDAD.md`, sección 5.
 
 **Tests Unitarios a implementar:**
 ```

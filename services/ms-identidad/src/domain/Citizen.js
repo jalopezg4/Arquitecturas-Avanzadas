@@ -9,6 +9,10 @@ const citizenSchema = new mongoose.Schema(
     direccion: { type: String, required: true },
     correo: { type: String, required: true },
     passwordHash: { type: String, required: true },
+    // HU-02: proteccion contra fuerza bruta. El contador y el bloqueo se actualizan de forma
+    // atomica en CitizenRepository (nunca leer-modificar-guardar: dos intentos simultaneos se perderian).
+    intentosFallidos: { type: Number, default: 0 },
+    bloqueadoHasta: { type: Date, default: null },
     direccionUnica: { type: String, required: true, unique: true, immutable: true },
     estado: {
       type: String,
