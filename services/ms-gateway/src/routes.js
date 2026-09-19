@@ -14,6 +14,9 @@ const ROUTES = [
   { method: "POST", path: "/api/v1/auth/refresh", upstream: "IDENTIDAD_URL", public: true },
   // ms-identidad -- protegidas
   { method: "GET", path: "/api/v1/auth/me", upstream: "IDENTIDAD_URL" },
+  // ms-comparticion -- HU-06.1: registro de una entidad institucional. Publica (la entidad aun no tiene cuenta con nosotros);
+  // el servicio puede exigir un token de registro (x-registration-token), que el gateway reenvia intacto.
+  { method: "POST", path: "/api/v1/institutions", upstream: "COMPARTICION_URL", public: true },
   // ms-documentos -- HU-03: carga de un documento a la carpeta del ciudadano (el servicio verifica que :id sea el del token)
   { method: "POST", pattern: /^\/api\/v1\/citizens\/[A-Za-z0-9_-]{1,64}\/documents$/, upstream: "DOCUMENTOS_URL" },
 ];

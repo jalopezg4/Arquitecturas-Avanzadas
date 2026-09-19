@@ -28,6 +28,7 @@ Microservicios (ADR-01 del expediente), cada uno dueño exclusivo de su base de 
 | `services/ms-autenticacion` | ⏳ Por empezar | HU-04 |
 | `services/ms-interoperabilidad` | 🚧 En progreso (HU-05a: directorio de operadores) | HU-05a, HU-05b, HU-05c |
 | `services/ms-notificaciones` | 🚧 En progreso (correo: confirmación de carga y bienvenida) | consumidor de eventos |
+| `services/ms-comparticion` | 🚧 En progreso (HU-06.1: registro de entidades institucionales) | HU-06.1, HU-06.2, HU-06.3, HU-06.4 |
 
 ## Cómo correr localmente
 

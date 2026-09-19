@@ -101,6 +101,19 @@ services:
     depends_on:
       - mongo
 
+  # Comparticion autorizada de documentos (HU-06.1: registro de entidades institucionales). REGISTRATION_TOKEN es opcional:
+  # si se define, POST /api/v1/institutions exige el encabezado x-registration-token (vacio = registro abierto).
+  ms-comparticion:
+    build: ./services/ms-comparticion
+    ports:
+      - "3005:3005"
+    environment:
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017/ms-comparticion
+      REGISTRATION_TOKEN: ${REGISTRATION_TOKEN:-}
+    depends_on:
+      - mongo
+
   ms-gateway:
     build: ./services/ms-gateway
     ports:
@@ -111,10 +124,12 @@ services:
       NODE_ENV: development
       IDENTIDAD_URL: http://ms-identidad:3001
       DOCUMENTOS_URL: http://ms-documentos:3002
+      COMPARTICION_URL: http://ms-comparticion:3005
       JWT_SECRET: ${JWT_SECRET:-}
     depends_on:
       - ms-identidad
       - ms-documentos
+      - ms-comparticion
 
 volumes:
   minio-data:
