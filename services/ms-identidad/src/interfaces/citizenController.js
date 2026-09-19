@@ -1,3 +1,4 @@
+const logger = require("../tracing/logger");
 const { ValidationError, ConflictError, ServiceUnavailableError } = require("../application/CitizenSagaService");
 
 function makeCitizenController(citizenSagaService) {
@@ -10,8 +11,7 @@ function makeCitizenController(citizenSagaService) {
         if (err instanceof ValidationError) return res.status(400).json({ error: err.message });
         if (err instanceof ConflictError) return res.status(409).json({ error: err.message });
         if (err instanceof ServiceUnavailableError) return res.status(503).json({ error: err.message });
-        // eslint-disable-next-line no-console
-        console.error("Error inesperado en registro de ciudadano:", err);
+        logger.error("registro.error_inesperado", { err });
         return res.status(500).json({ error: "Error interno" });
       }
     },

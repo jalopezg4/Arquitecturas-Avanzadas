@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const env = require("./config/env");
+const logger = require("./tracing/logger");
 const buildApp = require("./app");
 const CitizenRepository = require("./infrastructure/CitizenRepository");
 const GovCarpetaClient = require("./infrastructure/GovCarpetaClient");
@@ -12,10 +13,7 @@ async function main() {
   await mongoose.connect(env.mongoUri);
 
   if (!env.operatorId) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      "OPERATOR_ID no esta configurado -- registerCitizen/authenticateDocument fallaran contra GovCarpeta real. Completar HU-11 primero."
-    );
+    logger.warn("OPERATOR_ID no esta configurado -- registerCitizen/authenticateDocument fallaran contra GovCarpeta real. Completar HU-11 primero.");
   }
 
   const citizenRepository = new CitizenRepository();
@@ -38,13 +36,11 @@ async function main() {
 
   const app = buildApp({ citizenSagaService });
   app.listen(env.port, () => {
-    // eslint-disable-next-line no-console
-    console.log(`ms-identidad escuchando en puerto ${env.port}`);
+    logger.info("ms-identidad escuchando", { port: env.port });
   });
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error("Fallo al iniciar ms-identidad:", err);
+  logger.error("Fallo al iniciar ms-identidad", { err });
   process.exit(1);
 });

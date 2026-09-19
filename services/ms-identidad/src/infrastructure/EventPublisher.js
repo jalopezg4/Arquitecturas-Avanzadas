@@ -1,4 +1,5 @@
 const amqp = require("amqplib");
+const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
 
 const EXCHANGE = "carpeta-ciudadana.events";
 
@@ -46,7 +47,12 @@ class EventPublisher {
         EXCHANGE,
         routingKey,
         Buffer.from(JSON.stringify(payload)),
-        { persistent: true, contentType: "application/json" },
+        {
+          persistent: true,
+          contentType: "application/json",
+          // El consumidor (ms-documentos, ms-notificaciones) retoma este trace-id al procesar.
+          headers: getTraceId() ? { [TRACE_ID_HEADER]: getTraceId() } : {},
+        },
         (err) => (err ? reject(err) : resolve())
       );
     });

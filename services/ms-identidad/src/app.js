@@ -1,10 +1,12 @@
 const express = require("express");
 const citizenRoutes = require("./interfaces/citizenRoutes");
+const tracingMiddleware = require("./tracing/tracingMiddleware");
 const makeCitizenController = require("./interfaces/citizenController");
 
 /** Ensambla la app de Express inyectando dependencias -- facil de testear con supertest. */
 function buildApp({ citizenSagaService }) {
   const app = express();
+  app.use(tracingMiddleware);
   app.use(express.json());
 
   app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));

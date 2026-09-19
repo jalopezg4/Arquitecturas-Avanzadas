@@ -1,5 +1,6 @@
 const argon2 = require("argon2");
 const crypto = require("crypto");
+const logger = require("../tracing/logger");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -89,8 +90,7 @@ class CitizenSagaService {
         reason,
       });
     } catch (auditErr) {
-      // eslint-disable-next-line no-console
-      console.error(`No se pudo registrar en bitacora ciudadano.registrar (${documento}):`, auditErr);
+      logger.error("audit.write_failed", { action: "ciudadano.registrar", err: auditErr });
     }
   }
 
@@ -111,8 +111,10 @@ class CitizenSagaService {
   }
 
   async _runSaga({ documento, nombre, direccion, correo, password }) {
+    logger.info("saga.registro.inicio");
     const existing = await this.citizenRepository.findByDocumento(documento);
     if (existing) {
+      logger.warn("saga.registro.rechazado", { step: "documento_local", reason: "ya_registrado" });
       throw new ConflictError("El documento ya esta registrado");
     }
 
@@ -121,9 +123,11 @@ class CitizenSagaService {
     try {
       validation = await this.govCarpetaClient.validateCitizen(documento);
     } catch (err) {
+      logger.error("saga.paso_fallido", { step: "govcarpeta.validateCitizen", err });
       throw new ServiceUnavailableError("GovCarpeta no disponible");
     }
     if (!validation.available) {
+      logger.warn("saga.registro.rechazado", { step: "govcarpeta.validateCitizen", reason: "ya_afiliado" });
       throw new ConflictError("El ciudadano ya esta afiliado a otro operador");
     }
 
@@ -139,6 +143,7 @@ class CitizenSagaService {
       direccionUnica,
       estado: "pendiente",
     });
+    logger.info("saga.paso_ok", { step: "persistir_pendiente", ciudadanoId: citizen._id.toString() });
 
     // Paso 3: confirmar en GovCarpeta
     try {
@@ -151,6 +156,7 @@ class CitizenSagaService {
     } catch (err) {
       // No se pudo confirmar: el ciudadano se queda pendiente (no huerfano, no activo).
       // No hace falta compensacion porque GovCarpeta nunca lo acepto.
+      logger.error("saga.paso_fallido", { step: "govcarpeta.registerCitizen", err });
       throw new ServiceUnavailableError("No fue posible completar el registro en GovCarpeta");
     }
 
@@ -158,7 +164,10 @@ class CitizenSagaService {
     let activeCitizen;
     try {
       activeCitizen = await this.citizenRepository.markActive(citizen._id);
+      logger.info("saga.paso_ok", { step: "marcar_activo" });
     } catch (err) {
+      logger.error("saga.paso_fallido", { step: "marcar_activo", err });
+      logger.warn("saga.compensacion", { step: "govcarpeta.unregisterCitizen" });
       // Fallo DESPUES de que GovCarpeta ya confirmo: aqui si se necesita compensacion.
       await this.govCarpetaClient.unregisterCitizen(documento).catch(() => {
         /* best-effort; queda para reconciliacion/alerta a soporte */
@@ -177,13 +186,15 @@ class CitizenSagaService {
         direccionUnica: activeCitizen.direccionUnica,
       });
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(
-        `No se pudo publicar ciudadano.registrado para ${activeCitizen._id}; requiere reconciliacion:`,
-        err
-      );
+      logger.error("saga.paso_fallido", {
+        step: "publicar_evento",
+        ciudadanoId: activeCitizen._id.toString(),
+        note: "requiere reconciliacion",
+        err,
+      });
     }
 
+    logger.info("saga.registro.completo", { ciudadanoId: activeCitizen._id.toString() });
     return { ciudadanoId: activeCitizen._id.toString(), direccionUnica: activeCitizen.direccionUnica };
   }
 }
