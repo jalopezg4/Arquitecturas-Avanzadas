@@ -72,6 +72,20 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 
 **Cada servicio valida el token por sí mismo (ADR-06).** `src/security/requireAuth.js` verifica firma (llavero de la sección 3, algoritmo fijado a HS256), expiración, emisor y que sea un token de **acceso**: un refresh token no sirve para llamar a la API. Cada microservicio debe montarlo con **su propio** `SecretsManager` (misma llave compartida), sin llamar a `ms-identidad` ni confiar en que el gateway ya validó. Probado con un segundo servicio simulado: acepta el token válido (también tras rotar la llave), rechaza el expirado, el firmado con otra llave, `alg=none`, el alterado y el refresh.
 
+## 6. Gateway (`ms-gateway`, HU-02)
+
+Único punto de entrada. Por cada petición: asigna o propaga el `x-trace-id`, busca la ruta en una **lista blanca** (`src/routes.js`; lo que no está declarado responde `404` y **nunca se reenvía**, tampoco por otro método), y si la ruta no es pública exige un **access token válido antes de contactar al servicio** (mismo criterio que `requireAuth`: firma, expiración, emisor y tipo de token). Luego reenvía la petición con el `Authorization` intacto: **cada microservicio vuelve a validarlo** (ADR-06), el gateway es la primera barrera y no la única.
+
+| Ruta | Acceso |
+|---|---|
+| `POST /api/v1/citizens`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh` | públicas (no se puede exigir token para pedirlo ni para registrarse) |
+| `GET /api/v1/auth/me` | requiere access token |
+
+- **Misma llave que `ms-identidad`:** `JWT_SECRET` (y `JWT_SECRET_PREVIOUS` durante una rotación) debe ser idéntica; el gateway usa el mismo `SecretsManager` y la misma validación de arranque (fallo cerrado, sin `NODE_ENV` no arranca, llave débil rechazada fuera de local). Al rotar, el orden de la sección 3 aplica también al gateway.
+- **Errores del destino:** destino caído → `502`, sin respuesta a tiempo → `504` (`UPSTREAM_TIMEOUT_MS`), siempre `{"error":"servicio no disponible"}` sin filtrar host, puerto ni traza.
+- **No parsea el cuerpo:** pasa como flujo hacia el servicio destino, sin reescribirlo.
+- **Servicios nuevos:** agregar la URL en `src/config/env.js` (`upstreams`) y sus rutas en `src/routes.js`. Todo lo que no se declare queda cerrado por defecto.
+
 ## Límites (qué NO cubre)
 
 - **Sin gestor de secretos** dedicado ni rotación automática de secretos: es rotación asistida por configuración.
@@ -82,4 +96,4 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 - **Llave simétrica compartida (HS256):** todo servicio que verifica tokens conoce la llave que también firma. Un servicio comprometido podría emitir tokens. Pasar a llaves asimétricas (RS256/ES256, con clave pública en cada servicio) es la mejora natural; queda fuera de esta entrega.
 - **Sin cierre de sesión ni revocación del access token:** un access token robado vale hasta 15 minutos. Se revocan los refresh tokens solo ante reutilización; no hay `logout` (no está en la HU).
 - **El bloqueo es por cuenta, no por origen:** un atacante que conozca un documento puede bloquear esa cuenta 15 minutos con 5 intentos (denegación temporal). No hay limitación por IP: correspondería al gateway.
-- **`ms-gateway` aún no existe:** el middleware de token está listo y probado, pero la validación en el gateway se podrá probar cuando el servicio exista.
+- **`ms-gateway` es mínimo:** valida tokens, enruta por lista blanca, propaga el trace-id y expone TLS/mTLS opcional, pero no hace limitación de tasa (por IP o por cliente), no tiene circuit breaker ni balanceo entre réplicas de un mismo servicio, y sus rutas están en código (`src/routes.js`), no en una configuración dinámica. Como se dijo arriba, la limitación por origen (el bloqueo de cuentas por IP) le correspondería.

@@ -10,7 +10,7 @@ Microservicios, cada uno propietario exclusivo de su base de datos. Comunicació
 
 | Microservicio | Responsabilidad | Historias |
 |---|---|---|
-| `ms-gateway` | Enrutamiento, TLS, validación JWT | — |
+| `ms-gateway` | Enrutamiento, TLS, validación JWT | HU-02 (validación de token; ver `docs/SEGURIDAD.md`, sección 6) |
 | `ms-identidad` | Registro, login, portabilidad | HU-01, HU-02, HU-11 |
 | `ms-documentos` | Carga, consulta, descarga, custodia | HU-03, HU-08, HU-09, HU-10 |
 | `ms-autenticacion` | Autenticación documental con GovCarpeta | HU-04 |
