@@ -336,12 +336,12 @@ Como operador Premium quiero solicitar documentos a clientes sin importar en qu�
 Como ciudadano quiero consultar los documentos almacenados en mi carpeta, para saber qué tengo disponible antes de compartirlo o descargarlo.
 
 **Criterios de Aceptación:**
-- ✅ `GET /api/v1/citizens/{id}/documents` requiere JWT revalidado en `ms-documentos` (no solo en el gateway)
+- ✅ `GET /api/v1/citizens/{id}/documents` requiere JWT revalidado en `ms-documentos` (no solo en el gateway); el gateway lo expone como ruta protegida
 - ✅ Ownership check: un ciudadano solo consulta su propia carpeta
-- ✅ Paginación: `page` (default 1), `pageSize` (default 10, máx. 100)
-- ✅ Cada elemento incluye: documentoId, título, estado (`temporal`/`en autenticación`/`certificado`), entidad avaladora, fechas (RF-19, RF-20)
+- ✅ Paginación: `page` (default 1), `pageSize` (default 10, máx. 100: un valor mayor se limita a 100; un valor no entero o menor que 1 responde `400`). La respuesta trae `documentos`, `total`, `currentPage`, `pageSize` y `totalPages`; orden: fecha del documento descendente
+- ⚠️ Cada elemento incluye: documentoId, título, estado, entidad avaladora y fechas (`fecha` del documento y `fechaCarga`; RF-19, RF-20). **Parcial:** el estado se devuelve tal como está guardado, y hoy el modelo solo conoce `temporal` y `certificado`; `en autenticación` aparecerá cuando HU-04 (autenticación) lo introduzca, sin cambios en esta consulta
 - ✅ Respuesta 200 incluso si la carpeta está vacía
-- ✅ Respuesta 403 si el token pertenece a otro ciudadano
+- ✅ Respuesta 403 si el token pertenece a otro ciudadano (el intento queda en la bitácora como `documento.consultar` / `no_es_dueno`)
 
 **Tests Unitarios a implementar:**
 ```

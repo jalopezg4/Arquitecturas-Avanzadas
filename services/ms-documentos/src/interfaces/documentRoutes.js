@@ -10,7 +10,8 @@ const { requireOwner } = require("./documentController");
  */
 function documentRoutes({ controller, secrets, issuer, auditLogger, maxUploadBytes }) {
   const router = express.Router();
-  router.post("/citizens/:id/documents", requireAuth(secrets, { issuer }), requireOwner(auditLogger), uploadMiddleware({ maxUploadBytes }), controller.upload);
+  router.get("/citizens/:id/documents", requireAuth(secrets, { issuer }), requireOwner(auditLogger, "documento.consultar"), controller.list);
+  router.post("/citizens/:id/documents", requireAuth(secrets, { issuer }), requireOwner(auditLogger, "documento.cargar"), uploadMiddleware({ maxUploadBytes }), controller.upload);
   return router;
 }
 

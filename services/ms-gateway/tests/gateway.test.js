@@ -16,7 +16,7 @@ function startUpstream() {
   const app = express();
   app.use(express.json({ limit: "5mb" }));
   app.all("*", (req, res) => {
-    calls.push({ method: req.method, path: req.path, headers: req.headers, body: req.body });
+    calls.push({ method: req.method, path: req.path, query: req.query, headers: req.headers, body: req.body });
     res.status(req.path.endsWith("/login") ? 200 : 201).json({ echo: req.body, path: req.path });
   });
   return new Promise((resolve) => {
@@ -168,7 +168,9 @@ describe("ms-documentos: POST /api/v1/citizens/:id/documents (HU-03)", () => {
   });
 
   test.each([
-    ["GET", "/api/v1/citizens/6aae9153b7655900026073f1/documents"],
+    ["GET", "/api/v1/citizens/6aae9153b7655900026073f1/documents/extra"],
+    ["DELETE", "/api/v1/citizens/6aae9153b7655900026073f1/documents"],
+    ["PUT", "/api/v1/citizens/6aae9153b7655900026073f1/documents"],
     ["POST", "/api/v1/citizens/6aae9153b7655900026073f1/documents/extra"],
     ["POST", "/api/v1/citizens//documents"],
     ["POST", "/api/v1/citizens/a.b/documents"],
@@ -178,6 +180,29 @@ describe("ms-documentos: POST /api/v1/citizens/:id/documents (HU-03)", () => {
     const res = await request(gw)[method.toLowerCase()](path).set("Authorization", `Bearer ${token()}`);
 
     expect(res.status).toBe(404);
+    expect(docs.calls).toHaveLength(0);
+  });
+
+  test("HU-08: GET con token valido se reenvia a ms-documentos con el Authorization y sin perder page/pageSize", async () => {
+    const t = token();
+
+    await request(gw).get(`${PATH}?page=2&pageSize=5`).set("Authorization", `Bearer ${t}`).expect(201);
+
+    expect(docs.calls).toHaveLength(1);
+    expect(docs.calls[0]).toMatchObject({ method: "GET", path: PATH, query: { page: "2", pageSize: "5" } });
+    expect(docs.calls[0].headers.authorization).toBe(`Bearer ${t}`);
+    expect(upstream.calls).toHaveLength(0);
+  });
+
+  test.each([
+    ["sin token", undefined],
+    ["token expirado", () => token({}, { expiresIn: -10 })],
+    ["un refresh token", () => token({ typ: "refresh" })],
+  ])("HU-08: GET 401 %s -- y ms-documentos NO recibe nada", async (_name, makeToken) => {
+    const r = request(gw).get(PATH);
+    const res = await (makeToken ? r.set("Authorization", `Bearer ${makeToken()}`) : r);
+
+    expect(res.status).toBe(401);
     expect(docs.calls).toHaveLength(0);
   });
 

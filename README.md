@@ -24,7 +24,7 @@ Microservicios (ADR-01 del expediente), cada uno dueño exclusivo de su base de 
 |---|---|---|
 | `services/ms-gateway` | 🚧 Mínimo (validación de token y enrutamiento) | HU-02 |
 | `services/ms-identidad` | 🚧 En progreso (HU-01) | HU-01, HU-02, HU-11 |
-| `services/ms-documentos` | 🚧 En progreso (HU-03: carga) | HU-03, HU-08, HU-09, HU-10 |
+| `services/ms-documentos` | 🚧 En progreso (HU-03: carga, HU-08: consulta) | HU-03, HU-08, HU-09, HU-10 |
 | `services/ms-autenticacion` | ⏳ Por empezar | HU-04 |
 | `services/ms-interoperabilidad` | 🚧 En progreso (HU-05a: directorio de operadores) | HU-05a, HU-05b, HU-05c |
 | `services/ms-notificaciones` | 🚧 En progreso (correo: confirmación de carga y bienvenida) | consumidor de eventos |

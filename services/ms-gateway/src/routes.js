@@ -19,6 +19,8 @@ const ROUTES = [
   { method: "POST", path: "/api/v1/institutions", upstream: "COMPARTICION_URL", public: true },
   // ms-documentos -- HU-03: carga de un documento a la carpeta del ciudadano (el servicio verifica que :id sea el del token)
   { method: "POST", pattern: /^\/api\/v1\/citizens\/[A-Za-z0-9_-]{1,64}\/documents$/, upstream: "DOCUMENTOS_URL" },
+  // ms-documentos -- HU-08: consulta paginada (?page=&pageSize=) de los documentos de la carpeta; mismo control de dueno en el servicio
+  { method: "GET", pattern: /^\/api\/v1\/citizens\/[A-Za-z0-9_-]{1,64}\/documents$/, upstream: "DOCUMENTOS_URL" },
 ];
 
 function findRoute(method, path, routes = ROUTES) {

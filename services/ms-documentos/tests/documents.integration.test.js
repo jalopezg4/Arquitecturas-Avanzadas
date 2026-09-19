@@ -296,3 +296,75 @@ describe("Fallos de infraestructura", () => {
     expect(dump).not.toContain(token);
   });
 });
+
+describe("GET /api/v1/citizens/:id/documents (integracion, HU-08)", () => {
+  const get = (ciudadanoId, { token = accessFor(ANA), query = "" } = {}) => {
+    const req = request(app).get(`/api/v1/citizens/${ciudadanoId}/documents${query}`);
+    return token ? req.set("Authorization", `Bearer ${token}`) : req;
+  };
+
+  test("200 con la forma {documentos, total, currentPage, pageSize, totalPages}; lista lo cargado por HU-03", async () => {
+    await post(ANA).expect(201);
+    await post(ANA, { fields: { ...validMeta, titulo: "Cedula" } }).expect(201);
+
+    const res = await get(ANA).expect(200);
+
+    expect(Object.keys(res.body).sort()).toEqual(["currentPage", "documentos", "pageSize", "total", "totalPages"]);
+    expect(res.body).toMatchObject({ total: 2, currentPage: 1, pageSize: 10, totalPages: 1 });
+    expect(res.body.documentos.map((d) => d.titulo).sort()).toEqual(["Cedula", "Diploma de grado"]);
+    expect(res.body.documentos[0]).toMatchObject({ estado: "temporal", entidadAvaladora: "Universidad EAFIT" });
+    expect(JSON.stringify(res.body)).not.toMatch(/storageKey|sha256/);
+  });
+
+  test("respeta page y pageSize del query string", async () => {
+    for (let i = 0; i < 3; i++) await post(ANA).expect(201);
+
+    const res = await get(ANA, { query: "?page=2&pageSize=2" }).expect(200);
+
+    expect(res.body).toMatchObject({ total: 3, currentPage: 2, pageSize: 2, totalPages: 2 });
+    expect(res.body.documentos).toHaveLength(1);
+  });
+
+  test("carpeta vacia -> 200 con documentos:[] y total:0", async () => {
+    const res = await get(ANA).expect(200);
+    expect(res.body).toMatchObject({ documentos: [], total: 0 });
+  });
+
+  test("403 si el token es de Beto y la carpeta es de Ana: no ve nada y queda en la bitacora como consulta rechazada", async () => {
+    await post(ANA).expect(201);
+
+    const res = await get(ANA, { token: accessFor(BETO) });
+
+    expect(res.status).toBe(403);
+    expect(res.body).not.toHaveProperty("documentos");
+    const entry = await AuditEntry.findOne({ action: "documento.consultar" }).lean();
+    expect(entry).toMatchObject({ outcome: "rechazo", actor: BETO, resourceOwner: ANA, reason: "no_es_dueno" });
+  });
+
+  test("cada quien ve solo lo suyo", async () => {
+    await post(ANA).expect(201);
+    await post(BETO, { token: accessFor(BETO), fields: { ...validMeta, titulo: "De Beto" } }).expect(201);
+
+    const beto = await get(BETO, { token: accessFor(BETO) }).expect(200);
+
+    expect(beto.body.documentos.map((d) => d.titulo)).toEqual(["De Beto"]);
+  });
+
+  test.each([
+    ["sin token", { token: null }],
+    ["token expirado", { token: accessFor(ANA, { expiresIn: -10 }) }],
+    ["firmado con otra clave", { token: accessFor(ANA, {}, new SecretsManager({ active: OTHER_SECRET })) }],
+    ["un refresh token", { token: accessFor(ANA, {}, secrets, { typ: "refresh" }) }],
+  ])("401 %s (el servicio revalida el JWT, no confia solo en el gateway)", async (_name, opts) => {
+    await get(ANA, opts).expect(401);
+  });
+
+  test.each([["?page=0"], ["?page=abc"], ["?pageSize=-1"], ["?page=1&page=2"], ["?page[$gt]="]])("400 con query invalido %s", async (query) => {
+    await get(ANA, { query }).expect(400);
+  });
+
+  test("un pageSize por encima del maximo se limita a 100", async () => {
+    const res = await get(ANA, { query: "?pageSize=1000" }).expect(200);
+    expect(res.body.pageSize).toBe(100);
+  });
+});

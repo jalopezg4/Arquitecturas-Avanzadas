@@ -38,6 +38,33 @@ const PDF_MAGIC = "%PDF-";
 const MAX_TEXT = 200;
 const ID_RE = /^[A-Za-z0-9_-]{1,100}$/;
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 100;
+
+/** Entero positivo estricto ("2" si, "2.5", "1e3", "-1", "0", "abc" no). Ausente -> valor por defecto. */
+function parsePositiveInt(value, fallback, field) {
+  if (value === undefined || value === "") return fallback;
+  if (typeof value !== "string" && typeof value !== "number") throw new ValidationError(`${field} debe ser un entero positivo`);
+  const text = String(value);
+  if (!/^\d{1,9}$/.test(text) || Number(text) < 1) throw new ValidationError(`${field} debe ser un entero positivo`);
+  return Number(text);
+}
+
+/** Lo que el ciudadano ve de cada documento; la clave del storage y la huella son internas y no se exponen. */
+function toListItem(doc) {
+  return {
+    documentoId: String(doc._id),
+    titulo: doc.titulo,
+    estado: doc.estado,
+    entidadAvaladora: doc.entidadAvaladora,
+    fecha: doc.fecha,
+    fechaCarga: doc.createdAt,
+    mimeType: doc.mimeType,
+    tamanoBytes: doc.tamanoBytes,
+  };
+}
+
 /** Espera `promise` como maximo `ms`. Si tarda mas, rechaza (la promesa original se ignora). */
 function withTimeout(promise, ms) {
   let timer;
@@ -198,6 +225,26 @@ class DocumentService {
   }
 
   /** Publica DocumentoCargado. Si el broker no responde a tiempo o rechaza, la carga NO falla: queda `eventoPublicado:false`. */
+  /**
+   * HU-08: documentos de la carpeta de UN ciudadano, paginados (RF-19, RF-20). El dueno lo verifica la ruta
+   * (requireOwner) y ademas la consulta filtra por ciudadanoId, asi que nunca devuelve documentos ajenos.
+   * page >= 1 (por defecto 1); pageSize 1..MAX_PAGE_SIZE (por defecto 10, un valor mayor se limita a MAX_PAGE_SIZE).
+   * Una carpeta vacia o una pagina fuera de rango NO es un error: devuelve documentos:[] con el total real.
+   */
+  async list({ ciudadanoId, page, pageSize }) {
+    if (typeof ciudadanoId !== "string" || !ciudadanoId) throw new ValidationError("ciudadanoId es requerido");
+    const currentPage = parsePositiveInt(page, DEFAULT_PAGE, "page");
+    const size = Math.min(parsePositiveInt(pageSize, DEFAULT_PAGE_SIZE, "pageSize"), MAX_PAGE_SIZE);
+    const { items, total } = await this.documentRepository.listByOwner(ciudadanoId, { skip: (currentPage - 1) * size, limit: size });
+    return {
+      documentos: items.map(toListItem),
+      total,
+      currentPage,
+      pageSize: size,
+      totalPages: Math.ceil(total / size),
+    };
+  }
+
   async _publish(doc) {
     const payload = {
       eventId: crypto.randomUUID(), // el consumidor lo usa para ser idempotente ante reintentos
