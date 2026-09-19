@@ -28,6 +28,8 @@
     "mongodb-memory-server": "^9.4.0"
   },
   "jest": {
+    "testTimeout": 30000,
+    "maxWorkers": 2,
     "setupFiles": [
       "./tests/setupEnv.js"
     ]

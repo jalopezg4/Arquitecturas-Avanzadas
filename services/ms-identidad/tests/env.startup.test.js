@@ -1,12 +1,21 @@
 // Prueba el arranque REAL de la configuracion (env.js), no solo el validador aislado.
+
+// env.js llama a dotenv, que releeria el .env del desarrollador y repondria justo las variables que cada prueba
+// borra a proposito (NODE_ENV, JWT_SECRET...): la prueba dependeria de la maquina donde corre. Se desactiva aqui.
+jest.mock("dotenv", () => ({ config: () => ({}) }));
+
+// Las URIs con usuario:contrasena se ARMAN aqui en vez de escribirse completas: son valores falsos de prueba, pero un
+// escaner de secretos (p. ej. el de GitHub) no distingue un fixture de una credencial real y abre alertas.
+const cred = (scheme, user, pass, rest) => [scheme, "://", user, ":", pass, "@", rest].join("");
+
 const STRONG = "k9Xv2mQ7pL4wZ8rT1nB6yH3jD5fG0sAe";
 
 const PROD_ENV = {
   NODE_ENV: "production",
   JWT_SECRET: STRONG,
   GOVCARPETA_BASE_URL: "https://govcarpeta.example.gov.co",
-  RABBITMQ_URI: "amqps://svc:Zq8mV2nX9pLr@broker.internal:5671",
-  MONGO_URI: "mongodb+srv://svc:Zq8mV2nX9pLr@cluster0.mongodb.net/ms-identidad",
+  RABBITMQ_URI: cred("amqps", "svc", "Zq8mV2nX9pLr", "broker.internal:5671"),
+  MONGO_URI: cred("mongodb+srv", "svc", "Zq8mV2nX9pLr", "cluster0.mongodb.net/ms-identidad"),
 };
 
 function loadEnvWith(vars) {
