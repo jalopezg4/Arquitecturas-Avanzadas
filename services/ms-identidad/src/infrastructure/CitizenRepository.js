@@ -50,6 +50,11 @@ class CitizenRepository {
     return Citizen.findByIdAndUpdate(id, { intentosFallidos: 0, bloqueadoHasta: null }, { new: true });
   }
 
+  /** Borra al ciudadano SOLO si sigue pendiente (nunca a uno ya activo). */
+  async deletePending(id) {
+    return Citizen.deleteOne({ _id: id, estado: "pendiente" });
+  }
+
   async markActive(id) {
     const citizen = await Citizen.findByIdAndUpdate(id, { estado: "activo" }, { new: true });
     if (!citizen) throw new Error("Ciudadano no encontrado al marcar activo");

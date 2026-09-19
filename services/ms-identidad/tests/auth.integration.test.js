@@ -19,7 +19,7 @@ const { CitizenSagaService } = require("../src/application/CitizenSagaService");
 
 const SECRET = "k9Xv2mQ7pL4wZ8rT1nB6yH3jD5fG0sAe";
 const OTHER_SECRET = "Zq8mV2nX9pLr5tYc7bW1kD4hJ6fG3sAu";
-const body = { documento: 555666777, nombre: "Ana Gomez", direccion: "Cra 1 # 2-3", correo: "ana@example.com", password: "Sup3rSecreta!" };
+const body = { documento: 1555666777, nombre: "Ana Gomez", direccion: "Cra 1 # 2-3", correo: "ana@example.com", password: "Sup3rSecreta!" };
 
 let mongoServer;
 let secrets;
