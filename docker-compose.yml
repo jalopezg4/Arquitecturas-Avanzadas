@@ -88,6 +88,19 @@ services:
       - mongo
       - rabbitmq
 
+  # Directorio de operadores de GovCarpeta (HU-05a). Solo LEE el directorio compartido del sandbox; no registra ni modifica nada.
+  ms-interoperabilidad:
+    build: ./services/ms-interoperabilidad
+    ports:
+      - "3004:3004"
+    environment:
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017/ms-interoperabilidad
+      GOVCARPETA_BASE_URL: ${GOVCARPETA_BASE_URL:-https://govcarpeta-apis-4905ff3c005b.herokuapp.com}
+      OPERATOR_ID: ${OPERATOR_ID:-}
+    depends_on:
+      - mongo
+
   ms-gateway:
     build: ./services/ms-gateway
     ports:
