@@ -50,7 +50,7 @@ Body (todos requeridos):
 
 ## POST /apis/registerOperator
 
-⚠️ **Inconsistencia real del Swagger** (no es un error nuestro): el arreglo `required` del schema dice `["nameOperator", "adress", "contactMail", "participants"]`, pero las `properties` definen `name`, `address`, `contactMail`, `participants` (nombres distintos). **Probar empíricamente** contra el sandbox antes de automatizar.
+⚠️ **Inconsistencia real del Swagger** (no es un error nuestro): el arreglo `required` del schema dice `["nameOperator", "adress", "contactMail", "participants"]`, pero las `properties` definen `name`, `address`, `contactMail`, `participants` (nombres distintos).
 
 ```json
 {
@@ -60,7 +60,10 @@ Body (todos requeridos):
   "participants": ["Julian Giraldo Chica", "Jennifer Andrea Lopez Gomez", "Tomas Echavarria Gil"]
 }
 ```
-- Respuesta `201`: **string plano** que ES el `operatorId` directamente (ej. `"65ca0a00d833e984e2608756"`), NO un objeto `{operatorId: ...}`.
+- Respuesta `201`: **string plano** que ES el `operatorId` (ej. `"65ca0a00d833e984e2608756"`), no un objeto. El cliente acepta también el id entre comillas o dentro de `{_id}`/`{operatorId}`.
+- **Es un registro permanente en un directorio COMPARTIDO** por todos los equipos del curso (71 operadores al 2026-09-19) y **no existe endpoint para borrarlo**. Un `POST` repetido crea otro operador. Por eso `HU-11` no reintenta nunca este llamado y antes de enviarlo comprueba que el nombre no exista.
+- **Estrategia ante la inconsistencia**: por defecto el cliente envía **ambos** juegos de nombres (`name`+`nameOperator`, `address`+`adress`). Si el servidor rechazara los campos extra (501), `--payload-style=properties|required` envía solo uno. *Pendiente de confirmar con el primer registro real; anotar aquí el resultado.*
+- Ver `docs/OPERADOR_MINTIC.md` para el procedimiento.
 
 ## PUT /apis/registerTransferEndPoint
 
@@ -76,14 +79,21 @@ Body (todos requeridos):
 
 ## GET /apis/getOperators
 
-Respuesta `200`:
+Respuesta `200` (lista). **El sandbox real NO coincide con el Swagger** (verificado el 2026-09-19 sobre 71 operadores):
+
+| | Swagger dice | Sandbox real |
+|---|---|---|
+| id | `OperatorId` | **`_id`** (siempre, 24 caracteres) |
+| nombre | `OperatorName` | **`operatorName`** |
+| integrantes | (no aparece) | `participants` |
+| URL de transferencia | `transferAPIURL` | `transferAPIURL`, **solo en 16 de 71** y a veces con un **espacio inicial** (`" http://..."`) |
+
 ```json
-[
-  { "OperatorId": "65ca0a00d833e984e2608756", "OperatorName": "Operador 123", "transferAPIURL": "http://mioperador.com/api/transferCitizen" }
-]
+{ "_id": "690d4e0e8502c8000221a5a7", "operatorName": "Carpeta Ciudadana", "participants": ["..."], "transferAPIURL": " http://..." }
 ```
-- ⚠️ **Inconsistencia real de casing**: aquí viene `OperatorId`/`OperatorName` (O mayúscula), pero se **envía** como `operatorId`/`operatorName` (o minúscula) en registerCitizen/unregisterCitizen. Comparar case-insensitive o normalizar al parsear.
-- El campo de URL se llama `transferAPIURL`, no `transferEndpoint`.
+El cliente (`listOperators`) normaliza ambas formas a `{id, name, transferApiUrl, participants}`, recorta espacios y descarta entradas sin id. HU-05a puede reutilizarlo.
+
+- Sigue habiendo diferencia de casing respecto a lo que se **envía** en `registerCitizen`/`unregisterCitizen` (`operatorId`/`operatorName`).
 
 ## Lo que GovCarpeta NO expone
 

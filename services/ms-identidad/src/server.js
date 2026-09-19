@@ -13,7 +13,7 @@ async function main() {
   await mongoose.connect(env.mongoUri);
 
   if (!env.operatorId) {
-    logger.warn("OPERATOR_ID no esta configurado -- registerCitizen/authenticateDocument fallaran contra GovCarpeta real. Completar HU-11 primero.");
+    logger.warn("OPERATOR_ID no esta configurado -- registerCitizen/authenticateDocument fallaran contra GovCarpeta real. Registrar el operador una vez por ambiente: npm run register:operator (ver docs/OPERADOR_MINTIC.md).");
   }
 
   // Aviso de configuracion: se emite una vez al arrancar (sin traza), no dentro de una peticion.
