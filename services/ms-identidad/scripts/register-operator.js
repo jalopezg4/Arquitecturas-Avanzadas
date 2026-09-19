@@ -43,7 +43,8 @@ async function main() {
     name: process.env.OPERATOR_NAME,
     address: process.env.OPERATOR_ADDRESS,
     contactMail: process.env.OPERATOR_CONTACT_MAIL,
-    participants: (process.env.OPERATOR_PARTICIPANTS || "").split(",").map((s) => s.trim()).filter(Boolean),
+    // No se descartan los vacios ("Ana,,Beto"): validate() los rechaza en vez de ignorarlos en silencio.
+    participants: (process.env.OPERATOR_PARTICIPANTS || "").trim() ? process.env.OPERATOR_PARTICIPANTS.split(",").map((s) => s.trim()) : [],
   };
   const baseUrl = process.env.GOVCARPETA_BASE_URL || "https://govcarpeta-apis-4905ff3c005b.herokuapp.com";
   const client = new GovCarpetaClient({ baseUrl, http: axios.create({ timeout: 30000 }) });

@@ -89,7 +89,9 @@ Respuesta `200` (lista). **El sandbox real NO coincide con el Swagger** (verific
 | URL de transferencia | `transferAPIURL` | `transferAPIURL`, **solo en 16 de 71** y a veces con un **espacio inicial** (`" http://..."`) |
 
 ```json
-{ "_id": "690d4e0e8502c8000221a5a7", "operatorName": "Carpeta Ciudadana", "participants": ["..."], "transferAPIURL": " http://..." }
+[
+  { "_id": "690d4e0e8502c8000221a5a7", "operatorName": "Carpeta Ciudadana", "participants": ["..."], "transferAPIURL": " http://..." }
+]
 ```
 El cliente (`listOperators`) normaliza ambas formas a `{id, name, transferApiUrl, participants}`, recorta espacios y descarta entradas sin id. HU-05a puede reutilizarlo.
 

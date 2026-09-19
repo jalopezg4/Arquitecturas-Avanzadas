@@ -153,6 +153,26 @@ describe("HU-11 script de registro del operador (contra un sandbox falso)", () =
     expect(sandbox.state.gets).toBe(0);
   });
 
+  test("con SOLO OPERATOR_ID en el entorno (ambiente desplegado) responde exit 3 sin red, no exit 2 por campos ausentes", async () => {
+    const r = await run(["--confirm"], { OPERATOR_ID: "68bbbbbbbbbbbbbbbbbbbbbb", OPERATOR_NAME: "", OPERATOR_ADDRESS: "", OPERATOR_CONTACT_MAIL: "", OPERATOR_PARTICIPANTS: "" });
+
+    expect(r.code).toBe(3);
+    expect(sandbox.state.gets + sandbox.state.posts.length).toBe(0);
+  });
+
+  test("un integrante vacio en la lista (\"Ana,,Beto\") se rechaza en vez de ignorarse en silencio", async () => {
+    const r = await run(["--confirm"], { OPERATOR_PARTICIPANTS: "Ana,,Beto" });
+
+    expect(r.code).toBe(2);
+    expect(r.out).toContain("OPERATOR_PARTICIPANTS");
+    expect(sandbox.state.posts).toHaveLength(0);
+  });
+
+  test("el .env.example con la direccion de ejemplo se carga COMPLETA (el # no la corta)", () => {
+    const parsed = require("dotenv").parse(fs.readFileSync(path.resolve(__dirname, "..", ".env.example"), "utf8"));
+    expect(parsed.OPERATOR_ADDRESS).toBe("Carrera 49 # 7 Sur-50, Medellin");
+  });
+
   test("datos incompletos o invalidos: exit 2, mensaje claro y ninguna llamada", async () => {
     const r = await run(["--confirm"], { OPERATOR_CONTACT_MAIL: "no-es-correo", OPERATOR_PARTICIPANTS: "" });
 

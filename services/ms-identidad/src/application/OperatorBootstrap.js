@@ -62,9 +62,6 @@ class OperatorBootstrap {
    * @returns {{status: "dry-run"|"registered"|"recovered", operatorId?: string, payload?: object}}
    */
   async register(data, { currentOperatorId, dryRun = false, payloadStyle } = {}) {
-    const problems = OperatorBootstrap.validate(data);
-    if (problems.length) throw new OperatorInputError(problems);
-
     if (currentOperatorId) {
       throw new OperatorAlreadyRegisteredError(
         `Este ambiente ya tiene un operador configurado (OPERATOR_ID=${currentOperatorId}). Se registra una sola vez por ambiente; ` +
@@ -72,6 +69,9 @@ class OperatorBootstrap {
         { operatorId: currentOperatorId }
       );
     }
+
+    const problems = OperatorBootstrap.validate(data);
+    if (problems.length) throw new OperatorInputError(problems);
 
     let existing;
     try {
@@ -115,7 +115,7 @@ class OperatorBootstrap {
       }
       throw new OperatorRegistrationError(
         "No se pudo confirmar el registro (GovCarpeta no respondio como se esperaba). NO lo reintentes a ciegas: el directorio no permite borrar " +
-          `y podrias duplicar el operador. Revisa https://govcarpeta-apis-4905ff3c005b.herokuapp.com/apis/getOperators buscando "${data.name}" ` +
+          `y podrias duplicar el operador. Revisa ${this.client.baseUrl}/apis/getOperators buscando "${data.name}" ` +
           "y, si aparece, configura su id como OPERATOR_ID.",
         { cause: err }
       );

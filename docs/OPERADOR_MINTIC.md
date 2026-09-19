@@ -31,7 +31,7 @@
 | 0 | Registrado (o recuperado del directorio si la respuesta se perdió). Imprime `OPERATOR_ID=...` |
 | 2 | Datos inválidos. No se envió nada |
 | 3 | Ya existe: `OPERATOR_ID` ya configurado, o el nombre ya está en el directorio (indica el id). No se envió nada |
-| 1 | Error. Si GovCarpeta responde `501`, probar `--payload-style=properties` o `--payload-style=required` (el Swagger es inconsistente con los nombres de campo) |
+| 1 | Error. Si GovCarpeta responde `501`, repetir el comando con `--payload-style=properties` y, si tambien falla, con `--payload-style=required` (el Swagger es inconsistente con los nombres de campo) |
 
 Si el registro falla sin confirmarse (timeout, 500), **no lo repitas a ciegas**: el script ya revisa el directorio y, si el operador quedó creado, lo recupera y muestra su id. Si aun así hay duda, busca el nombre en `GET /apis/getOperators`.
 

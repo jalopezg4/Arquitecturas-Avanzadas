@@ -77,6 +77,24 @@ describe("OperatorBootstrap.register()", () => {
     expect(client.registerOperator).not.toHaveBeenCalled();
   });
 
+  test("con OPERATOR_ID configurado y sin datos de registro, falla como 'ya registrado' (no como datos invalidos)", async () => {
+    const client = makeClient();
+
+    await expect(new OperatorBootstrap({ govCarpetaClient: client }).register({}, { currentOperatorId: "68bbbbbbbbbbbbbbbbbbbbbb" })).rejects.toThrow(
+      OperatorAlreadyRegisteredError
+    );
+  });
+
+  test("el mensaje de resultado incierto apunta al directorio CONFIGURADO, no a un host fijo", async () => {
+    const client = makeClient({ registerImpl: async () => Promise.reject(new Error("socket hang up")) });
+    client.baseUrl = "http://staging.example";
+
+    const err = await new OperatorBootstrap({ govCarpetaClient: client }).register(data).catch((e) => e);
+
+    expect(err.message).toContain("http://staging.example/apis/getOperators");
+    expect(err.message).not.toContain("herokuapp");
+  });
+
   test("un operador con OTRO nombre no bloquea el registro", async () => {
     const client = makeClient({ operators: [{ id: "68aaaaaaaaaaaaaaaaaaaaaa", name: "Carpeta Ciudadana" }] });
 
