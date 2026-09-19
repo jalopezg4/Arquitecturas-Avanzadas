@@ -65,18 +65,19 @@ JWT_SECRET=una-cadena-aleatoria-de-32-o-mas-caracteres
 docker compose up -d --build
 ```
 
-Espere unos 20 segundos y compruebe que responden (`/health` = el proceso vive; `/ready` = tiene sus dependencias):
+Espere hasta un minuto (RabbitMQ tarda en arrancar y `ms-notificaciones` se reconecta solo) y compruebe que responden (`/health` = el proceso vive; `/ready` = tiene sus dependencias):
 
 ```bash
 curl http://localhost:3000/health
 curl http://localhost:3002/ready
+curl http://localhost:3003/ready
 ```
 
 Para ver los registros de un servicio: `docker compose logs -f ms-documentos`. Para apagar todo: `docker compose down` (agregue `-v` si también quiere borrar los datos).
 
 ### 5. Probar el flujo completo (por el gateway, puerto 3000)
 
-Registro (consulta el sandbox real de GovCarpeta; el `documento` no debe estar ya afiliado):
+Registro (consulta el sandbox real de GovCarpeta y **crea un registro real en él**: use una cédula de prueba de exactamente 10 dígitos que no esté afiliada; se da de baja con `DELETE /apis/unregisterCitizen`):
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/citizens -H "Content-Type: application/json"   -d '{"documento":"1000000001","nombre":"Ana Perez","direccion":"Calle 1 # 2-3","correo":"ana@ejemplo.com","password":"Clave-segura-123"}'
