@@ -31,6 +31,40 @@ services:
       - mongo
       - rabbitmq
 
+  # Object storage S3-compatible para desarrollo local (en despliegue se usa S3 u otro proveedor).
+  # Consola web: http://localhost:9001. Las credenciales de desarrollo se pueden cambiar con S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY.
+  minio:
+    image: quay.io/minio/minio:latest  # MinIO ya no publica en Docker Hub
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}  # secret-scan:allow -- credencial de desarrollo local; fuera de local el servicio rechaza minioadmin
+    volumes:
+      - minio-data:/data
+
+  ms-documentos:
+    build: ./services/ms-documentos
+    ports:
+      - "3002:3002"
+    environment:
+      # Solo desarrollo local (ver README). Fuera de este compose NODE_ENV nunca debe ser development y
+      # JWT_SECRET es obligatorio y DEBE ser el mismo que usa ms-identidad.
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017/ms-documentos
+      RABBITMQ_URI: amqp://rabbitmq:5672
+      JWT_SECRET: ${JWT_SECRET:-}
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: http://localhost:9000
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}  # secret-scan:allow -- credencial de desarrollo local; fuera de local el servicio rechaza minioadmin
+    depends_on:
+      - mongo
+      - rabbitmq
+      - minio
+
   ms-gateway:
     build: ./services/ms-gateway
     ports:
@@ -40,9 +74,12 @@ services:
       # JWT_SECRET es obligatorio y DEBE ser el mismo que usa ms-identidad.
       NODE_ENV: development
       IDENTIDAD_URL: http://ms-identidad:3001
+      DOCUMENTOS_URL: http://ms-documentos:3002
       JWT_SECRET: ${JWT_SECRET:-}
     depends_on:
       - ms-identidad
+      - ms-documentos
 
 volumes:
+  minio-data:
   mongo-data:

@@ -131,7 +131,7 @@ Como ciudadano quiero cargar un documento a mi carpeta, para conservarlo de form
 - ✅ Archivo se sube a object storage S3-compatible; solo se guarda la **clave**, nunca el binario, en MongoDB
 - ✅ Metadatos persistidos en estado `temporal`
 - ✅ Publica `DocumentoCargado` y responde 201 **antes** de esperar el envío de la notificación
-- ✅ `ms-notificaciones` consume el evento de forma asíncrona e idempotente
+- 🟡 **Pendiente (siguiente PR de HU-03):** `ms-notificaciones` consume el evento de forma asíncrona e idempotente. `ms-documentos` ya publica `documento.cargado` con `eventId` y la cola durable `ms-notificaciones.documento-cargado` queda pre-declarada (verificado con RabbitMQ real: los mensajes esperan en la cola). Además, `ciudadano.registrado` **no trae el correo** del ciudadano: hay que ampliar ese evento para que el consumidor sepa a quién escribir
 - ✅ Respuesta 201 `{documentoId, url}`; 403 si no es dueño; 409 si cuota llena
 
 **Tests Unitarios a implementar:**

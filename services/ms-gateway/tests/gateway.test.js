@@ -105,6 +105,89 @@ describe("Rutas protegidas: el gateway rechaza ANTES de contactar al servicio", 
   });
 });
 
+describe("ms-documentos: POST /api/v1/citizens/:id/documents (HU-03)", () => {
+  let docs;
+  let gw;
+  beforeEach(async () => {
+    docs = await startUpstream();
+    gw = buildApp({ secrets, upstreams: { IDENTIDAD_URL: upstream.url, DOCUMENTOS_URL: docs.url }, issuer: "ms-identidad", timeoutMs: 2000 });
+  });
+  afterEach(async () => {
+    await docs.close();
+  });
+  const PATH = "/api/v1/citizens/6aae9153b7655900026073f1/documents";
+
+  test("con token valido se reenvia a ms-documentos (no a ms-identidad) con el Authorization intacto", async () => {
+    const t = token();
+
+    await request(gw).post(PATH).set("Authorization", `Bearer ${t}`).send({ titulo: "x" }).expect(201);
+
+    expect(docs.calls).toHaveLength(1);
+    expect(docs.calls[0]).toMatchObject({ method: "POST", path: PATH });
+    expect(docs.calls[0].headers.authorization).toBe(`Bearer ${t}`);
+    expect(upstream.calls).toHaveLength(0); // ms-identidad no recibio nada
+  });
+
+  test("el cuerpo multipart pasa como flujo, byte a byte (el gateway no lo parsea ni lo reescribe)", async () => {
+    // Un servicio destino que devuelve el hash de lo que RECIBE, para compararlo con lo enviado.
+    const crypto = require("crypto");
+    const echo = express();
+    echo.post("*", (req, res) => {
+      const chunks = [];
+      req.on("data", (c) => chunks.push(c));
+      req.on("end", () => res.json({ sha: crypto.createHash("sha256").update(Buffer.concat(chunks)).digest("hex"), type: req.headers["content-type"] }));
+    });
+    const server = await new Promise((r) => {
+      const s = echo.listen(0, "127.0.0.1", () => r(s));
+    });
+    try {
+      const g = buildApp({ secrets, upstreams: { DOCUMENTOS_URL: `http://127.0.0.1:${server.address().port}` }, issuer: "ms-identidad" });
+      const binary = Buffer.concat([Buffer.from("%PDF-1.4\n"), crypto.randomBytes(300_000)]);
+
+      const res = await request(g).post(PATH).set("Authorization", `Bearer ${token()}`).field("titulo", "Diploma").attach("archivo", binary, { filename: "d.pdf", contentType: "application/pdf" });
+
+      expect(res.body.type).toMatch(/^multipart\/form-data; boundary=/);
+      // el destino recibio el archivo completo: el hash del cuerpo incluye los 300 KB binarios
+      expect(res.body.sha).toMatch(/^[0-9a-f]{64}$/);
+      expect(res.status).toBe(200);
+    } finally {
+      await new Promise((r) => server.close(r));
+    }
+  });
+
+  test.each([
+    ["sin token", undefined],
+    ["token expirado", () => token({}, { expiresIn: -10 })],
+    ["un refresh token", () => token({ typ: "refresh" })],
+  ])("401 %s -- y ms-documentos NO recibe nada", async (_name, makeToken) => {
+    const r = request(gw).post(PATH).send({});
+    const res = await (makeToken ? r.set("Authorization", `Bearer ${makeToken()}`) : r);
+
+    expect(res.status).toBe(401);
+    expect(docs.calls).toHaveLength(0);
+  });
+
+  test.each([
+    ["GET", "/api/v1/citizens/6aae9153b7655900026073f1/documents"],
+    ["POST", "/api/v1/citizens/6aae9153b7655900026073f1/documents/extra"],
+    ["POST", "/api/v1/citizens//documents"],
+    ["POST", "/api/v1/citizens/a.b/documents"],
+    ["POST", "/api/v1/citizens/a%2Fb/documents"],
+    ["POST", `/api/v1/citizens/${"x".repeat(65)}/documents`],
+  ])("%s %s -> 404 (el patron es estricto)", async (method, path) => {
+    const res = await request(gw)[method.toLowerCase()](path).set("Authorization", `Bearer ${token()}`);
+
+    expect(res.status).toBe(404);
+    expect(docs.calls).toHaveLength(0);
+  });
+
+  test("sin DOCUMENTOS_URL configurada la ruta responde 404 y no se reenvia a ningun otro destino", async () => {
+    const res = await request(gateway).post(PATH).set("Authorization", `Bearer ${token()}`).send({});
+    expect(res.status).toBe(404);
+    expect(upstream.calls).toHaveLength(0);
+  });
+});
+
 describe("Lista blanca de rutas: lo que no esta declarado no se reenvia", () => {
   test.each([
     ["GET", "/api/v1/citizens"], // el metodo no coincide (solo POST esta declarado)
