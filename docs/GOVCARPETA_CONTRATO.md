@@ -94,7 +94,7 @@ Respuesta `200` (lista). **El sandbox real NO coincide con el Swagger** (verific
   { "_id": "690d4e0e8502c8000221a5a7", "operatorName": "Carpeta Ciudadana", "participants": ["..."], "transferAPIURL": " http://..." }
 ]
 ```
-El cliente (`listOperators`) normaliza ambas formas a `{id, name, transferApiUrl, participants}`, recorta espacios y descarta entradas sin id. HU-05a puede reutilizarlo.
+**Estado real al 2026-09-19 (HU-05a):** 73 operadores, 16 con dirección de transferencia (1 con una IP privada) y nombres repetidos ("Operador 123" ×10). `ms-interoperabilidad` lo consume con su propio cliente de solo lectura. El cliente (`listOperators`) normaliza ambas formas a `{id, name, transferApiUrl, participants}`, recorta espacios y descarta entradas sin id. HU-05a puede reutilizarlo.
 
 - Sigue habiendo diferencia de casing respecto a lo que se **envía** en `registerCitizen`/`unregisterCitizen` (`operatorId`/`operatorName`).
 

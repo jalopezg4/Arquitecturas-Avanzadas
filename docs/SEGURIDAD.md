@@ -125,6 +125,31 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 | Trazabilidad | Retoma el `x-trace-id` del mensaje: el trace-id de la carga aparece en gateway, `ms-documentos` y `ms-notificaciones` |
 | Resiliencia | Si RabbitMQ cae, los consumidores **reconectan solos** con espera creciente (verificado reiniciando el broker); si no está disponible al arrancar, el servicio no cae |
 
+## 9. Directorio de operadores (`ms-interoperabilidad`, HU-05a)
+
+Copia local del directorio de GovCarpeta (`GET /apis/getOperators`, ADR-03) para localizar al operador destino de una transferencia y resolver su dirección de transferencia. Es de **solo lectura** hacia GovCarpeta.
+
+**Política de refresco** (el issue pedía definirla):
+
+| Situación | Qué hace |
+|---|---|
+| La copia tiene menos de 60 min (`OPERATOR_DIRECTORY_TTL_MINUTES`) | La usa, sin llamar a GovCarpeta (5 búsquedas seguidas = 1 llamada; sobrevive a reinicios porque vive en Mongo) |
+| La copia es más vieja | Refresca **antes** de usarla. Varias consultas simultáneas comparten **un solo** refresco |
+| Operador no encontrado, o sin dirección publicada | **Un** refresco forzado (pudo registrarse o publicar hace poco: el directorio es compartido y cambia), pero no más de uno cada 30 s (`MIN_FORCED_REFRESH_SECONDS`): pedir operadores inexistentes en bucle no debe martillar al sandbox compartido |
+| GovCarpeta no responde y hay copia (≤ 24 h, `OPERATOR_DIRECTORY_MAX_STALE_MINUTES`) | **Buscar** devuelve la copia marcada `stale: true`. **Resolver una dirección de transferencia NO**: se le van a enviar datos de un ciudadano, así que nunca se usa una dirección que no se pudo confirmar vigente |
+| GovCarpeta no responde y no hay copia utilizable | `DirectoryUnavailableError` |
+| GovCarpeta devuelve una lista **vacía** | No reemplaza a un directorio bueno (parece una falla, no un directorio sin operadores) |
+
+**El refresco se publica de forma atómica.** Cada refresco escribe una *generación* nueva completa y solo al final cambia el puntero (`DirectoryState`); si algo falla a mitad, el directorio anterior sigue intacto y no queda una generación huérfana. Los operadores que dejan de aparecer en GovCarpeta desaparecen de la copia.
+
+**Las direcciones las publican OTROS operadores (no confiables)** y luego se les enviarán datos de un ciudadano. Antes de devolver una dirección se valida: solo `http`/`https`, sin credenciales en la URL, sin espacios ni caracteres de control, longitud acotada, y **sin IPs ni nombres locales o privados** (loopback, `10.x`, `172.16–31`, `192.168`, link-local y metadatos de la nube `169.254.169.254`, CGNAT, IPv6 local, IPv4 mapeada a IPv6, y las formas ofuscadas `2130706433`, `0x7f000001`, `127.1`, `0177.0.0.1`, que el parser normaliza). `ALLOW_PRIVATE_OPERATOR_URLS` solo puede activarse en local: el arranque lo **prohíbe** fuera de local. `REQUIRE_HTTPS_OPERATOR_URLS` está apagado por defecto porque varios operadores del curso publican `http://`.
+
+**Datos reales que motivaron el diseño** (directorio del sandbox, 2026-09-19): 73 operadores, solo 16 con dirección de transferencia, **un operador publicó una dirección con IP privada** (la política la rechaza; las otras 15 pasan) y hay **nombres repetidos** (p. ej. "Operador 123" ×10): buscar por nombre devuelve `AmbiguousOperatorError` y hay que usar el `operatorId`.
+
+**Sobre las mayúsculas del Swagger:** `getOperators` documenta `OperatorId`/`OperatorName` pero el sandbox real devuelve `_id`/`operatorName` (y `registerCitizen` envía `operatorId`/`operatorName`). El cliente acepta todas las formas; una prueba específica cubre la diferencia.
+
+**Nuestro propio operador** (`OPERATOR_ID`) nunca puede ser el destino (`SelfTransferError`).
+
 ## Límites (qué NO cubre)
 
 - **Sin gestor de secretos** dedicado ni rotación automática de secretos: es rotación asistida por configuración.
@@ -137,4 +162,5 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 - **El bloqueo es por cuenta, no por origen:** un atacante que conozca un documento puede bloquear esa cuenta 15 minutos con 5 intentos (denegación temporal). No hay limitación por IP: correspondería al gateway.
 - **Documentos (HU-03):** no hay análisis antivirus ni de contenido del PDF (solo tipo, firma y tamaño); el cifrado en reposo lo da el proveedor de storage, no el servicio; si el broker falla, el evento queda marcado `eventoPublicado:false` pero **no hay aún un proceso que lo reenvíe** (reconciliación manual); un `504` del gateway con una carga ya terminada por el servicio sigue siendo posible en un caso límite (el servicio se rinde antes, por configuración, pero no está garantizado por construcción); la carga certificada por una entidad emisora (HU-10) y la eliminación de documentos (que devolvería cupo) no están implementadas.
 - **Notificaciones (HU-03):** el contador de intentos por mensaje vive en memoria (si el proceso reinicia, la cuenta vuelve a empezar; solo alarga el reintento); un aviso enviado cuyo registro `enviado` no se pudo guardar y cuyo reclamo se vuelve "abandonado" podría reenviarse una vez pasado `NOTIFICATION_STALE_CLAIM_MS` (correo duplicado, nunca perdido); solo correo (no hay SMS ni bandeja del portal); no hay reproceso automático de la cola de fallidos (es manual); la bienvenida solo se envía para ciudadanos registrados con el evento ya enriquecido (los eventos antiguos, sin correo, van a fallidos); el `ciudadano.registrado` lleva nombre y correo por el broker interno (TLS fuera de local).
+- **Directorio de operadores (HU-05a):** la validación de la dirección es sobre su **texto**: no se resuelve el DNS, así que un nombre público que resuelva a una IP privada (*DNS rebinding*) no se detecta aquí; quien haga la llamada real de transferencia (HU-05c) debe verificar la IP resuelta. No hay API HTTP del directorio (lo usan por dentro las transferencias). GovCarpeta no permite saber a qué operador pertenece un ciudadano. El límite de refrescos forzados vive en memoria por réplica (varias réplicas pueden sumar más llamadas al sandbox).
 - **`ms-gateway` es mínimo:** valida tokens, enruta por lista blanca, propaga el trace-id y expone TLS/mTLS opcional, pero no hace limitación de tasa (por IP o por cliente), no tiene circuit breaker ni balanceo entre réplicas de un mismo servicio, y sus rutas están en código (`src/routes.js`), no en una configuración dinámica. Como se dijo arriba, la limitación por origen (el bloqueo de cuentas por IP) le correspondería.

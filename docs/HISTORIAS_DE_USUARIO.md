@@ -228,8 +228,10 @@ Como ciudadano quiero cambiar de operador conservando mis documentos y mi direcc
 
 ### HU-05a — Localización y directorio de operadores (RF-15, RF-16) — 3 pts
 Como operador quiero consultar `GET /apis/getOperators` para saber a qué operador está afiliado un ciudadano antes de iniciar cualquier transferencia.
-- ✅ Consulta el directorio de MinTIC y cachea localmente (copia local per ADR-03/entidad `Operador`)
-- ✅ Resuelve la dirección de transferencia publicada por el operador destino
+- ✅ Consulta el directorio de MinTIC y cachea localmente (copia local per ADR-03/entidad `Operador`, guardada por generaciones: un refresco fallido nunca deja el directorio a medias)
+- ✅ Resuelve la dirección de transferencia publicada por el operador destino, **validada** (es de otro operador, no confiable): sin `file:`/`javascript:`, sin credenciales en la URL y sin IPs privadas/loopback (SSRF)
+- ✅ Política de refresco definida (`docs/SEGURIDAD.md`, sección 9): vigencia 60 min; operador no encontrado o sin dirección → un refresco forzado, máx. 1 cada 30 s; GovCarpeta caído → para *buscar* se sirve la copia vieja marcada `stale` (hasta 24 h), para *resolver una dirección de transferencia* **nunca**
+- 🟡 **Alcance real:** GovCarpeta **no expone** "a qué operador está afiliado un ciudadano" (`validateCitizen` solo responde disponible o no). Lo implementado es localizar al operador **destino** (por id o nombre) y resolver su dirección; quién es el operador actual de un ciudadano no se puede consultar con la API
 
 ### HU-05b — Publicación de endpoint de transferencia (RF-35) — 2 pts
 Como operador quiero registrar mi propio endpoint de recepción (`PUT /apis/registerTransferEndPoint`) ante MinTIC, para que otros operadores puedan iniciarme transferencias. *(Misma naturaleza operacional que HU-11 — no es un flujo iniciado por el ciudadano.)*
