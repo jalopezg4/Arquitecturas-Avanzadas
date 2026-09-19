@@ -9,7 +9,8 @@
     "test": "jest",
     "test:watch": "npm test -- --watch",
     "trace": "node scripts/trace.js",
-    "register:operator": "node scripts/register-operator.js"
+    "register:operator": "node scripts/register-operator.js",
+    "scan:secrets": "node scripts/scan-secrets.js"
   },
   "type": "commonjs",
   "dependencies": {
