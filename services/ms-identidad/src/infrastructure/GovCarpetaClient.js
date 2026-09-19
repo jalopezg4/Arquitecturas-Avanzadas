@@ -1,6 +1,5 @@
 const axios = require("axios");
-
-let warnedAboutValidateCitizenAssumption = false;
+const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
 
 /**
  * Cliente HTTP hacia GovCarpeta. Nombres de campo verificados contra el Swagger real
@@ -20,6 +19,12 @@ class GovCarpetaClient {
     // "ya afiliado" un documento que nunca se ha registrado). Sigue configurable
     // (constructor o GOVCARPETA_AVAILABLE_STATUS) por si el comportamiento cambia.
     this.availableStatus = availableStatus;
+  }
+
+  /** Reenvia el trace-id a GovCarpeta para poder correlacionar la llamada en ambos lados. */
+  _traceHeaders() {
+    const traceId = getTraceId();
+    return traceId ? { [TRACE_ID_HEADER]: traceId } : {};
   }
 
   /**
@@ -51,20 +56,10 @@ class GovCarpetaClient {
 
   /** GET /apis/validateCitizen/{id} -- ver nota sobre `availableStatus` en el constructor. */
   async validateCitizen(documento) {
-    if (!warnedAboutValidateCitizenAssumption) {
-      warnedAboutValidateCitizenAssumption = true;
-      // eslint-disable-next-line no-console
-      console.warn(
-        "[GovCarpetaClient] validateCitizen: el Swagger no documenta 200/204 (sin schema). " +
-          "Verificado empiricamente el 2026-09-17 que un documento nunca registrado devuelve 204 " +
-          "(=> disponible). Aun no se ha confirmado con un caso real que 200 signifique 'ya " +
-          "existe' -- si algo se comporta raro, revisar esta interpretacion primero. Ver " +
-          "docs/GOVCARPETA_CONTRATO.md."
-      );
-    }
     return this._withRetry(async () => {
       const res = await this.http.get(`${this.baseUrl}/apis/validateCitizen/${documento}`, {
         validateStatus: (s) => s === 200 || s === 204,
+        headers: this._traceHeaders(),
       });
       return { available: res.status === this.availableStatus };
     });
@@ -83,7 +78,7 @@ class GovCarpetaClient {
     const res = await this.http.post(
       `${this.baseUrl}/apis/registerCitizen`,
       { id, name, address, email, operatorId: this.operatorId, operatorName: this.operatorName },
-      { validateStatus: () => true }
+      { validateStatus: () => true, headers: this._traceHeaders() }
     );
     if (res.status !== 201) {
       const err = new Error(`registerCitizen respondio ${res.status}, se esperaba 201`);
@@ -97,6 +92,7 @@ class GovCarpetaClient {
     return this._withRetry(async () => {
       await this.http.delete(`${this.baseUrl}/apis/unregisterCitizen`, {
         data: { id, operatorId: this.operatorId, operatorName: this.operatorName },
+        headers: this._traceHeaders(),
       });
     });
   }

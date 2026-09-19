@@ -1,4 +1,5 @@
 const { OUTCOMES, ACTOR_TYPES } = require("../domain/AuditEntry");
+const { getTraceId } = require("../tracing/TraceContext");
 
 /**
  * Registra en la bitacora quien hizo que, cuando y con que resultado (HT-04, RF-39, RNF-07).
@@ -43,6 +44,7 @@ class AuditLogger {
       outcome,
       reason,
       metadata,
+      traceId: getTraceId(),
       timestamp: new Date(),
     });
   }

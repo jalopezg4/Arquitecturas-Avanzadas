@@ -32,3 +32,22 @@ Microservicios, cada uno propietario exclusivo de su base de datos. Comunicació
 ## Hallazgos de esta sesión (no estaban en el expediente original)
 
 Cuatro RF de prioridad Alta no tenían HU en el expediente: RF-22 (consulta), RF-23 (descarga), RF-11 (recepción por entidad emisora), RF-34 (registro del operador). Ahora son HU-08, HU-09, HU-10, HU-11 respectivamente — ver `HISTORIAS_DE_USUARIO.md`.
+
+## Observabilidad transversal (HT-04 auditoría, HT-06 trazabilidad)
+
+Ambas viven hoy en `ms-identidad` (`src/tracing/`, `AuditLogger`) y **cada servicio nuevo debe replicarlas** al crearse (`ms-documentos`, `ms-autenticacion`, etc.). Extraerlas a un paquete compartido queda como decisión pendiente (YAGNI mientras solo exista un servicio).
+
+**Bitácora de auditoría (RNF-07).** Colección `audit_logs`, append-only a nivel de aplicación: quién (actor), qué (acción), sobre qué recurso y de quién, resultado (`exito`/`fallo`/`rechazo`), motivo, timestamp y trace-id. `AuditQueryService.verifyNoOutOfPolicyAccess({from,to})` responde si hubo accesos exitosos a recursos ajenos no delegados. Cada servicio audita en **su propia base** (base por servicio); verificar RNF-07 globalmente exige consultarlos todos. Limitación: quien tenga acceso directo a Mongo puede borrar entradas.
+
+**Trazabilidad distribuida.** Cada petición lleva un trace-id (header `x-trace-id`):
+- Se reutiliza el que llega (gateway u otro servicio) si tiene formato válido (`[A-Za-z0-9._-]{8,64}`, evita inyección de líneas de log) o se genera uno; se devuelve en la respuesta.
+- Viaja por todo el código sin pasarlo por parámetros (`AsyncLocalStorage`) y se **propaga hacia afuera**: header en las llamadas a GovCarpeta y en los headers del mensaje de RabbitMQ (el consumidor debe retomarlo con `runWithTrace`).
+- Logs en una línea JSON (`ts`, `level`, `service`, `traceId`, `msg`, campos). **No se registran datos personales** (documento, correo, password).
+
+Reconstruir el recorrido de una petición (funciona con logs de varios servicios mezclados):
+
+```bash
+docker compose logs --no-color | node services/ms-identidad/scripts/trace.js <trace-id>
+```
+
+Muestra la línea de tiempo y el primer error (`saga.paso_fallido` indica el paso exacto). No sustituye a un agregador centralizado (ELK/Loki): trabaja sobre el texto que recibe.

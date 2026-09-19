@@ -17,6 +17,8 @@ const auditEntrySchema = new mongoose.Schema(
     outcome: { type: String, enum: OUTCOMES, required: true },
     reason: { type: String },
     metadata: { type: mongoose.Schema.Types.Mixed },
+    // Une la entrada con los logs del mismo request (HT-06).
+    traceId: { type: String, index: true },
     timestamp: { type: Date, default: Date.now, immutable: true, index: true },
   },
   { collection: "audit_logs", versionKey: false }
