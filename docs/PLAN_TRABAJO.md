@@ -11,10 +11,10 @@ El trabajo se organiza en **fases secuenciales** (relevo), no en asignación 100
 | HT-01 — Health checks | 3 | ✅ Completado (`/health`, `/ready` en `ms-identidad`) |
 | HT-08 — CI/CD | 5 | ✅ Completado (workflow de GitHub Actions activo, PR #73) |
 | HT-07 — Secretos/TLS | 3 | 🟡 Parcial (implementado solo el manejo de `JWT_SECRET`) |
-| HT-04 — Bitácora de auditoría | 3 | ❌ Pendiente |
+| HT-04 — Bitácora de auditoría | 3 | ✅ Completado (`AuditLogger`, `AuditQueryService`, bitácora append-only; integrada en el registro de HU-01) |
 | HT-06 — Trazabilidad distribuida | 5 | ❌ Pendiente |
 
-**Subtotal Oleada 0: 19 puntos** (11 pendientes: HT-04, HT-06, HT-07 resto).
+**Subtotal Oleada 0: 19 puntos** (8 pendientes: HT-06, HT-07 resto).
 
 ## Fase 1 — Responsable: Jennifer Andrea López Gómez
 

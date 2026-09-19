@@ -4,6 +4,8 @@ const buildApp = require("./app");
 const CitizenRepository = require("./infrastructure/CitizenRepository");
 const GovCarpetaClient = require("./infrastructure/GovCarpetaClient");
 const EventPublisher = require("./infrastructure/EventPublisher");
+const AuditLogger = require("./infrastructure/AuditLogger");
+const AuditRepository = require("./infrastructure/AuditRepository");
 const { CitizenSagaService } = require("./application/CitizenSagaService");
 
 async function main() {
@@ -25,7 +27,14 @@ async function main() {
   });
   const eventPublisher = new EventPublisher(env.rabbitUri);
 
-  const citizenSagaService = new CitizenSagaService({ citizenRepository, govCarpetaClient, eventPublisher });
+  const auditLogger = new AuditLogger({ auditRepository: new AuditRepository() });
+
+  const citizenSagaService = new CitizenSagaService({
+    citizenRepository,
+    govCarpetaClient,
+    eventPublisher,
+    auditLogger,
+  });
 
   const app = buildApp({ citizenSagaService });
   app.listen(env.port, () => {

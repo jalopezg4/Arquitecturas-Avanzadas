@@ -176,6 +176,82 @@ describe("CitizenSagaService.register()", () => {
     expect(repo.markActive).toHaveBeenCalled();
   });
 
+  describe("auditoria (HT-04)", () => {
+    function makeAuditedService(overrides = {}) {
+      const auditLogger = { record: jest.fn(async () => {}) };
+      const service = new CitizenSagaService({
+        citizenRepository: makeFakeRepo(),
+        govCarpetaClient: makeFakeGovCarpeta(),
+        eventPublisher: makeFakePublisher(),
+        auditLogger,
+        ...overrides,
+      });
+      return { service, auditLogger };
+    }
+
+    test("registra en bitacora un registro exitoso", async () => {
+      const { service, auditLogger } = makeAuditedService();
+
+      await service.register(validInput);
+
+      expect(auditLogger.record).toHaveBeenCalledTimes(1);
+      expect(auditLogger.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor: "123",
+          action: "ciudadano.registrar",
+          resourceOwner: "123",
+          outcome: "exito",
+        })
+      );
+    });
+
+    test("registra como 'rechazo' cuando el ciudadano ya esta afiliado", async () => {
+      const { service, auditLogger } = makeAuditedService({
+        govCarpetaClient: makeFakeGovCarpeta({ validateCitizen: jest.fn(async () => ({ available: false })) }),
+      });
+
+      await expect(service.register(validInput)).rejects.toThrow(ConflictError);
+
+      expect(auditLogger.record).toHaveBeenCalledWith(expect.objectContaining({ outcome: "rechazo" }));
+    });
+
+    test("registra como 'fallo' cuando GovCarpeta no esta disponible", async () => {
+      const { service, auditLogger } = makeAuditedService({
+        govCarpetaClient: makeFakeGovCarpeta({
+          validateCitizen: jest.fn(async () => {
+            throw new Error("timeout");
+          }),
+        }),
+      });
+
+      await expect(service.register(validInput)).rejects.toThrow(ServiceUnavailableError);
+
+      expect(auditLogger.record).toHaveBeenCalledWith(expect.objectContaining({ outcome: "fallo" }));
+    });
+
+    test("no audita entradas invalidas (todavia no hay actor identificable)", async () => {
+      const { service, auditLogger } = makeAuditedService();
+
+      await expect(service.register({ ...validInput, documento: "abc" })).rejects.toThrow(ValidationError);
+
+      expect(auditLogger.record).not.toHaveBeenCalled();
+    });
+
+    test("un fallo al escribir la bitacora NO tumba el registro ya confirmado", async () => {
+      const { service } = makeAuditedService({
+        auditLogger: {
+          record: jest.fn(async () => {
+            throw new Error("mongo caido");
+          }),
+        },
+      });
+
+      const result = await service.register(validInput);
+
+      expect(result).toEqual({ ciudadanoId: expect.any(String), direccionUnica: expect.any(String) });
+    });
+  });
+
   test("NO publica evento si la saga falla antes de llegar a activo", async () => {
     const repo = makeFakeRepo();
     const gov = makeFakeGovCarpeta({ validateCitizen: jest.fn(async () => ({ available: false })) });
