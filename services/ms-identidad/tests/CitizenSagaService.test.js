@@ -32,7 +32,7 @@ function makeFakePublisher() {
 }
 
 const validInput = {
-  documento: 123,
+  documento: 1234567890,
   nombre: "Ana Gomez",
   direccion: "Cra 1 # 2-3",
   correo: "ana@example.com",
@@ -211,9 +211,9 @@ describe("CitizenSagaService.register()", () => {
       expect(auditLogger.record).toHaveBeenCalledTimes(1);
       expect(auditLogger.record).toHaveBeenCalledWith(
         expect.objectContaining({
-          actor: "123",
+          actor: "1234567890",
           action: "ciudadano.registrar",
-          resourceOwner: "123",
+          resourceOwner: "1234567890",
           outcome: "exito",
         })
       );

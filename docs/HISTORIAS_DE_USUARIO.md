@@ -35,7 +35,7 @@ Como ciudadano colombiano quiero registrarme ante un operador de Carpeta Ciudada
 - ✅ `POST /api/v1/citizens` valida documento, nombre, dirección y correo antes de iniciar la saga
 - ✅ El ciudadano se persiste en estado `pendiente` **antes** de llamar a GovCarpeta (no después)
 - ✅ Solo pasa a `activo` cuando GovCarpeta confirma con 201
-- ✅ Si GovCarpeta responde 204/501 (ya afiliado o error), se rechaza sin dejar registros huérfanos
+- ✅ Si GovCarpeta responde 204 (ya afiliado) o rechaza definitivamente el registro (4xx/501), se rechaza sin dejar registros huérfanos: el pendiente se borra y el documento puede reintentarse (corregido tras la prueba real: el sandbox rechazó con `501` una cédula de 9 dígitos y el documento quedaba bloqueado con `409`). Ante un fallo ambiguo (timeout, 5xx distinto de 501) el pendiente se conserva para reconciliar, porque GovCarpeta pudo haberlo aceptado
 - ✅ Si falla después de confirmado en GovCarpeta, se ejecuta `unregisterCitizen` como compensación
 - ✅ La dirección única es inmutable y tiene restricción de unicidad a nivel de base de datos (índice único en MongoDB, no solo validación en código — ver nota de alcance de implementación: esta entrega usa MongoDB en todos los servicios, no PostgreSQL como en el diseño políglota objetivo)
 - ✅ Publica `CiudadanoRegistrado` en RabbitMQ solo cuando el estado ya es `activo`

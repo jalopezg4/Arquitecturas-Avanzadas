@@ -11,7 +11,7 @@ let mongoServer;
 let app;
 
 const validBody = {
-  documento: 555666777,
+  documento: 1555666777,
   nombre: "Ana Gomez",
   direccion: "Cra 1 # 2-3",
   correo: "ana@example.com",
@@ -110,4 +110,50 @@ describe("GET /health y /ready", () => {
     expect(health.status).toBe(200);
     expect(ready.status).toBe(200);
   });
+});
+
+describe("Registro rechazado o dudoso por GovCarpeta: no bloquea el documento (hallado en la prueba real)", () => {
+  const Citizen = require("../src/domain/Citizen");
+  const rejection = (status) => Object.assign(new Error(`registerCitizen respondio ${status}, se esperaba 201`), { response: { status } });
+
+  test.each([[400], [404], [501]])("si GovCarpeta responde %i (rechazo definitivo) no queda un pendiente y se puede reintentar con datos corregidos", async (status) => {
+    let calls = 0;
+    app = buildAppWithGovCarpeta(
+      makeFakeGovCarpeta({
+        registerCitizen: jest.fn(async () => {
+          if (++calls === 1) throw rejection(status);
+        }),
+      })
+    );
+
+    const first = await request(app).post("/api/v1/citizens").send(validBody);
+    expect(first.status).toBe(503);
+    expect(await Citizen.countDocuments()).toBe(0);
+
+    const retry = await request(app).post("/api/v1/citizens").send(validBody);
+    expect(retry.status).toBe(201);
+    expect(await Citizen.countDocuments({ estado: "activo" })).toBe(1);
+  });
+
+  test.each([
+    ["500", () => rejection(500)],
+    ["timeout / sin respuesta", () => new Error("timeout of 5000ms exceeded")],
+  ])("un fallo AMBIGUO (%s) conserva el pendiente: GovCarpeta pudo haberlo aceptado y hay que reconciliar", async (_name, makeErr) => {
+    app = buildAppWithGovCarpeta(makeFakeGovCarpeta({ registerCitizen: jest.fn(async () => { throw makeErr(); }) }));
+
+    const res = await request(app).post("/api/v1/citizens").send(validBody);
+
+    expect(res.status).toBe(503);
+    expect(await Citizen.countDocuments({ estado: "pendiente" })).toBe(1);
+  });
+
+  test("deletePending NUNCA borra a un ciudadano ya activo", async () => {
+    const repo = new CitizenRepository();
+    const c = await Citizen.create({ documento: 1555666777, nombre: "A", direccion: "d", correo: "a@b.co", passwordHash: "x", direccionUnica: "u@x", estado: "activo" });
+
+    await repo.deletePending(c._id);
+
+    expect(await Citizen.countDocuments()).toBe(1);
+  });
+
 });

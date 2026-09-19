@@ -40,6 +40,12 @@ function isValidDocumento(v) {
  * -> marca ACTIVO -> publica evento. Si falla despues de confirmar en GovCarpeta,
  * compensa con unregisterCitizen (el ciudadano NO debe quedar huerfano).
  */
+/** GovCarpeta respondio y dijo que no (4xx o 501). Sin respuesta, o un 5xx que no es 501, es ambiguo. */
+function isDefinitiveRejection(err) {
+  const status = err && err.response && err.response.status;
+  return Number.isInteger(status) && ((status >= 400 && status < 500) || status === 501);
+}
+
 class CitizenSagaService {
   constructor({ citizenRepository, govCarpetaClient, eventPublisher, auditLogger }) {
     this.citizenRepository = citizenRepository;
@@ -154,9 +160,13 @@ class CitizenSagaService {
         email: correo,
       });
     } catch (err) {
-      // No se pudo confirmar: el ciudadano se queda pendiente (no huerfano, no activo).
-      // No hace falta compensacion porque GovCarpeta nunca lo acepto.
       logger.error("saga.paso_fallido", { step: "govcarpeta.registerCitizen", err });
+      // Rechazo DEFINITIVO (GovCarpeta respondio 4xx/501): no lo acepto, asi que no queda nada que reconciliar y se
+      // borra el pendiente; si no, el documento quedaria bloqueado (409 "ya registrado") sin poder corregir los datos.
+      // Ante un fallo AMBIGUO (timeout, 5xx distinto de 501) se conserva el pendiente: GovCarpeta pudo haber aceptado.
+      if (isDefinitiveRejection(err)) {
+        await this.citizenRepository.deletePending(citizen._id).catch((delErr) => logger.error("saga.limpieza_fallida", { err: delErr }));
+      }
       throw new ServiceUnavailableError("No fue posible completar el registro en GovCarpeta");
     }
 
