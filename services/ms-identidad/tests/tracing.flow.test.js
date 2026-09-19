@@ -77,6 +77,9 @@ describe("trazabilidad de punta a punta en el registro (HU-01)", () => {
     expect(parsed.length).toBeGreaterThanOrEqual(5);
     for (const entry of parsed) expect(entry.traceId).toBe("gateway-flow-0001");
 
+    // Un aviso de configuracion no debe quedar atribuido a la traza de una peticion cualquiera.
+    expect(parsed.filter((e) => e.level === "warn")).toEqual([]);
+
     expect(http.calls).toHaveLength(2); // validateCitizen + registerCitizen
     for (const call of http.calls) expect(call.headers).toEqual({ "x-trace-id": "gateway-flow-0001" });
   });

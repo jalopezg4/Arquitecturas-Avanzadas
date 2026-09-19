@@ -1,8 +1,5 @@
 const axios = require("axios");
 const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
-const logger = require("../tracing/logger");
-
-let warnedAboutValidateCitizenAssumption = false;
 
 /**
  * Cliente HTTP hacia GovCarpeta. Nombres de campo verificados contra el Swagger real
@@ -59,16 +56,6 @@ class GovCarpetaClient {
 
   /** GET /apis/validateCitizen/{id} -- ver nota sobre `availableStatus` en el constructor. */
   async validateCitizen(documento) {
-    if (!warnedAboutValidateCitizenAssumption) {
-      warnedAboutValidateCitizenAssumption = true;
-      logger.warn(
-        "[GovCarpetaClient] validateCitizen: el Swagger no documenta 200/204 (sin schema). " +
-          "Verificado empiricamente el 2026-09-17 que un documento nunca registrado devuelve 204 " +
-          "(=> disponible). Aun no se ha confirmado con un caso real que 200 signifique 'ya " +
-          "existe' -- si algo se comporta raro, revisar esta interpretacion primero. Ver " +
-          "docs/GOVCARPETA_CONTRATO.md."
-      );
-    }
     return this._withRetry(async () => {
       const res = await this.http.get(`${this.baseUrl}/apis/validateCitizen/${documento}`, {
         validateStatus: (s) => s === 200 || s === 204,

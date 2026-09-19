@@ -16,6 +16,15 @@ async function main() {
     logger.warn("OPERATOR_ID no esta configurado -- registerCitizen/authenticateDocument fallaran contra GovCarpeta real. Completar HU-11 primero.");
   }
 
+  // Aviso de configuracion: se emite una vez al arrancar (sin traza), no dentro de una peticion.
+  logger.warn(
+    "GovCarpeta validateCitizen: el Swagger no documenta 200/204 (sin schema). Verificado " +
+      "empiricamente el 2026-09-17 que un documento nunca registrado devuelve 204 (=> disponible); " +
+      "aun no se ha confirmado con un caso real que 200 signifique 'ya existe'. " +
+      "Ver docs/GOVCARPETA_CONTRATO.md.",
+    { availableStatus: env.govCarpetaAvailableStatus }
+  );
+
   const citizenRepository = new CitizenRepository();
   const govCarpetaClient = new GovCarpetaClient({
     baseUrl: env.govCarpetaBaseUrl,
