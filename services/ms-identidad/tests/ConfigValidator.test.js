@@ -72,6 +72,25 @@ describe("ConfigValidator", () => {
       expect(problems.join("\n")).toContain("MONGO_URI debe usar TLS");
     });
 
+    test("rechaza Mongo con TLS desactivado explicitamente, incluso con mongodb+srv://", () => {
+      for (const flag of ["tls=false", "ssl=false", "retryWrites=true&tls=false", "TLS=FALSE"]) {
+        const problems = validateConfig(prodConfig({ mongoUri: `mongodb+srv://svc:Zq8mV2nX9pLr@c.mongodb.net/x?${flag}` }));
+        expect(problems.join()).toContain("desactiva TLS");
+      }
+    });
+
+    test("rechaza Mongo que desactiva la validacion del certificado (tlsInsecure, tlsAllowInvalid*, sslValidate=false)", () => {
+      for (const flag of ["tlsInsecure=true", "tlsAllowInvalidCertificates=true", "tlsAllowInvalidHostnames=true", "sslValidate=false"]) {
+        const problems = validateConfig(prodConfig({ mongoUri: `mongodb+srv://svc:Zq8mV2nX9pLr@c.mongodb.net/x?${flag}` }));
+        expect(problems.join()).toContain("validacion del certificado");
+      }
+    });
+
+    test("no da falsos positivos con parametros legitimos de Mongo", () => {
+      const ok = "mongodb+srv://svc:Zq8mV2nX9pLr@c.mongodb.net/x?retryWrites=true&w=majority&tlsInsecure=false";
+      expect(validateConfig(prodConfig({ mongoUri: ok }))).toEqual([]);
+    });
+
     test("acepta Mongo con ?tls=true", () => {
       expect(validateConfig(prodConfig({ mongoUri: "mongodb://svc:Zq8mV2nX9pLr@mongo:27017/x?tls=true" }))).toEqual([]);
     });

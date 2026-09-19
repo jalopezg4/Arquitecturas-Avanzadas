@@ -102,6 +102,45 @@ describe("SecretsManager", () => {
     expect(status).not.toContain(KEY_B);
   });
 
+  describe("despliegue GRADUAL con varias replicas (rotacion en dos fases)", () => {
+    test("rotar en UN solo paso rompe sesiones: una replica vieja no puede verificar lo que firma la nueva", () => {
+      const oldReplica = new SecretsManager({ active: KEY_A });
+      const newReplica = new SecretsManager({ active: KEY_B, previous: [KEY_A] });
+
+      // la replica nueva acepta lo viejo...
+      expect(newReplica.verify(oldReplica.sign({ sub: "ana" })).sub).toBe("ana");
+      // ...pero la vieja NO acepta lo nuevo: el usuario cuyo request cae en ella pierde la sesion
+      expect(() => oldReplica.verify(newReplica.sign({ sub: "luis" }))).toThrow(/desconocida/);
+    });
+
+    test("en dos fases ninguna replica, vieja o nueva, rechaza un token valido en ningun momento", () => {
+      const sign = (r, sub) => r.sign({ sub }, { expiresIn: "15m" });
+      const verifies = (fleet, token) => fleet.every((r) => r.verify(token));
+
+      // Fase 1: TODAS las replicas reciben la llave nueva SOLO para verificar (activa sigue siendo A)
+      const phase1 = () => new SecretsManager({ active: KEY_A, previous: [KEY_B] });
+      const fleet = [phase1(), phase1(), phase1()];
+      const tokenA = sign(fleet[0], "a");
+      expect(verifies(fleet, tokenA)).toBeTruthy();
+
+      // Fase 2: se pasa la activa a B replica por replica (flota MEZCLADA en medio del despliegue)
+      const phase2 = () => new SecretsManager({ active: KEY_B, previous: [KEY_A] });
+      fleet[0] = phase2();
+      const tokenB = sign(fleet[0], "b"); // firmado por una replica ya migrada
+      expect(verifies(fleet, tokenB)).toBeTruthy(); // las replicas aun en fase 1 lo aceptan
+      expect(verifies(fleet, tokenA)).toBeTruthy(); // y las migradas siguen aceptando lo viejo
+      fleet[1] = phase2();
+      fleet[2] = phase2();
+      expect(verifies(fleet, tokenA)).toBeTruthy();
+      expect(verifies(fleet, tokenB)).toBeTruthy();
+
+      // Fase 3: expiro el token mas longevo -> se retira la llave vieja
+      fleet.forEach((r) => r.retirePrevious());
+      expect(() => fleet[0].verify(tokenA)).toThrow();
+      expect(verifies(fleet, sign(fleet[1], "c"))).toBeTruthy();
+    });
+  });
+
   test("exige una llave activa", () => {
     expect(() => new SecretsManager({})).toThrow(/llave activa/);
   });

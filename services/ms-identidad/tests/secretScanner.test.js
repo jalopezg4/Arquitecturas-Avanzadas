@@ -25,6 +25,46 @@ describe("secretScanner: detecta credenciales hardcodeadas en codigo", () => {
   });
 });
 
+describe("secretScanner: valores SIN comillas en archivos de configuracion", () => {
+  const unquoted = [
+    [".env", "JWT_SECRET=un-secreto-largo"],
+    [".env.production", "DB_PASSWORD=Sup3rSecr3tValue"],
+    ["docker-compose.yml", "      password: un-secreto-largo"],
+    ["config.yaml", "api_key: sk_live_51H8abcdefgh"],
+    ["config.yaml", "  token: ghp_abcdefghijklmnop1234"],
+    ["Dockerfile", "ENV JWT_SECRET=un-secreto-largo"],
+  ];
+
+  test.each(unquoted)("detecta en %s: %s", (file, line) => {
+    expect(scanText(line, file).map((f) => f.rule)).toContain("hardcoded-assignment");
+  });
+
+  const legit = [
+    [".env.example", "JWT_SECRET=cambiar-en-produccion"], // placeholder documentado; el validador lo rechaza en produccion
+    [".env.example", "JWT_SECRET_PREVIOUS="], // vacio
+    [".env.example", "TLS_KEY_PATH=/certs/server.key"], // ruta, no secreto
+    [".env.example", "PRESIGNED_URL_AUTH_TTL_SECONDS=900"],
+    ["docker-compose.yml", "      JWT_SECRET: ${JWT_SECRET:-}"],
+    ["ci.yml", "        token: ${{ secrets.GITHUB_TOKEN }}"],
+    ["ci.yml", "      - run: npm run scan:secrets"],
+    ["config.yaml", "password: <PASSWORD>"],
+    ["config.yaml", "password: process.env.DB_PASSWORD"],
+  ];
+
+  test.each(legit)("ignora en %s: %s", (file, line) => {
+    expect(scanText(line, file)).toEqual([]);
+  });
+
+  test("en codigo JS NO trata como credencial una asignacion sin comillas (evita falsos positivos)", () => {
+    expect(scanText("const token = getToken(request);", "a.js")).toEqual([]);
+    expect(scanText("this.secret = options.secretValue;", "a.js")).toEqual([]);
+  });
+
+  test("no duplica el hallazgo cuando ya lo detecta la regla de literales", () => {
+    expect(scanText('password: "un-secreto-largo"', "c.yml")).toHaveLength(1);
+  });
+});
+
 describe("secretScanner: no genera falsos positivos en codigo legitimo", () => {
   const clean = [
     "const secret = process.env.JWT_SECRET;",

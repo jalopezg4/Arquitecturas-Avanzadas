@@ -50,6 +50,15 @@ describe("arranque (env.js)", () => {
     expect(() => loadEnvWith({ ...PROD_ENV, NODE_ENV: "staging", JWT_SECRET: "corta" })).toThrow(/JWT_SECRET/);
   });
 
+  test("NODE_ENV ausente falla cerrado: no se asume development ni se usa una llave conocida", () => {
+    expect(() => loadEnvWith({})).toThrow(/NODE_ENV es obligatorio/);
+    expect(() => loadEnvWith({ JWT_SECRET: STRONG })).toThrow(/NODE_ENV es obligatorio/); // ni con secreto valido
+  });
+
+  test("NODE_ENV vacio tambien falla cerrado", () => {
+    expect(() => loadEnvWith({ NODE_ENV: "" })).toThrow(/NODE_ENV es obligatorio/);
+  });
+
   test("en development arranca con defaults de desarrollo", () => {
     const cfg = loadEnvWith({ NODE_ENV: "development" });
     expect(cfg.isLocal).toBe(true);

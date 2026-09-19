@@ -22,6 +22,23 @@ const RULES = [
   },
 ];
 
+// En archivos de configuracion (.env, yaml) los valores suelen ir SIN comillas: JWT_SECRET=valor,
+// password: valor. En codigo JS se mantiene solo el caso entre comillas: sin ellas `token = getToken(req)`
+// generaria falsos positivos.
+const CONFIG_RULE = {
+  id: "hardcoded-assignment",
+  re: /(?:secret|passw(?:or)?d|pwd|api[_-]?key|token|private[_-]?key)\w*["']?\s*[:=]\s*["'`]?(?![$<]|process\.env|\{\{)[^\s"'`#]{8,}/i,
+  desc: "credencial asignada a un literal (sin comillas)",
+};
+// Marcadores de "esto no es una credencial real"; el validador de arranque los rechaza en produccion.
+const PLACEHOLDER_VALUE = /cambiar-en-produccion|changeme|change-me|your-secret|tu-secreto|example/i;
+const CONFIG_EXT = new Set([".env", ".example", ".yml", ".yaml", ".toml"]);
+
+function isConfigFile(file) {
+  const base = path.basename(file);
+  return CONFIG_EXT.has(path.extname(file)) || base.startsWith(".env") || base === "Dockerfile";
+}
+
 const ALLOW_MARKER = "secret-scan:allow";
 const SCANNED_EXT = new Set([".js", ".json", ".yml", ".yaml", ".env", ".example", ".sh", ".toml"]);
 
@@ -31,6 +48,13 @@ function scanText(text, file = "<texto>") {
     if (line.includes(ALLOW_MARKER)) return;
     for (const rule of RULES) {
       if (rule.re.test(line)) findings.push({ file, line: i + 1, rule: rule.id, description: rule.desc });
+    }
+    if (isConfigFile(file)) {
+      const m = CONFIG_RULE.re.exec(line);
+      const alreadyFlagged = findings.some((f) => f.file === file && f.line === i + 1);
+      if (m && !alreadyFlagged && !PLACEHOLDER_VALUE.test(m[0])) {
+        findings.push({ file, line: i + 1, rule: CONFIG_RULE.id, description: CONFIG_RULE.desc });
+      }
     }
   });
   return findings;

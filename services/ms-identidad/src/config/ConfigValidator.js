@@ -59,8 +59,16 @@ function validateConfig(cfg) {
     // consciente que se documenta, no un default silencioso.
     if (!/^https:\/\//i.test(cfg.govCarpetaBaseUrl || "")) problems.push("GOVCARPETA_BASE_URL debe usar https://");
     if (!/^amqps:\/\//i.test(cfg.rabbitUri || "")) problems.push("RABBITMQ_URI debe usar amqps:// (RabbitMQ con TLS)");
-    if (!/^mongodb\+srv:\/\//i.test(cfg.mongoUri || "") && !/[?&](tls|ssl)=true/i.test(cfg.mongoUri || "")) {
+    const mongo = cfg.mongoUri || "";
+    if (/[?&](?:tls|ssl)=(?:false|0)(?:&|$)/i.test(mongo)) {
+      // Se evalua primero: mongodb+srv:// activa TLS por defecto, pero ?tls=false lo apaga.
+      problems.push("MONGO_URI desactiva TLS (tls=false / ssl=false)");
+    } else if (!/^mongodb\+srv:\/\//i.test(mongo) && !/[?&](?:tls|ssl)=true(?:&|$)/i.test(mongo)) {
       problems.push("MONGO_URI debe usar TLS (mongodb+srv:// o ?tls=true)");
+    }
+    if (/[?&](?:tlsInsecure|tlsAllowInvalidCertificates|tlsAllowInvalidHostnames|sslValidate)=(?:true|false)/i.test(mongo)) {
+      const risky = /[?&]sslValidate=false/i.test(mongo) || /[?&](?:tlsInsecure|tlsAllowInvalidCertificates|tlsAllowInvalidHostnames)=true/i.test(mongo);
+      if (risky) problems.push("MONGO_URI desactiva la validacion del certificado TLS (tlsInsecure / tlsAllowInvalid* / sslValidate=false)");
     }
 
     for (const [name, uri] of [["MONGO_URI", cfg.mongoUri], ["RABBITMQ_URI", cfg.rabbitUri]]) {

@@ -1,7 +1,13 @@
 require("dotenv").config();
-const { assertValidConfig } = require("./ConfigValidator");
+const { assertValidConfig, ConfigError } = require("./ConfigValidator");
 
-const nodeEnv = process.env.NODE_ENV || "development";
+// Falla cerrado: si NODE_ENV no esta definido NO se asume "development". Un despliegue que olvide
+// la variable arrancaria con llaves conocidas y sin exigir TLS. Para desarrollo local, definirlo
+// en .env (ver .env.example); docker-compose y jest ya lo definen.
+if (!process.env.NODE_ENV) {
+  throw new ConfigError(["NODE_ENV es obligatorio: development, test, staging o production"]);
+}
+const nodeEnv = process.env.NODE_ENV;
 const isLocal = nodeEnv === "development" || nodeEnv === "test";
 
 const INSECURE_DEV_JWT_SECRET = "solo-para-desarrollo-local-nunca-usar-en-despliegue"; // secret-scan:allow
