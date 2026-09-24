@@ -130,3 +130,4 @@ Para correr un servicio fuera de Docker (`npm run dev`) necesita MongoDB, y seg�
 
 - [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md) — secretos, TLS, sesiones, gateway, documentos, límites conocidos.
 - [`docs/OPERADOR_MINTIC.md`](docs/OPERADOR_MINTIC.md) — registro del operador y publicación del endpoint de transferencia.
+- [`scripts/backup-restore/README.md`](scripts/backup-restore/README.md) — HT-02: respaldo y restauración verificada de MongoDB y MinIO (herramienta transversal, no pertenece a un solo microservicio).

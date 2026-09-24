@@ -1,0 +1,521 @@
+name: HT-02 -- backup y restauracion verificada
+
+# Prueba periodica automatizada de restauracion (RNF-03): no basta con que el backup se genere, hay que
+# demostrar que un restore real, en infraestructura desechable y aislada, produce datos identicos a los
+# sembrados. Ver scripts/backup-restore/README.md para el detalle de backup.js / restore-verify.js.
+on:
+  workflow_dispatch: {}
+  # Semanal (lunes 07:00 UTC): suficiente para detectar una regresion sin sobrecargar el runner compartido
+  # del curso. No sustituye una corrida manual antes de una revision (workflow_dispatch cubre eso).
+  schedule:
+    - cron: "0 7 * * 1"
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUN_TAG: ht02-${{ github.run_id }}-${{ github.run_attempt }}
+      SRC_MONGO_PORT: "27017"
+      SRC_MINIO_PORT: "9000"
+      DST_MONGO_PORT: "27018"
+      DST_MINIO_PORT: "9010"
+      SRC_BUCKET: ht02-seed-source
+      DST_BUCKET: ht02-restore
+      # Unica fuente de verdad para los nombres de las bases sembradas: el step "Seed Mongo (fuente)" las
+      # crea con estos nombres literales (no se tocan aqui), y esta variable es lo unico que le dice al
+      # script auxiliar ht02-mongo-fingerprint.js cuales bases debe leer -- asi la captura de la fuente de
+      # verdad (seed) y la captura post-restore usan siempre la MISMA lista, sin que quede hardcodeada por
+      # duplicado en el script (si algun dia cambia un nombre de base, solo se edita aqui).
+      HT02_MONGO_DATABASES: "ht02_seed_alpha ht02_seed_beta"
+      # Credenciales de MinIO validas SOLO dentro de este job: contenedor desechable, sin datos reales,
+      # nunca conecta a infraestructura fuera de este runner.
+      HT02_MINIO_USER: ht02ciadmin
+      HT02_MINIO_PASSWORD: Ht02FakeSecret2026!  # secret-scan:allow -- credencial efimera de CI, no es un secreto real
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: scripts/backup-restore/package-lock.json
+
+      - name: Instalar dependencias (npm ci)
+        working-directory: scripts/backup-restore
+        run: npm ci
+
+      # -----------------------------------------------------------------------------------------------
+      # Estos 5 scripts son la verificacion INDEPENDIENTE del workflow: no llaman a backup.js ni a
+      # restore-verify.js, ni reutilizan su logica interna de verificacion (mongoRestoreVerify.js /
+      # s3Verify.js). Usan su propio mongosh --eval y su propio listado/hash via @aws-sdk/client-s3, para
+      # que la herramienta que se esta demostrando no sea la unica que certifica su propio resultado.
+      # -----------------------------------------------------------------------------------------------
+      - name: Preparar scripts auxiliares de verificacion independiente
+        run: |
+          mkdir -p "$RUNNER_TEMP"
+
+          cat <<'MONGO_FP_EOF' > "$RUNNER_TEMP/ht02-mongo-fingerprint.js"
+          const { execFileSync } = require("child_process");
+          const crypto = require("crypto");
+          const fs = require("fs");
+
+          const mongoUri = process.env.MONGO_URI;
+          const outFile = process.env.OUT_FILE;
+          // Lista de bases inyectada por el workflow (job.env.HT02_MONGO_DATABASES), NUNCA hardcodeada aqui:
+          // asi la captura del seed y la captura post-restore siempre usan la misma fuente de verdad.
+          const dbNames = (process.env.MONGO_DATABASES || "").trim().split(/\s+/).filter(Boolean);
+          if (dbNames.length === 0) {
+            throw new Error("MONGO_DATABASES no definida o vacia");
+          }
+
+          const EVAL = `
+          const dbNames = ${JSON.stringify(dbNames)};
+          const out = {};
+          for (const name of dbNames) {
+            const sdb = db.getSiblingDB(name);
+            const cols = sdb.getCollectionNames().sort();
+            out[name] = {};
+            for (const col of cols) {
+              const docs = sdb.getCollection(col).find().sort({_id:1}).toArray();
+              out[name][col] = { count: docs.length, ejson: docs.map(d => EJSON.stringify(d)) };
+            }
+          }
+          print(JSON.stringify(out));
+          `;
+
+          const stdout = execFileSync(
+            "docker",
+            ["run", "--rm", "--add-host=host.docker.internal:host-gateway", "mongo:7", "mongosh", "--quiet", "--eval", EVAL, mongoUri],
+            { encoding: "utf8" }
+          );
+
+          const raw = JSON.parse(stdout.trim());
+          const withHashes = {};
+          for (const [dbName, cols] of Object.entries(raw)) {
+            withHashes[dbName] = {};
+            for (const [colName, info] of Object.entries(cols)) {
+              withHashes[dbName][colName] = {
+                count: info.count,
+                hash: crypto.createHash("sha256").update(info.ejson.join("\u0001"), "utf8").digest("hex"),
+              };
+            }
+          }
+          fs.writeFileSync(outFile, JSON.stringify(withHashes, null, 2));
+          console.log(`Huella Mongo capturada -> ${outFile}`);
+          MONGO_FP_EOF
+
+          cat <<'COMPARE_MONGO_EOF' > "$RUNNER_TEMP/ht02-compare-mongo.js"
+          const fs = require("fs");
+          const expected = JSON.parse(fs.readFileSync(process.env.EXPECTED_FILE, "utf8"));
+          const actual = JSON.parse(fs.readFileSync(process.env.ACTUAL_FILE, "utf8"));
+
+          const problems = [];
+          const expDbs = Object.keys(expected).sort();
+          const actDbs = Object.keys(actual).sort();
+          if (JSON.stringify(expDbs) !== JSON.stringify(actDbs)) {
+            problems.push(`bases distintas: esperado=[${expDbs}] actual=[${actDbs}]`);
+          }
+          for (const dbName of expDbs) {
+            if (!actual[dbName]) {
+              problems.push(`falta la base ${dbName} en el destino`);
+              continue;
+            }
+            const expCols = Object.keys(expected[dbName]).sort();
+            const actCols = Object.keys(actual[dbName]).sort();
+            if (JSON.stringify(expCols) !== JSON.stringify(actCols)) {
+              problems.push(`${dbName}: colecciones distintas: esperado=[${expCols}] actual=[${actCols}]`);
+              continue;
+            }
+            for (const col of expCols) {
+              const e = expected[dbName][col];
+              const a = actual[dbName][col];
+              if (e.count !== a.count) problems.push(`${dbName}.${col}: conteo distinto (${e.count} vs ${a.count})`);
+              if (e.hash !== a.hash) problems.push(`${dbName}.${col}: contenido BSON distinto (hash no coincide)`);
+            }
+          }
+
+          if (problems.length) {
+            console.error("Verify Mongo: FALLO\n" + problems.map((p) => " - " + p).join("\n"));
+            process.exit(1);
+          }
+          console.log(`Verify Mongo ...... PASS (${expDbs.length} base(s), contenido identico a la fuente de verdad del seed)`);
+          COMPARE_MONGO_EOF
+
+          cat <<'SEED_MINIO_EOF' > "$RUNNER_TEMP/ht02-seed-minio.js"
+          const { S3Client, CreateBucketCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
+          const crypto = require("crypto");
+
+          const client = new S3Client({
+            endpoint: process.env.S3_ENDPOINT,
+            region: "us-east-1",
+            credentials: { accessKeyId: process.env.S3_ACCESS_KEY_ID, secretAccessKey: process.env.S3_SECRET_ACCESS_KEY },
+            forcePathStyle: true,
+          });
+          const Bucket = process.env.S3_BUCKET;
+
+          const objects = [
+            { key: "textos/nota.txt", body: Buffer.from("HT-02 seed: contenido de texto de prueba.\n", "utf8"), contentType: "text/plain", metadata: { origen: "ht02-seed" } },
+            { key: "binarios/imagen.bin", body: crypto.randomBytes(2048), contentType: "application/octet-stream", metadata: {} },
+            { key: "vacios/objeto-vacio.txt", body: Buffer.alloc(0), contentType: "text/plain", metadata: {} },
+            { key: "con espacios/archivo con espacios.txt", body: Buffer.from("clave con espacios en el nombre", "utf8"), contentType: "text/plain", metadata: { tipo: "espacios" } },
+            { key: "especiales/áéí-ñ_(1)@2026.txt", body: Buffer.from("clave con caracteres especiales", "utf8"), contentType: "text/plain", metadata: { tipo: "especiales" } },
+            { key: "grandes/archivo-multimb.bin", body: crypto.randomBytes(5 * 1024 * 1024), contentType: "application/octet-stream", metadata: { tamano: "multi-mb" } },
+          ];
+
+          async function main() {
+            await client.send(new CreateBucketCommand({ Bucket })).catch(() => {});
+            for (const o of objects) {
+              await client.send(new PutObjectCommand({ Bucket, Key: o.key, Body: o.body, ContentType: o.contentType, Metadata: o.metadata }));
+            }
+            console.log(`Seed MinIO ........ PASS (${objects.length} objeto(s) subidos a "${Bucket}")`);
+          }
+          main().catch((err) => {
+            console.error(err);
+            process.exit(1);
+          });
+          SEED_MINIO_EOF
+
+          cat <<'MINIO_FP_EOF' > "$RUNNER_TEMP/ht02-minio-fingerprint.js"
+          const { S3Client, ListObjectsV2Command, GetObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
+          const crypto = require("crypto");
+          const fs = require("fs");
+
+          const client = new S3Client({
+            endpoint: process.env.S3_ENDPOINT,
+            region: "us-east-1",
+            credentials: { accessKeyId: process.env.S3_ACCESS_KEY_ID, secretAccessKey: process.env.S3_SECRET_ACCESS_KEY },
+            forcePathStyle: true,
+          });
+          const Bucket = process.env.S3_BUCKET;
+          const outFile = process.env.OUT_FILE;
+
+          async function streamToBuffer(stream) {
+            const chunks = [];
+            for await (const chunk of stream) chunks.push(chunk);
+            return Buffer.concat(chunks);
+          }
+
+          async function main() {
+            const keys = [];
+            let cursor;
+            let truncated = true;
+            while (truncated) {
+              const res = await client.send(new ListObjectsV2Command({ Bucket, ContinuationToken: cursor }));
+              (res.Contents || []).forEach((o) => keys.push(o.Key));
+              truncated = Boolean(res.IsTruncated);
+              cursor = res.NextContinuationToken;
+            }
+            keys.sort();
+
+            const objects = {};
+            for (const key of keys) {
+              const head = await client.send(new HeadObjectCommand({ Bucket, Key: key }));
+              const got = await client.send(new GetObjectCommand({ Bucket, Key: key }));
+              const buf = await streamToBuffer(got.Body);
+              objects[key] = {
+                size: buf.length,
+                sha256: crypto.createHash("sha256").update(buf).digest("hex"),
+                contentType: head.ContentType || null,
+                metadata: head.Metadata || {},
+              };
+            }
+            fs.writeFileSync(outFile, JSON.stringify({ bucket: Bucket, count: keys.length, objects }, null, 2));
+            console.log(`Fuente de verdad MinIO capturada: ${keys.length} objeto(s) -> ${outFile}`);
+          }
+          main().catch((err) => {
+            console.error(err);
+            process.exit(1);
+          });
+          MINIO_FP_EOF
+
+          cat <<'COMPARE_MINIO_EOF' > "$RUNNER_TEMP/ht02-compare-minio.js"
+          const fs = require("fs");
+          const expected = JSON.parse(fs.readFileSync(process.env.EXPECTED_FILE, "utf8"));
+          const actual = JSON.parse(fs.readFileSync(process.env.ACTUAL_FILE, "utf8"));
+
+          function metaEqual(m1, m2) {
+            const e1 = JSON.stringify(Object.entries(m1 || {}).sort());
+            const e2 = JSON.stringify(Object.entries(m2 || {}).sort());
+            return e1 === e2;
+          }
+
+          const problems = [];
+          const expKeys = Object.keys(expected.objects).sort();
+          const actKeys = Object.keys(actual.objects).sort();
+          if (JSON.stringify(expKeys) !== JSON.stringify(actKeys)) {
+            problems.push(`conjunto de claves distinto: esperado=${expKeys.length} actual=${actKeys.length}`);
+          }
+          for (const key of expKeys) {
+            const e = expected.objects[key];
+            const a = actual.objects[key];
+            if (!a) {
+              problems.push(`falta en destino: ${key}`);
+              continue;
+            }
+            if (e.size !== a.size) problems.push(`${key}: tamano distinto (${e.size} vs ${a.size})`);
+            if (e.sha256 !== a.sha256) problems.push(`${key}: sha256 distinto`);
+            if ((e.contentType || null) !== (a.contentType || null)) problems.push(`${key}: content-type distinto (${e.contentType} vs ${a.contentType})`);
+            if (!metaEqual(e.metadata, a.metadata)) problems.push(`${key}: metadata distinta`);
+          }
+
+          if (problems.length) {
+            console.error("Verify MinIO: FALLO\n" + problems.map((p) => " - " + p).join("\n"));
+            process.exit(1);
+          }
+          console.log(`Verify MinIO ...... PASS (${expKeys.length} objeto(s), contenido/metadata identicos a la fuente de verdad del seed)`);
+          COMPARE_MINIO_EOF
+
+          echo "Scripts auxiliares listos en $RUNNER_TEMP"
+
+      - name: "Infraestructura temporal: fuente (Mongo + MinIO)"
+        run: |
+          docker run -d --name "${RUN_TAG}-src-mongo" -p "${SRC_MONGO_PORT}:27017" mongo:7
+          docker run -d --name "${RUN_TAG}-src-minio" -p "${SRC_MINIO_PORT}:9000" \
+            -e MINIO_ROOT_USER="${HT02_MINIO_USER}" \
+            -e MINIO_ROOT_PASSWORD="${HT02_MINIO_PASSWORD}" \
+            quay.io/minio/minio:latest server /data
+
+          echo "Esperando Mongo fuente..."
+          for i in $(seq 1 30); do
+            if docker run --rm --add-host=host.docker.internal:host-gateway mongo:7 mongosh --quiet --eval "db.adminCommand('ping')" "mongodb://host.docker.internal:${SRC_MONGO_PORT}" >/dev/null 2>&1; then
+              echo "Mongo fuente listo"; break
+            fi
+            if [ "$i" -eq 30 ]; then echo "ERROR: Mongo fuente no respondio a tiempo"; exit 1; fi
+            sleep 2
+          done
+
+          echo "Esperando MinIO fuente..."
+          for i in $(seq 1 30); do
+            if curl -sf "http://localhost:${SRC_MINIO_PORT}/minio/health/live" >/dev/null 2>&1; then
+              echo "MinIO fuente listo"; break
+            fi
+            if [ "$i" -eq 30 ]; then echo "ERROR: MinIO fuente no respondio a tiempo"; exit 1; fi
+            sleep 2
+          done
+
+      - name: Seed Mongo (fuente)
+        run: |
+          SEED_EVAL=$(cat <<'SEED_MONGO_EOF'
+          db = db.getSiblingDB('ht02_seed_alpha');
+          db.usuarios.insertMany([
+            { nombre: "Ana Torres", edad: 30, activo: true, creado: new Date("2026-01-15T10:00:00Z"), tags: ["ciudadano","piloto"], perfil: { pais: "CO", verificado: false }, notas: null },
+            { nombre: "Luis Gomez", edad: 45, activo: false, creado: new Date("2026-02-20T08:30:00Z"), tags: [], perfil: { pais: "MX", verificado: true }, notas: "cuenta vip" }
+          ]);
+          db.eventos.insertOne({ tipo: "login", ts: new Date("2026-03-01T00:00:00Z"), meta: { ip: "10.0.0.1", intentos: NumberInt(3) }, exito: true });
+
+          db = db.getSiblingDB('ht02_seed_beta');
+          db.documentos.insertMany([
+            { titulo: "Diploma", version: NumberInt(1), publicado: true, revisiones: [1,2,3], autor: { nombre: "Carla Ruiz", equipo: null }, fecha: new Date("2026-01-10T00:00:00Z") },
+            { titulo: "Cedula", version: NumberInt(2), publicado: false, revisiones: [], autor: null, fecha: new Date("2026-01-11T00:00:00Z") }
+          ]);
+          db.contadores.insertOne({ valor: NumberInt(12345), decimal: 3.1416, activo: true, etiqueta: "contador-global" });
+
+          print("SEED_MONGO_OK");
+          SEED_MONGO_EOF
+          )
+          RESULT=$(docker run --rm --add-host=host.docker.internal:host-gateway mongo:7 mongosh --quiet --eval "$SEED_EVAL" "mongodb://host.docker.internal:${SRC_MONGO_PORT}")
+          echo "$RESULT"
+          echo "$RESULT" | grep -q "SEED_MONGO_OK"
+          echo "Seed Mongo ........ PASS (2 bases, varios tipos BSON: ObjectId, Date, numeros, texto, booleano, arreglos, objetos anidados, null)"
+
+      - name: Seed MinIO (fuente)
+        env:
+          S3_ENDPOINT: "http://localhost:${{ env.SRC_MINIO_PORT }}"
+          S3_BUCKET: "${{ env.SRC_BUCKET }}"
+          S3_ACCESS_KEY_ID: "${{ env.HT02_MINIO_USER }}"
+          S3_SECRET_ACCESS_KEY: "${{ env.HT02_MINIO_PASSWORD }}"
+        run: |
+          NODE_PATH="$GITHUB_WORKSPACE/scripts/backup-restore/node_modules" node "$RUNNER_TEMP/ht02-seed-minio.js"
+
+      - name: Fuente de verdad independiente -- Mongo (seed)
+        run: |
+          MONGO_URI="mongodb://host.docker.internal:${SRC_MONGO_PORT}" OUT_FILE="$RUNNER_TEMP/ht02-mongo-ground-truth.json" MONGO_DATABASES="${HT02_MONGO_DATABASES}" \
+            node "$RUNNER_TEMP/ht02-mongo-fingerprint.js"
+
+      - name: Fuente de verdad independiente -- MinIO (seed)
+        env:
+          S3_ENDPOINT: "http://localhost:${{ env.SRC_MINIO_PORT }}"
+          S3_BUCKET: "${{ env.SRC_BUCKET }}"
+          S3_ACCESS_KEY_ID: "${{ env.HT02_MINIO_USER }}"
+          S3_SECRET_ACCESS_KEY: "${{ env.HT02_MINIO_PASSWORD }}"
+        run: |
+          NODE_PATH="$GITHUB_WORKSPACE/scripts/backup-restore/node_modules" OUT_FILE="$RUNNER_TEMP/ht02-minio-ground-truth.json" \
+            node "$RUNNER_TEMP/ht02-minio-fingerprint.js"
+
+      - name: Backup (backup.js)
+        working-directory: scripts/backup-restore
+        env:
+          S3_ENDPOINT: "http://localhost:${{ env.SRC_MINIO_PORT }}"
+          S3_BUCKET: "${{ env.SRC_BUCKET }}"
+          S3_ACCESS_KEY_ID: "${{ env.HT02_MINIO_USER }}"
+          S3_SECRET_ACCESS_KEY: "${{ env.HT02_MINIO_PASSWORD }}"
+        run: |
+          mkdir -p "$RUNNER_TEMP/ht02-backup"
+          set +e
+          node backup.js \
+            --mongo-uri="mongodb://host.docker.internal:${SRC_MONGO_PORT}" \
+            --out="$RUNNER_TEMP/ht02-backup"
+          CODE=$?
+          set -e
+          echo "backup.js exit code: $CODE"
+          # Politica de este workflow (NO altera el significado de los codigos de backup.js en si mismo,
+          # documentado en scripts/backup-restore/README.md): 0 = exito -> continuar; 1 = fallo fatal -> fallo
+          # del job; 2 = exito PARCIAL -> tambien fallo del job, porque un backup automatico parcial no debe
+          # considerarse exitoso.
+          if [ "$CODE" -eq 0 ]; then
+            echo "Backup ............ PASS"
+          elif [ "$CODE" -eq 2 ]; then
+            echo "Backup ............ FALLO (exito parcial, codigo 2: un backup automatico parcial no es valido)"
+            exit 1
+          else
+            echo "Backup ............ FALLO (codigo $CODE)"
+            exit 1
+          fi
+
+      - name: Localizar backup y extraer manifest.json
+        run: |
+          BACKUP_FILE=$(ls "$RUNNER_TEMP"/ht02-backup/*.tar.gz | head -n1)
+          if [ -z "$BACKUP_FILE" ]; then echo "ERROR: no se genero ningun .tar.gz"; exit 1; fi
+          echo "BACKUP_FILE=$BACKUP_FILE" >> "$GITHUB_ENV"
+          MANIFEST_FILE="$RUNNER_TEMP/ht02-backup/manifest.json"
+          tar -xzf "$BACKUP_FILE" -O backup-store/manifest.json > "$MANIFEST_FILE"
+          echo "MANIFEST_FILE=$MANIFEST_FILE" >> "$GITHUB_ENV"
+          echo "Backup: $BACKUP_FILE"
+
+      - name: Destruir infraestructura fuente
+        run: |
+          docker rm -f "${RUN_TAG}-src-mongo" "${RUN_TAG}-src-minio"
+          echo "Destroy source .... PASS (contenedores fuente eliminados)"
+
+      - name: Verificar que la fuente ya no responde
+        run: |
+          if docker run --rm --add-host=host.docker.internal:host-gateway mongo:7 mongosh --quiet --eval "db.adminCommand('ping')" "mongodb://host.docker.internal:${SRC_MONGO_PORT}" >/dev/null 2>&1; then
+            echo "ERROR: Mongo fuente todavia responde tras la destruccion"; exit 1
+          fi
+          echo "Mongo fuente: confirmado sin respuesta"
+
+          if curl -sf "http://localhost:${SRC_MINIO_PORT}/minio/health/live" >/dev/null 2>&1; then
+            echo "ERROR: MinIO fuente todavia responde tras la destruccion"; exit 1
+          fi
+          echo "MinIO fuente: confirmado sin respuesta"
+
+      - name: "Infraestructura temporal: destino (nueva, vacia)"
+        run: |
+          docker run -d --name "${RUN_TAG}-dst-mongo" -p "${DST_MONGO_PORT}:27017" mongo:7
+          docker run -d --name "${RUN_TAG}-dst-minio" -p "${DST_MINIO_PORT}:9000" \
+            -e MINIO_ROOT_USER="${HT02_MINIO_USER}" \
+            -e MINIO_ROOT_PASSWORD="${HT02_MINIO_PASSWORD}" \
+            quay.io/minio/minio:latest server /data
+
+          echo "Esperando Mongo destino..."
+          for i in $(seq 1 30); do
+            if docker run --rm --add-host=host.docker.internal:host-gateway mongo:7 mongosh --quiet --eval "db.adminCommand('ping')" "mongodb://host.docker.internal:${DST_MONGO_PORT}" >/dev/null 2>&1; then
+              echo "Mongo destino listo"; break
+            fi
+            if [ "$i" -eq 30 ]; then echo "ERROR: Mongo destino no respondio a tiempo"; exit 1; fi
+            sleep 2
+          done
+
+          echo "Esperando MinIO destino..."
+          for i in $(seq 1 30); do
+            if curl -sf "http://localhost:${DST_MINIO_PORT}/minio/health/live" >/dev/null 2>&1; then
+              echo "MinIO destino listo"; break
+            fi
+            if [ "$i" -eq 30 ]; then echo "ERROR: MinIO destino no respondio a tiempo"; exit 1; fi
+            sleep 2
+          done
+          echo "Create targets .... PASS (destinos nuevos, sin datos, sin relacion con la fuente destruida)"
+
+      - name: Restore + verificacion interna (restore-verify.js)
+        working-directory: scripts/backup-restore
+        env:
+          S3_ENDPOINT: "http://localhost:${{ env.DST_MINIO_PORT }}"
+          S3_ACCESS_KEY_ID: "${{ env.HT02_MINIO_USER }}"
+          S3_SECRET_ACCESS_KEY: "${{ env.HT02_MINIO_PASSWORD }}"
+        run: |
+          set +e
+          node restore-verify.js \
+            --backup="$BACKUP_FILE" \
+            --mongo-uri="mongodb://host.docker.internal:${DST_MONGO_PORT}" \
+            --minio-bucket="${DST_BUCKET}" \
+            --minio-endpoint="http://localhost:${DST_MINIO_PORT}"
+          CODE=$?
+          set -e
+          echo "restore-verify.js exit code: $CODE"
+          if [ "$CODE" -ne 0 ]; then
+            echo "Restore ........... FALLO (codigo $CODE)"
+            exit 1
+          fi
+          echo "Restore ........... PASS"
+
+      - name: Verificacion independiente -- Mongo (post-restore)
+        run: |
+          MONGO_URI="mongodb://host.docker.internal:${DST_MONGO_PORT}" OUT_FILE="$RUNNER_TEMP/ht02-mongo-actual.json" MONGO_DATABASES="${HT02_MONGO_DATABASES}" \
+            node "$RUNNER_TEMP/ht02-mongo-fingerprint.js"
+          EXPECTED_FILE="$RUNNER_TEMP/ht02-mongo-ground-truth.json" ACTUAL_FILE="$RUNNER_TEMP/ht02-mongo-actual.json" \
+            node "$RUNNER_TEMP/ht02-compare-mongo.js"
+
+      - name: Verificacion independiente -- MinIO (post-restore)
+        env:
+          S3_ENDPOINT: "http://localhost:${{ env.DST_MINIO_PORT }}"
+          S3_BUCKET: "${{ env.DST_BUCKET }}"
+          S3_ACCESS_KEY_ID: "${{ env.HT02_MINIO_USER }}"
+          S3_SECRET_ACCESS_KEY: "${{ env.HT02_MINIO_PASSWORD }}"
+        run: |
+          NODE_PATH="$GITHUB_WORKSPACE/scripts/backup-restore/node_modules" OUT_FILE="$RUNNER_TEMP/ht02-minio-actual.json" \
+            node "$RUNNER_TEMP/ht02-minio-fingerprint.js"
+          EXPECTED_FILE="$RUNNER_TEMP/ht02-minio-ground-truth.json" ACTUAL_FILE="$RUNNER_TEMP/ht02-minio-actual.json" \
+            NODE_PATH="$GITHUB_WORKSPACE/scripts/backup-restore/node_modules" node "$RUNNER_TEMP/ht02-compare-minio.js"
+
+      - name: Publicar artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ht-02-backup-${{ github.run_number }}
+          path: |
+            ${{ env.BACKUP_FILE }}
+            ${{ env.MANIFEST_FILE }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Resumen del flujo HT-02
+        if: success()
+        run: |
+          echo "Artifact ........... PASS"
+          cat <<'EOF'
+
+          HT-02
+            |
+          Seed Mongo ........ PASS
+          Seed MinIO ........ PASS
+            |
+          Backup ............ PASS
+            |
+          Destroy source .... PASS
+            |
+          Create targets .... PASS
+            |
+          Restore ........... PASS
+            |
+          Verify Mongo ...... PASS
+          Verify MinIO ...... PASS
+            |
+          Artifact ........... PASS
+          EOF
+
+      # Corre SIEMPRE (if: always()), incluso si un paso anterior fallo, pero nunca cambia el resultado ya
+      # determinado del job: solo libera recursos. Cada rm usa || true para que un contenedor que nunca
+      # llego a crearse (p. ej. porque el job fallo antes de levantarlo) no haga fallar la limpieza misma.
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f "${RUN_TAG}-src-mongo" 2>/dev/null || true
+          docker rm -f "${RUN_TAG}-src-minio" 2>/dev/null || true
+          docker rm -f "${RUN_TAG}-dst-mongo" 2>/dev/null || true
+          docker rm -f "${RUN_TAG}-dst-minio" 2>/dev/null || true
+          rm -rf "$RUNNER_TEMP/ht02-backup" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP"/ht02-*.json "$RUNNER_TEMP"/ht02-*.js 2>/dev/null || true
+          echo "Cleanup ........... PASS"
