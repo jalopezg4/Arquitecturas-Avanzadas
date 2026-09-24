@@ -120,32 +120,46 @@ class DocumentService {
     this.now = now;
   }
 
-  async _audit(ciudadanoId, outcome, reason, metadata, documentoId) {
+  /**
+   * Bitacora de la operacion (HT-04, RNF-07).
+   *
+   * `actor` distingue QUIEN actua de SOBRE QUE carpeta actua: por defecto es el propio ciudadano (HU-03, el caso de
+   * siempre), pero una entidad emisora que entrega un documento en una carpeta ajena (HU-10) es un actor distinto
+   * del dueno del recurso. En ese caso la entrada debe ir con `delegated: true`: sin el,
+   * AuditQueryService.verifyNoOutOfPolicyAccess() contaria cada entrega legitima como violacion de RNF-07.
+   */
+  async _audit(ciudadanoId, outcome, reason, metadata, documentoId, actor) {
     if (!this.auditLogger) return;
+    const quien = actor || { id: ciudadanoId, tipo: "ciudadano", delegated: false, action: "documento.cargar" };
+    const action = quien.action || "documento.cargar";
     try {
       await this.auditLogger.record({
-        actor: String(ciudadanoId),
-        actorType: "ciudadano",
-        action: "documento.cargar",
+        actor: String(quien.id),
+        actorType: quien.tipo || "ciudadano",
+        action,
         resource: documentoId ? `documento:${documentoId}` : `carpeta:${ciudadanoId}`,
         resourceOwner: String(ciudadanoId),
+        delegated: quien.delegated === true,
         outcome,
         reason,
         metadata,
       });
     } catch (auditErr) {
       // Un fallo de la bitacora se reporta pero no tumba una carga ya completada.
-      logger.error("audit.write_failed", { action: "documento.cargar", err: auditErr });
+      logger.error("audit.write_failed", { action, err: auditErr });
     }
   }
 
-  _validate({ ciudadanoId, file, metadata, estado }) {
+  _validate({ ciudadanoId, file, metadata, estado, maxBytes }) {
     if (typeof ciudadanoId !== "string" || !ciudadanoId) throw new ValidationError("ciudadanoId es requerido");
     if (!ESTADOS.includes(estado)) throw new ValidationError(`estado debe ser uno de ${ESTADOS.join(", ")}`);
 
+    // Limite del caso de uso: la carga del ciudadano usa el general; la recepcion institucional (HU-10) el suyo,
+    // mas alto. Siempre hay un limite: el archivo entero se procesa en memoria (multer.memoryStorage).
+    const limite = maxBytes || this.maxUploadBytes;
     if (!file || !Buffer.isBuffer(file.buffer)) throw new ValidationError("archivo es requerido");
     if (file.buffer.length === 0) throw new ValidationError("el archivo esta vacio");
-    if (file.buffer.length > this.maxUploadBytes) throw new PayloadTooLargeError(`el archivo supera el maximo de ${this.maxUploadBytes} bytes`);
+    if (file.buffer.length > limite) throw new PayloadTooLargeError(`el archivo supera el maximo de ${limite} bytes`);
     // El tipo que declara el cliente no es confiable: se exige tambien la firma real del PDF.
     if (file.mimetype !== "application/pdf") throw new UnsupportedMediaTypeError("solo se aceptan archivos PDF");
     if (file.buffer.subarray(0, PDF_MAGIC.length).toString("latin1") !== PDF_MAGIC) throw new UnsupportedMediaTypeError("el archivo no es un PDF valido");
@@ -170,11 +184,15 @@ class DocumentService {
    * @param {{buffer: Buffer, mimetype: string}} input.file
    * @param {{titulo: string, entidadAvaladora: string, fecha: string, solicitudId?: string}} input.metadata
    * @param {"temporal"|"certificado"} [input.estado]
+   * @param {number} [input.maxBytes]  limite de tamano propio del caso de uso (por defecto, el general del servicio)
+   * @param {object} [input.extra]  campos de procedencia a persistir (HU-10: origen, emisorInstitutionId, envioId)
+   * @param {{id: string, tipo: string, delegated: boolean, action: string}} [input.actor]
+   *        quien ACTUA, si no es el propio ciudadano (HU-10: la entidad emisora). Solo afecta a la bitacora.
    * @returns {Promise<{documentoId: string, url: string}>}
    */
-  async upload({ ciudadanoId, file, metadata, estado = "temporal" }) {
+  async upload({ ciudadanoId, file, metadata, estado = "temporal", extra, actor, maxBytes }) {
     // Datos invalidos no se auditan como intento (no hay nada que reconstruir); el resto de fallos si.
-    const clean = this._validate({ ciudadanoId, file, metadata, estado });
+    const clean = this._validate({ ciudadanoId, file, metadata, estado, maxBytes });
 
     const consumesQuota = estado === "temporal";
     let reserved = false;
@@ -201,6 +219,7 @@ class DocumentService {
       const doc = await this.documentRepository.create({
         ciudadanoId,
         ...clean,
+        ...(extra || {}), // HU-10: procedencia (origen, emisorInstitutionId, envioId). Vacio en la carga del ciudadano.
         estado,
         storageKey: key,
         mimeType: file.mimetype,
@@ -209,7 +228,7 @@ class DocumentService {
       });
 
       await this._publish(doc);
-      await this._audit(ciudadanoId, "exito", undefined, { estado, tamanoBytes: file.buffer.length }, doc._id.toString());
+      await this._audit(ciudadanoId, "exito", undefined, { estado, tamanoBytes: file.buffer.length }, doc._id.toString(), actor);
       return { documentoId: doc._id.toString(), url };
     } catch (err) {
       // Compensacion: no dejar cupo reservado ni un objeto huerfano si la carga no se completo.
@@ -220,7 +239,7 @@ class DocumentService {
         await this.folderRepository.releaseNonCertified(ciudadanoId).catch((e) => logger.error("documento.compensacion_fallo", { step: "liberar_cupo", err: e }));
       }
       const reason = err instanceof QuotaExceededError ? "cuota_llena" : err.message;
-      await this._audit(ciudadanoId, err instanceof QuotaExceededError ? "rechazo" : "fallo", reason);
+      await this._audit(ciudadanoId, err instanceof QuotaExceededError ? "rechazo" : "fallo", reason, undefined, undefined, actor);
       throw err;
     }
   }

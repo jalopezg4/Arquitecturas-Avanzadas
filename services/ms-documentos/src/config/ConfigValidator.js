@@ -51,6 +51,17 @@ function validateConfig(cfg) {
       if (p) problems.push(`JWT_SECRET_PREVIOUS[${i}] ${p}`);
     });
 
+    // ADR-07: llave de los tokens INSTITUCIONALES. Todavia OPCIONAL (ninguna ruta la usa; la primera sera HU-10);
+    // si se define, debe ser la misma que usa ms-comparticion para firmar.
+    if (cfg.entityJwtSecret) {
+      const entityProblem = secretProblem(cfg.entityJwtSecret);
+      if (entityProblem) problems.push(`ENTITY_JWT_SECRET ${entityProblem} (minimo ${MIN_SECRET_LENGTH} caracteres, la misma que usa ms-comparticion)`);
+      (cfg.entityJwtSecretPrevious || []).forEach((s, i) => {
+        const p = secretProblem(s);
+        if (p) problems.push(`ENTITY_JWT_SECRET_PREVIOUS[${i}] ${p}`);
+      });
+    }
+
     if (!/^amqps:\/\//i.test(cfg.rabbitUri || "")) problems.push("RABBITMQ_URI debe usar amqps:// (RabbitMQ con TLS)");
     const mongo = cfg.mongoUri || "";
     if (/[?&](?:tls|ssl)=(?:false|0)(?:&|$)/i.test(mongo)) problems.push("MONGO_URI desactiva TLS (tls=false / ssl=false)");
@@ -72,6 +83,12 @@ function validateConfig(cfg) {
     }
   }
 
+  // Aplica en TODO ambiente: si las dos llaves fueran la misma, un token de ciudadano valdria como institucional
+  // y al reves, que es exactamente lo que ADR-07 separa. Se compara sin imprimir los valores.
+  if (cfg.entityJwtSecret && cfg.jwtSecret && cfg.entityJwtSecret === cfg.jwtSecret) {
+    problems.push("ENTITY_JWT_SECRET no puede ser igual a JWT_SECRET (los tokens de entidad y de ciudadano se firman con llaves distintas, ADR-07)");
+  }
+
   const s3 = cfg.s3 || {};
   if (!s3.bucket || !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(s3.bucket)) problems.push("S3_BUCKET debe ser un nombre de bucket valido (minusculas, numeros, punto y guion)");
 
@@ -87,6 +104,15 @@ function validateConfig(cfg) {
   if (!isPositiveInt(limits.quotaNoCertificados)) problems.push("QUOTA_NO_CERTIFICADOS debe ser un entero positivo");
   if (!isPositiveInt(limits.maxUploadBytes)) problems.push("MAX_UPLOAD_BYTES debe ser un entero positivo");
   else if (limits.maxUploadBytes > MAX_UPLOAD_LIMIT_BYTES) problems.push(`MAX_UPLOAD_BYTES no puede superar ${MAX_UPLOAD_LIMIT_BYTES} (50 MB)`);
+  // HU-10: la recepcion institucional puede aceptar mas que la carga del ciudadano, pero nunca mas que el tope duro:
+  // el archivo entero pasa por memoria y ese tope es lo que el servicio soporta sin rediseno.
+  if (limits.maxInboundBytes !== undefined) {
+    if (!isPositiveInt(limits.maxInboundBytes)) problems.push("MAX_INBOUND_UPLOAD_BYTES debe ser un entero positivo");
+    else if (limits.maxInboundBytes > MAX_UPLOAD_LIMIT_BYTES) problems.push(`MAX_INBOUND_UPLOAD_BYTES no puede superar ${MAX_UPLOAD_LIMIT_BYTES} (50 MB): el archivo se procesa en memoria`);
+    else if (isPositiveInt(limits.maxUploadBytes) && limits.maxInboundBytes < limits.maxUploadBytes) {
+      problems.push("MAX_INBOUND_UPLOAD_BYTES no puede ser menor que MAX_UPLOAD_BYTES (un certificado no puede admitir menos que una carga del ciudadano)");
+    }
+  }
 
   const ttl = cfg.presignedDownloadTtlSeconds;
   if (!isPositiveInt(ttl)) problems.push("PRESIGNED_URL_DOWNLOAD_TTL_SECONDS debe ser un entero positivo");

@@ -50,7 +50,11 @@ function build(overrides = {}) {
     now: () => new Date("2026-09-20T10:00:00Z"),
   });
 }
-beforeEach(() => {
+beforeEach(async () => {
+  // dropDatabase() borra tambien los indices, y la reserva atomica de cupo depende del indice UNICO de la carpeta:
+  // sin recrearlos, dos upsert simultaneos pueden crear DOS carpetas del mismo ciudadano y la cuota se pasa de largo.
+  // Mismo patron que tests/reconciliation.test.js.
+  await Promise.all([Folder.createIndexes(), Document.createIndexes()]);
   service = build();
 });
 

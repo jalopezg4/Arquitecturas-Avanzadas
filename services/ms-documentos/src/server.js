@@ -11,6 +11,7 @@ const EventPublisher = require("./infrastructure/EventPublisher");
 const AuditLogger = require("./infrastructure/AuditLogger");
 const AuditRepository = require("./infrastructure/AuditRepository");
 const { DocumentService } = require("./application/DocumentService");
+const { InboundDocumentService } = require("./application/InboundDocumentService");
 const EventReconciler = require("./application/EventReconciler");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { makeCitizenRegisteredHandler } = require("./interfaces/eventHandlers");
@@ -20,6 +21,12 @@ async function main() {
 
   const secrets = new SecretsManager({ active: env.jwtSecret, previous: env.jwtSecretPrevious });
   logger.info("jwt.llavero", secrets.status()); // solo ids de llave, nunca el secreto
+
+  // ADR-07 / HU-10: llavero aparte para VERIFICAR los tokens institucionales que firma ms-comparticion. Sin llave
+  // configurada el servicio arranca igual y la ruta de recepcion responde 401 (el middleware falla cerrado).
+  const entitySecrets = env.entityJwtSecret ? new SecretsManager({ active: env.entityJwtSecret, previous: env.entityJwtSecretPrevious }) : null;
+  if (entitySecrets) logger.info("jwt.llavero_entidades", entitySecrets.status());
+  else logger.warn("ENTITY_JWT_SECRET no esta configurado: POST /api/v1/documents/inbound (HU-10) respondera 401.");
 
   const storage = ObjectStorageAdapter.fromConfig(env.s3);
   // En local el bucket se crea solo; en despliegue lo provisiona la infraestructura.
@@ -59,7 +66,24 @@ async function main() {
     new EventReconciler({ documentRepository, eventPublisher, minAgeMs: env.reconcile.minAgeMs, publishTimeoutMs: env.eventPublishTimeoutMs }).start(env.reconcile.intervalMs);
   }
 
-  const app = buildApp({ documentService, secrets, issuer: env.jwtIssuer, auditLogger, maxUploadBytes: env.limits.maxUploadBytes });
+  const inboundDocumentService = new InboundDocumentService({
+    documentService,
+    documentRepository,
+    folderRepository,
+    maxInboundBytes: env.limits.maxInboundBytes,
+  });
+
+  const app = buildApp({
+    documentService,
+    inboundDocumentService,
+    secrets,
+    entitySecrets,
+    issuer: env.jwtIssuer,
+    entityIssuer: env.entityJwtIssuer,
+    auditLogger,
+    maxUploadBytes: env.limits.maxUploadBytes,
+    maxInboundBytes: env.limits.maxInboundBytes,
+  });
   const server = createServer(app, env.tls);
   server.listen(env.port, () => {
     const transport = env.tls.certPath ? (env.tls.caPath ? "mTLS" : "TLS") : "http";
