@@ -7,7 +7,9 @@ const AuditEntry = require("./domain/AuditEntry");
 const { InstitutionRepository } = require("./infrastructure/InstitutionRepository");
 const AuditLogger = require("./infrastructure/AuditLogger");
 const AuditRepository = require("./infrastructure/AuditRepository");
+const SecretsManager = require("./security/SecretsManager");
 const { InstitutionService } = require("./application/InstitutionService");
+const { EntityAuthService } = require("./application/EntityAuthService");
 
 async function main() {
   await mongoose.connect(env.mongoUri);
@@ -19,12 +21,25 @@ async function main() {
     logger.warn("REGISTRATION_TOKEN no esta configurado: el registro de instituciones es ABIERTO (cualquiera puede registrar una entidad). Ver docs/SEGURIDAD.md, seccion 10.");
   }
 
-  const institutionService = new InstitutionService({
-    institutionRepository: new InstitutionRepository(),
-    auditLogger: new AuditLogger({ auditRepository: new AuditRepository() }),
+  // Llavero de firma de los tokens INSTITUCIONALES (ADR-07). Es una llave propia de este servicio: la de ciudadanos
+  // (JWT_SECRET, de ms-identidad) no se conoce aqui. Solo se registran los ids de llave, nunca el secreto.
+  const entitySecrets = new SecretsManager({ active: env.entityJwtSecret, previous: env.entityJwtSecretPrevious });
+  logger.info("jwt.llavero_entidades", entitySecrets.status());
+
+  const institutionRepository = new InstitutionRepository();
+  const auditLogger = new AuditLogger({ auditRepository: new AuditRepository() });
+
+  const institutionService = new InstitutionService({ institutionRepository, auditLogger });
+  const entityAuthService = new EntityAuthService({
+    institutionRepository,
+    secrets: entitySecrets,
+    auditLogger,
+    accessExpiresIn: env.entityAccessExpiresIn,
+    maxAttempts: env.entityMaxAttempts,
+    lockMs: env.entityLockMs,
   });
 
-  const app = buildApp({ institutionService, registrationToken: env.registrationToken, isReady: () => mongoose.connection.readyState === 1 });
+  const app = buildApp({ institutionService, entityAuthService, registrationToken: env.registrationToken, isReady: () => mongoose.connection.readyState === 1 });
   app.listen(env.port, () => logger.info("ms-comparticion escuchando", { port: env.port, registroAbierto: !env.registrationToken }));
 }
 

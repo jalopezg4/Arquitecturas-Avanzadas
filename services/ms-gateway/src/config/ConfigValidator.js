@@ -45,6 +45,23 @@ function validateConfig(cfg) {
       const p = secretProblem(s);
       if (p) problems.push(`JWT_SECRET_PREVIOUS[${i}] ${p}`);
     });
+
+    // ADR-07: llave de los tokens INSTITUCIONALES. Es OPCIONAL mientras ninguna ruta de entidad este declarada
+    // (sin ella esas rutas responden 401); si se define, debe ser la misma que usa ms-comparticion para firmar.
+    if (cfg.entityJwtSecret) {
+      const entityProblem = secretProblem(cfg.entityJwtSecret);
+      if (entityProblem) problems.push(`ENTITY_JWT_SECRET ${entityProblem} (minimo ${MIN_SECRET_LENGTH} caracteres, la misma que usa ms-comparticion)`);
+      (cfg.entityJwtSecretPrevious || []).forEach((s, i) => {
+        const p = secretProblem(s);
+        if (p) problems.push(`ENTITY_JWT_SECRET_PREVIOUS[${i}] ${p}`);
+      });
+    }
+  }
+
+  // Aplica en TODO ambiente, tambien en local: si las dos llaves fueran la misma, un token de ciudadano valdria
+  // como institucional y al reves, que es exactamente lo que ADR-07 separa. Se compara sin imprimir los valores.
+  if (cfg.entityJwtSecret && cfg.jwtSecret && cfg.entityJwtSecret === cfg.jwtSecret) {
+    problems.push("ENTITY_JWT_SECRET no puede ser igual a JWT_SECRET (los tokens de entidad y de ciudadano se firman con llaves distintas, ADR-07)");
   }
 
   for (const [name, url] of Object.entries(cfg.upstreams || {})) {

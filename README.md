@@ -11,6 +11,7 @@ Implementación del Operador de Carpeta Ciudadana. Curso: Arquitecturas Avanzada
 3. [`docs/GOVCARPETA_CONTRATO.md`](docs/GOVCARPETA_CONTRATO.md) — contrato real de la API de GovCarpeta (verificado contra el Swagger, no inferido)
 4. [`docs/PLAN_TRABAJO.md`](docs/PLAN_TRABAJO.md) — orden de dependencias entre historias y reparto entre los 3
 5. [`docs/BUENAS_PRACTICAS.md`](docs/BUENAS_PRACTICAS.md) — principios, SOLID y patrones, con ejemplos de dónde ya se usan en este código. Revisar antes de abrir un PR.
+6. [`docs/ADR-07-AUTENTICACION-INSTITUCIONAL.md`](docs/ADR-07-AUTENTICACION-INSTITUCIONAL.md) — por qué la autenticación de instituciones vive en `ms-comparticion` y no en `ms-identidad` (las ADR-01 a ADR-06 están en el expediente del curso).
 
 ## Estilo arquitectónico
 
@@ -24,10 +25,10 @@ Microservicios (ADR-01 del expediente), cada uno dueño exclusivo de su base de 
 |---|---|---|---|
 | `services/ms-gateway` | 3000 | Único punto de entrada: valida el token y enruta por lista blanca | HU-02 |
 | `services/ms-identidad` | 3001 | Registro, login, sesiones, registro del operador | HU-01, HU-02, HU-11 |
-| `services/ms-documentos` | 3002 | Carga y consulta de documentos | HU-03, HU-08 (HU-09 y HU-10 pendientes) |
+| `services/ms-documentos` | 3002 | Carga y consulta de documentos; recepción de documentos enviados por entidades emisoras | HU-03, HU-08, HU-10 (HU-09 pendiente) |
 | `services/ms-notificaciones` | 3003 | Correos por eventos (confirmación de carga, bienvenida) | HU-03, HU-01 |
 | `services/ms-interoperabilidad` | 3004 | Directorio de operadores y publicación del endpoint de transferencia | HU-05a, HU-05b (HU-05c pendiente) |
-| `services/ms-comparticion` | 3005 | Registro de entidades institucionales | HU-06.1 (HU-06.2 a 06.4 pendientes) |
+| `services/ms-comparticion` | 3005 | Registro **y autenticación** de entidades institucionales | HU-06.1, ADR-07 (HU-06.2 a 06.4 pendientes) |
 | `services/ms-autenticacion` | — | Por empezar | HU-04 |
 
 Infraestructura local (Docker): MongoDB `27017`, RabbitMQ `5672` (consola `15672`), MinIO `9000` (consola `9001`).

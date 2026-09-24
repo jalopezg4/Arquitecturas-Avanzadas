@@ -111,6 +111,31 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 
 **Configuración de producción** (validada al arrancar): `S3_ENDPOINT` con `https://`, credenciales de storage obligatorias y que no sean las de tutorial (`minioadmin`...), bucket válido, `JWT_SECRET` fuerte y **el mismo que usa `ms-identidad`**.
 
+### 7.1 Recepción de un documento enviado por una entidad emisora (HU-10, RF-11)
+
+`POST /api/v1/documents/inbound` (multipart: `archivo` + `destinatario`, `envioId`, `titulo`, `entidadAvaladora`, `fecha`) responde `201 {documentoId, duplicado:false}`.
+
+**Orden de las barreras**, el mismo principio que HU-03 pero con la cadena institucional (ADR-07): 1) token **institucional** válido, revalidado aquí además del gateway → `401` → 2) la entidad está **verificada** por el operador → `403` → 3) recién entonces se lee el archivo → 4) se resuelve el destinatario → 5) validación y almacenamiento.
+
+| Aspecto | Decisión |
+|---|---|
+| **Quién entrega** | Sale del `sub` del token institucional firmado. **Nunca del cuerpo**: `entidadAvaladora` es texto de presentación autodeclarado; el dato confiable es `emisorInstitutionId` |
+| **A quién** | Por su **dirección única**, resuelta contra la copia local de la carpeta (`Folder.direccionUnica`, alimentada por `ciudadano.registrado`). **Un `ciudadanoId` en el cuerpo se ignora**: no hay forma de elegir destinatario que no sea conocer su dirección |
+| Dirección desconocida | `404` con el **mismo mensaje** que una dirección mal formada: no se confirma ni se niega quién está afiliado aquí. La dirección lleva 8 hex aleatorios, así que no es adivinable a partir de la cédula |
+| Estado y cuota | Entra directo en `certificado`: no pasa por `temporal` y **no consume la cuota** del ciudadano (RNF-04) |
+| Dueño | El **ciudadano**, siempre. La clave en el storage es `ciudadanos/<ciudadanoId>/<uuid>.pdf` y el documento aparece en su consulta (HU-08) |
+| Lo que NO se devuelve | Ninguna URL prefirmada: la entidad entrega un documento, no gana acceso de lectura a una carpeta ajena |
+| Tipo de archivo | Igual que HU-03: PDF declarado **y** firma real `%PDF-` |
+| **Tamaño** | `MAX_INBOUND_UPLOAD_BYTES` (50 MB por defecto) → `413`. **Desviación consciente del criterio de la HU** (ver abajo) |
+| **Idempotencia** | La entidad elige un `envioId`. Reintento idéntico → `200` con el **mismo** `documentoId`, sin volver a subir el archivo; mismo `envioId` con otro contenido u otro destinatario → `409`, sin pisar nada. Un índice **único parcial** `(emisorInstitutionId, envioId)` cierra la carrera entre peticiones simultáneas |
+| Bitácora | `documento.recibir` con `actorType: "entidad"`, `actor` = institución, `resourceOwner` = ciudadano y **`delegated: true`**. Sin esa marca, `verifyNoOutOfPolicyAccess()` contaría cada entrega legítima como violación de RNF-07 |
+| Evento | El **mismo** `documento.cargado` de HU-03, para reutilizar el consumidor de `ms-notificaciones` sin tocarlo. Si el broker no confirma, la entrega no falla: se reconcilia (ADR-04) |
+| Logs | Sin dirección única, sin título y sin contenido; solo el id de la institución |
+
+**El "sin límite de tamaño" del criterio de aceptación no se implementó literalmente.** El archivo se procesa **entero en memoria** (`multer.memoryStorage`, que es como está construido el camino de carga desde HU-03) y la huella SHA-256 se calcula sobre ese buffer. Sin tope, una sola petición puede agotar la memoria del servicio — y no hay limitación de tasa en ningún punto del sistema. Quitarlo de verdad exige subir al storage por partes (*streaming multipart*), hash incremental y releer la firma del PDF del primer trozo: un rediseño del camino de carga, fuera del alcance de estos 8 puntos. Se deja un límite **configurable y más alto que el del ciudadano** (50 MB, el tope duro que ya validaba el arranque), y el validador rechaza un valor mayor que ese tope o menor que `MAX_UPLOAD_BYTES`.
+
+**Riesgo residual aceptado:** una entidad verificada puede hacer **envíos ilimitados** a cualquier carpeta cuya dirección conozca. Los certificados no consumen cuota y HU-10 no define ninguna regla de volumen, así que no se inventó ninguna: queda la trazabilidad completa en la bitácora (quién entregó qué, a quién y cuándo) como control compensatorio.
+
 ## 8. Notificaciones: consumo de eventos y correo (`ms-notificaciones`, HU-03 y HU-01)
 
 `ms-notificaciones` no expone API de negocio: consume `documento.cargado` (confirma la carga al ciudadano, RF-21) y `ciudadano.registrado` (guarda a quién avisar y da la bienvenida). Solo publica `/health` y `/ready`.
@@ -166,7 +191,14 @@ Copia local del directorio de GovCarpeta (`GET /apis/getOperators`, ADR-03) para
 | Cada entidad nace con `verificada: false` (no se puede fijar desde el cliente: prueba de *mass assignment*) | ✅ un proceso de verificación futuro puede distinguirlas |
 | `REGISTRATION_TOKEN` **opcional**: si se define, hay que enviar `x-registration-token` (comparación en tiempo constante, **antes** de leer el cuerpo, así un no autorizado con un cuerpo inválido recibe `401` y no aprende nada). El token debe ser fuerte (≥ 24 caracteres, sin placeholders) y nunca aparece en logs | ✅ el operador se lo entrega a cada institución al afiliarla |
 | Bitácora de cada registro y de cada duplicado (`institucion.registrar`, actor `entidad`) con el `traceId` | ✅ |
-| **Verificar que la entidad es quien dice** | ❌ **no resuelto**: sin `REGISTRATION_TOKEN` el registro queda abierto (el arranque lo avisa). **Antes de que HU-06.2 entregue documentos reales, hay que decidir cómo se verifica una institución** (p. ej. token entregado en un alta presencial, o una revisión manual que ponga `verificada: true` y que HU-06.2 exija) |
+| **Verificar que la entidad es quien dice** | 🟡 **resuelto como decisión humana registrada** (ADR-07): el operador verifica fuera de banda con `npm run verify:institution` y sin esa verificación la entidad no puede ejecutar operaciones sensibles (sección 12). Lo que **sigue sin resolverse** es la comprobación automática contra una fuente externa: no existe ninguna disponible |
+
+**Qué es y qué no es `REGISTRATION_TOKEN`.** Es el control de *quién puede registrar instituciones*, y nada más:
+
+- ✅ **Sirve para:** limitar el alta de entidades a quien el operador le haya entregado el token.
+- ❌ **No es identidad institucional:** es **un solo secreto global**, igual para todas las entidades. No dice *quién* registra. La identidad institucional la da la credencial de la entidad (sección 12), no este token.
+- ❌ **No es verificación:** que alguien tenga el token no prueba que la entidad exista ni que sea quien dice. La verificación es una decisión humana aparte y explícita (ADR-07).
+- ⚠️ **Debe estar configurado en cualquier ambiente desplegado.** Hoy es opcional y, vacío, el registro queda abierto (el arranque lo avisa). Sin él, cualquiera puede llenar el directorio de entidades; la verificación evita que esas entidades operen, pero no que se registren. *Su comportamiento funcional no se cambió en ADR-07: esto es una recomendación de despliegue pendiente de aplicar por el equipo.*
 
 **Otras decisiones.** La entidad y su carpeta son un solo documento (una escritura atómica: no hay entidad sin carpeta ni al revés). Cuerpo acotado a 16 KB (`413`), solo `application/json` (`415`), JSON mal formado `400`, entradas que no son objeto `400` (nunca `500`). Los campos de texto se limpian de saltos de línea y caracteres de control, y el correo de contacto rechaza saltos de línea y varios destinatarios. Los logs no contienen nombre, correo ni NIT de la entidad. Los índices únicos se construyen **antes** de aceptar registros.
 
@@ -198,3 +230,78 @@ Ambos procesos se desactivan con `RECONCILE_INTERVAL_MS=0`. Cada resolución que
 - **Directorio de operadores (HU-05a):** la validación de la dirección es sobre su **texto**: no se resuelve el DNS, así que un nombre público que resuelva a una IP privada (*DNS rebinding*) no se detecta aquí; quien haga la llamada real de transferencia (HU-05c) debe verificar la IP resuelta. No hay API HTTP del directorio (lo usan por dentro las transferencias). GovCarpeta no permite saber a qué operador pertenece un ciudadano. El límite de refrescos forzados vive en memoria por réplica (varias réplicas pueden sumar más llamadas al sandbox).
 - **Instituciones (HU-06.1):** el registro es **autodeclarado** y, sin `REGISTRATION_TOKEN`, abierto (ver sección 10): no hay verificación de que la entidad exista ni sea quien dice; **no hay limitación de tasa** (un actor puede crear muchas entidades con NIT válidos distintos: el NIT se valida por su dígito, no contra el RUES/DIAN); no hay API para consultar, editar ni dar de baja una institución (solo el registro y la consulta interna `hasInstitutionalFolder`).
 - **`ms-gateway` es mínimo:** valida tokens, enruta por lista blanca, propaga el trace-id y expone TLS/mTLS opcional, pero no hace limitación de tasa (por IP o por cliente), no tiene circuit breaker ni balanceo entre réplicas de un mismo servicio, y sus rutas están en código (`src/routes.js`), no en una configuración dinámica. Como se dijo arriba, la limitación por origen (el bloqueo de cuentas por IP) le correspondería.
+
+## 12. Autenticación institucional (`ms-comparticion`, ADR-07)
+
+**La autenticación de ciudadanos pertenece a `ms-identidad`; la de instituciones, a `ms-comparticion`. Cada tipo de actor usa un JWT independiente y un secreto criptográfico independiente.** Decisión completa, alternativas descartadas y consecuencias: [`ADR-07`](ADR-07-AUTENTICACION-INSTITUCIONAL.md).
+
+`POST /api/v1/institutions/auth/token` recibe `{nit, password}` y responde `200 {accessToken, tokenType: "Bearer", expiresIn: 900}` (con `Cache-Control: no-store`). Es pública en el gateway por la misma razón que el login del ciudadano: no se puede exigir un token para pedir un token.
+
+| Aspecto | Ciudadano (HU-02) | Entidad (ADR-07) |
+|---|---|---|
+| Emisor / `iss` | `ms-identidad` | `ms-comparticion` |
+| Llave de firma | `JWT_SECRET` | **`ENTITY_JWT_SECRET`** |
+| Credencial | documento + contraseña | NIT + contraseña |
+| Claims propios | `typ`, `jti`, (`fam` en refresh) | `typ`, `act: "entidad"`, `jti`, `ver` |
+| `sub` | `ciudadanoId` | `institutionId` |
+| Vigencia | 15 min + refresh de 7 d | 15 min, **sin refresh** |
+| Middleware | `requireAuth` → `req.auth.ciudadanoId` | `requireEntityAuth` → `req.auth.institutionId` |
+
+**Por qué un token no puede pasar por el otro.** Un token institucional presentado a `requireAuth` falla dos veces, de forma independiente: su `kid` no está en el llavero de ciudadanos (la llave es otra) y su `iss` no es `ms-identidad`. Al revés, `requireEntityAuth` exige `iss: ms-comparticion` **y** `act: "entidad"` **y** que la firma valide con el llavero institucional. Probado en los dos sentidos, incluso con un token que imita todos los claims pero está firmado con la llave equivocada.
+
+`requireEntityAuth` deja `req.auth = {institutionId, tokenId, actorType: "entidad", verificada}` y **nunca** `ciudadanoId`: como `requireOwner` (en `ms-documentos`) compara contra `ciudadanoId`, un token institucional no puede pasar por dueño de una carpeta ni por accidente — el campo simplemente no existe.
+
+**Las dos llaves deben ser distintas.** El validador de configuración del gateway y el de `ms-documentos` **rechazan arrancar** si `ENTITY_JWT_SECRET` es igual a `JWT_SECRET`, en cualquier ambiente. Si fueran la misma, toda la separación sería decorativa. Rotación: el mismo procedimiento de tres fases de la sección 3, con `ENTITY_JWT_SECRET_PREVIOUS`.
+
+| Servicio | Qué hace con la llave institucional |
+|---|---|
+| `ms-comparticion` | **Firma.** Obligatoria fuera de `development`/`test`: el servicio no arranca sin ella |
+| `ms-gateway` | **Verifica.** Opcional hoy (ninguna ruta `actor: "entidad"` declarada); sin ella esas rutas responden `401` |
+| `ms-documentos` | **Verificará** (HU-10). Opcional; `requireEntityAuth` existe pero ninguna ruta lo monta todavía |
+| `ms-identidad` | **No la conoce.** No firma ni verifica tokens institucionales |
+
+**Credencial y fuerza bruta.** Argon2id (ADR-06), nunca en claro; un resumen de otra variante (`argon2i`/`argon2d`) no autentica. Todo rechazo devuelve el mismo `401 {"error":"credenciales invalidas"}`, sin distinguir NIT inexistente, contraseña incorrecta, entidad sin credencial o entidad bloqueada; si el NIT no existe se verifica igual contra un resumen descartable, para que la respuesta tarde lo mismo. Al 5.º intento fallido la entidad se bloquea 15 minutos (atómico, y durante el bloqueo no se cuentan más intentos). Cada intento queda en `audit_logs` como `institucion.autenticar` con `actorType: "entidad"` y su `traceId`; como actor y `resourceOwner` coinciden (la entidad actúa sobre sus propias credenciales), no cuenta como acceso fuera de política (RNF-07).
+
+## 12.1 Verificación institucional (ADR-07)
+
+> **La autenticación institucional y la verificación institucional son conceptos independientes. Una institución no verificada puede autenticarse, pero no puede ejecutar operaciones institucionales sensibles.**
+
+> **La verificación institucional representa una decisión humana registrada por el operador del sistema. No constituye una verificación automática de existencia jurídica contra una fuente externa.**
+
+No hay fuente externa que consultar: GovCarpeta solo conoce ciudadanos y operadores, el RUES/DIAN está fuera del alcance, y el dígito de verificación del NIT es aritmética, no existencia. Lo que el sistema garantiza es **trazabilidad de la decisión**, no la verdad del mundo real.
+
+**Cómo se verifica.** Operación administrativa **fuera de banda**, con el mismo patrón que HU-11 y HU-05b (simulación por defecto, `--confirm` para actuar, códigos de salida):
+
+```bash
+cd services/ms-comparticion
+npm run verify:institution -- --nit=890901389                                    # simula: muestra qué quedaría escrito
+npm run verify:institution -- --nit=890901389 --confirm --motivo="carta membretada + correo del dominio"
+npm run verify:institution -- --nit=890901389 --revoke --confirm --motivo="cese del convenio"
+```
+
+Salida: `0` ok · `1` error · `2` datos inválidos / uso / la entidad no existe · `3` ya estaba en ese estado (no se escribió nada). `--por="Nombre"` fija el responsable; si se omite se usa `VERIFICATION_DECIDED_BY` o el usuario del sistema operativo.
+
+**Por qué un script y no una ruta HTTP.** El gateway solo enruta lo que declara su lista blanca, así que un script **no es alcanzable desde fuera por construcción**, y ejecutarlo exige acceso al despliegue: **una entidad no puede verificarse a sí misma**. Se suman las defensas que ya existían: `register()` ignora `verificada` si llega en el cuerpo (probado) y ningún token institucional autoriza esta operación.
+
+**Qué queda registrado.** En el documento, la última decisión (`verificadaEn`, `verificadaPor`, `motivoVerificacion`); en `audit_logs`, **todas** las decisiones, append-only, como `institucion.verificar` / `institucion.revocar_verificacion` con **`actorType: "sistema"`** (el valor que el enum declaraba y nunca se había usado) y el motivo en `metadata`. El motivo es obligatorio al confirmar: es la evidencia de la revisión. La operación es **idempotente**: si la entidad ya estaba en ese estado no se escribe nada y la decisión original no se pisa.
+
+**Dónde se exige.** En la operación, no en el login:
+
+```
+requireEntityAuth      → ¿eres una entidad?        401 si no
+requireVerifiedEntity  → ¿estás VERIFICADA?        403 si no
+```
+
+Es **403 y no 401** a propósito: la credencial es válida y se reconoció a la entidad; lo que falta es autorización, y volver a autenticarse no lo arregla. El rechazo queda en la bitácora (`entidad_no_verificada`), y si la bitácora falla el rechazo **sigue siendo un rechazo**.
+
+**Ventana de propagación, aceptada.** `requireVerifiedEntity` lee el claim `ver` del token y **no consulta a `ms-comparticion`**: una llamada síncrona acoplaría el servicio crítico al de compartición, justo lo que evita la matriz de degradación. Por eso **una revocación tarda hasta 15 minutos** en surtir efecto en `ms-documentos` (es inmediata en `ms-comparticion`, que lee su propia base). Para acortarla, la palanca es `ENTITY_ACCESS_EXPIRES_IN`.
+
+### Lo que esta base NO resuelve todavía
+
+- **La verificación es humana, no automática** (ver arriba): que una entidad esté verificada significa que alguien del equipo operador lo decidió y dejó constancia.
+- **`REGISTRATION_TOKEN` sigue siendo opcional**: sin él, cualquiera puede *registrar* una entidad y obtener un token para ella. La verificación evita que **opere**, no que se registre. Debería exigirse en ambientes desplegados (sección 10).
+- **No hay forma de asignar ni rotar la credencial** de una entidad ya registrada: la contraseña solo se fija al registrarse (es opcional), y una entidad registrada sin ella no puede autenticarse.
+- **No hay revocación del token institucional**: un token robado vale hasta 15 minutos, igual que el del ciudadano.
+- **No hay limitación de tasa** en el endpoint de login (el bloqueo es por entidad, no por origen), como en todo el resto del sistema.
+- **Ninguna ruta protegida de entidad existe aún**: HU-10 y HU-06.3 las traerán. `requireVerifiedEntity` está escrito y probado, pero **no lo monta ninguna ruta**.
+- **`hasInstitutionalFolder()` no mira `verificada`** y se dejó así a propósito: es una decisión de HU-06.2 (otro integrante) si una entidad sin verificar "tiene carpeta" para recibir un paquete o debe caer al envío por correo (RF-26).

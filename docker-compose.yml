@@ -64,6 +64,11 @@ services:
       S3_PUBLIC_ENDPOINT: http://localhost:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}  # secret-scan:allow -- credencial de desarrollo local; fuera de local el servicio rechaza minioadmin
+      # HU-10 (ADR-07): aqui solo se VERIFICAN los tokens institucionales que firma ms-comparticion; debe ser la
+      # misma llave que alli y distinta de JWT_SECRET. Sin ella, POST /api/v1/documents/inbound responde 401.
+      ENTITY_JWT_SECRET: ${ENTITY_JWT_SECRET:-}
+      # Tamano maximo de un documento entregado por una entidad emisora (tope duro 50 MB: se procesa en memoria).
+      MAX_INBOUND_UPLOAD_BYTES: ${MAX_INBOUND_UPLOAD_BYTES:-52428800}
     depends_on:
       - mongo
       - rabbitmq
@@ -105,8 +110,12 @@ services:
     depends_on:
       - mongo
 
-  # Comparticion autorizada de documentos (HU-06.1: registro de entidades institucionales). REGISTRATION_TOKEN es opcional:
-  # si se define, POST /api/v1/institutions exige el encabezado x-registration-token (vacio = registro abierto).
+  # Comparticion autorizada de documentos (HU-06.1: registro de entidades institucionales; ADR-07: autenticacion
+  # institucional). REGISTRATION_TOKEN es opcional: si se define, POST /api/v1/institutions exige el encabezado
+  # x-registration-token (vacio = registro abierto).
+  # ENTITY_JWT_SECRET es la llave con la que ESTE servicio firma los tokens institucionales. Es DISTINTA de
+  # JWT_SECRET (la de ciudadanos, de ms-identidad) a proposito: son dos mundos separados. En development cae a
+  # una llave de desarrollo; fuera de este compose es obligatoria y el servicio no arranca sin ella.
   ms-comparticion:
     build: ./services/ms-comparticion
     ports:
@@ -115,6 +124,7 @@ services:
       NODE_ENV: development
       MONGO_URI: mongodb://mongo:27017/ms-comparticion
       REGISTRATION_TOKEN: ${REGISTRATION_TOKEN:-}
+      ENTITY_JWT_SECRET: ${ENTITY_JWT_SECRET:-}
     depends_on:
       - mongo
 
@@ -130,6 +140,9 @@ services:
       DOCUMENTOS_URL: http://ms-documentos:3002
       COMPARTICION_URL: http://ms-comparticion:3005
       JWT_SECRET: ${JWT_SECRET:-}
+      # ADR-07: aqui solo se VERIFICAN los tokens institucionales; debe ser la misma que usa ms-comparticion
+      # para firmarlos y distinta de JWT_SECRET (el gateway no arranca si son iguales).
+      ENTITY_JWT_SECRET: ${ENTITY_JWT_SECRET:-}
     depends_on:
       - ms-identidad
       - ms-documentos

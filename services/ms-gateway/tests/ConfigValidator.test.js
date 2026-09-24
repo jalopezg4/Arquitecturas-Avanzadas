@@ -44,6 +44,33 @@ describe("ConfigValidator del gateway", () => {
     }
   });
 
+  describe("ENTITY_JWT_SECRET (ADR-07): la llave de los tokens institucionales", () => {
+    const ENTITY = "Wd6nK2pR8vZ4tQ1yB7mX3jL5hG9sCe0A";
+
+    test("es opcional: sin ella la configuracion es valida (las rutas de entidad responderan 401)", () => {
+      expect(validateConfig(prod())).toEqual([]);
+    });
+
+    test("si se define, debe ser fuerte, y sus llaves anteriores tambien", () => {
+      expect(validateConfig(prod({ entityJwtSecret: ENTITY }))).toEqual([]);
+      expect(validateConfig(prod({ entityJwtSecret: "corta" })).join()).toContain("ENTITY_JWT_SECRET");
+      expect(validateConfig(prod({ entityJwtSecret: ENTITY, entityJwtSecretPrevious: [ENTITY, "corta"] })).join()).toContain("ENTITY_JWT_SECRET_PREVIOUS[1]");
+    });
+
+    test("NO puede ser igual a JWT_SECRET, ni siquiera en local: son dos mundos separados", () => {
+      expect(validateConfig(prod({ entityJwtSecret: STRONG })).join()).toContain("no puede ser igual a JWT_SECRET");
+      expect(validateConfig(prod({ isLocal: true, entityJwtSecret: STRONG })).join()).toContain("no puede ser igual a JWT_SECRET");
+    });
+
+    test("el mensaje de error nunca contiene el valor de la llave", () => {
+      try {
+        assertValidConfig(prod({ entityJwtSecret: "cambiar-en-produccion-entidades" }));
+      } catch (e) {
+        expect(e.message).not.toContain("cambiar-en-produccion-entidades");
+      }
+    });
+  });
+
   test("reglas de TLS: cert y llave juntos; mTLS y REQUIRE_TLS exigen certificado", () => {
     expect(validateConfig(prod({ tls: { certPath: "/c" } })).join()).toContain("juntos");
     expect(validateConfig(prod({ tls: { caPath: "/ca" } })).join()).toContain("TLS_CA_PATH");

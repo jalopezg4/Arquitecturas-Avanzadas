@@ -257,6 +257,132 @@ describe("ms-comparticion: POST /api/v1/institutions (HU-06.1, publica)", () => 
   });
 });
 
+describe("ADR-07: el gateway distingue un token de CIUDADANO de uno INSTITUCIONAL", () => {
+  const ENTITY_SECRET = "Wd6nK2pR8vZ4tQ1yB7mX3jL5hG9sCe0A";
+  const entitySecrets = new SecretsManager({ active: ENTITY_SECRET });
+  // Ruta de entidad de prueba: hoy la tabla real no declara ninguna (llegan con HU-10 y HU-06.3), pero la
+  // capacidad del gateway para exigir un token institucional ya existe y se comprueba aqui.
+  const RUTA_ENTIDAD = [{ method: "POST", path: "/api/v1/interna/entidad", upstream: "COMPARTICION_URL", actor: "entidad" }];
+
+  const entityToken = (claims = {}, options = {}, keyRing = entitySecrets) =>
+    keyRing.sign({ typ: "access", act: "entidad", ...claims }, { issuer: "ms-comparticion", subject: "665f1c04c9de9c4c34f6b52a", expiresIn: 900, ...options });
+
+  let comp;
+  let gw;
+  beforeEach(async () => {
+    comp = await startUpstream();
+    gw = buildApp({ secrets, entitySecrets, upstreams: { COMPARTICION_URL: comp.url }, issuer: "ms-identidad", timeoutMs: 2000, routes: RUTA_ENTIDAD });
+  });
+  afterEach(async () => {
+    await comp.close();
+  });
+
+  test("HU-10: POST /api/v1/documents/inbound exige token INSTITUCIONAL y se reenvia a ms-documentos", async () => {
+    const docs = await startUpstream();
+    try {
+      const gw = buildApp({ secrets, entitySecrets, upstreams: { DOCUMENTOS_URL: docs.url }, issuer: "ms-identidad", timeoutMs: 2000 });
+      const t = entityToken();
+
+      await request(gw).post("/api/v1/documents/inbound").set("Authorization", `Bearer ${t}`).send({ destinatario: "x@y.co" }).expect(201);
+
+      expect(docs.calls).toHaveLength(1);
+      expect(docs.calls[0]).toMatchObject({ method: "POST", path: "/api/v1/documents/inbound" });
+      expect(docs.calls[0].headers.authorization).toBe(`Bearer ${t}`); // ms-documentos lo vuelve a validar
+
+      // Un token de ciudadano no abre esa ruta, y el destino no se entera.
+      await request(gw).post("/api/v1/documents/inbound").set("Authorization", `Bearer ${token()}`).send({}).expect(401);
+      // Sin token tampoco.
+      await request(gw).post("/api/v1/documents/inbound").send({}).expect(401);
+      expect(docs.calls).toHaveLength(1);
+    } finally {
+      await docs.close();
+    }
+  });
+
+  test("HU-10: el resto de metodos y rutas parecidas siguen siendo 404 (lista blanca estricta)", async () => {
+    for (const [method, path] of [
+      ["GET", "/api/v1/documents/inbound"],
+      ["POST", "/api/v1/documents"],
+      ["POST", "/api/v1/documents/inbound/extra"],
+      ["POST", "/api/v1/documents/inbound/"],
+    ]) {
+      const res = await request(gw)[method.toLowerCase()](path).set("Authorization", `Bearer ${entityToken()}`).send({});
+      expect(res.status).toBe(404);
+    }
+  });
+
+  test("el login institucional es publico: se reenvia a ms-comparticion sin exigir token", async () => {
+    const soloLogin = buildApp({ secrets, entitySecrets, upstreams: { COMPARTICION_URL: comp.url }, issuer: "ms-identidad" });
+
+    await request(soloLogin).post("/api/v1/institutions/auth/token").send({ nit: "890901389", password: "x" }).expect(201);
+
+    expect(comp.calls).toHaveLength(1);
+    expect(comp.calls[0]).toMatchObject({ method: "POST", path: "/api/v1/institutions/auth/token" });
+  });
+
+  test("una ruta de entidad se abre con token institucional y el Authorization llega intacto", async () => {
+    const t = entityToken();
+
+    await request(gw).post("/api/v1/interna/entidad").set("Authorization", `Bearer ${t}`).send({}).expect(201);
+
+    expect(comp.calls).toHaveLength(1);
+    expect(comp.calls[0].headers.authorization).toBe(`Bearer ${t}`);
+  });
+
+  test("401: un token de CIUDADANO no abre una ruta de entidad, y el destino NO recibe nada", async () => {
+    for (const t of [token(), token({ act: "entidad" }), secrets.sign({ typ: "access", act: "entidad" }, { issuer: "ms-comparticion", subject: "x", expiresIn: 900 })]) {
+      const res = await request(gw).post("/api/v1/interna/entidad").set("Authorization", `Bearer ${t}`).send({});
+      expect(res.status).toBe(401);
+    }
+    expect(comp.calls).toHaveLength(0);
+  });
+
+  test("401: un token INSTITUCIONAL no abre una ruta de ciudadano (no se interpreta su sub como ciudadanoId)", async () => {
+    const gwCiudadano = buildApp({ secrets, entitySecrets, upstreams: { IDENTIDAD_URL: comp.url }, issuer: "ms-identidad" });
+
+    const res = await request(gwCiudadano).get("/api/v1/auth/me").set("Authorization", `Bearer ${entityToken()}`);
+
+    expect(res.status).toBe(401);
+    expect(comp.calls).toHaveLength(0);
+  });
+
+  test("401 en una ruta de entidad: token expirado, sin `act`, de otro emisor, de otra llave o sin subject", async () => {
+    const malos = [
+      entityToken({}, { expiresIn: -10 }),
+      entityToken({ act: undefined }),
+      entityToken({ typ: "refresh" }),
+      entityToken({}, { issuer: "ms-identidad" }),
+      entitySecrets.sign({ typ: "access", act: "entidad" }, { issuer: "ms-comparticion", expiresIn: 900 }), // sin `sub`
+      entityToken({}, {}, new SecretsManager({ active: "Xy4pT8nQ2vR6wZ1cB5mK3jL7hG9sDe0A" })),
+    ];
+
+    for (const t of malos) await request(gw).post("/api/v1/interna/entidad").set("Authorization", `Bearer ${t}`).send({}).expect(401);
+
+    expect(comp.calls).toHaveLength(0);
+  });
+
+  test("sin ENTITY_JWT_SECRET configurado, una ruta de entidad falla CERRADO (401) y no reenvia nada", async () => {
+    const sinLlave = buildApp({ secrets, upstreams: { COMPARTICION_URL: comp.url }, issuer: "ms-identidad", routes: RUTA_ENTIDAD });
+
+    await request(sinLlave).post("/api/v1/interna/entidad").set("Authorization", `Bearer ${entityToken()}`).send({}).expect(401);
+
+    expect(comp.calls).toHaveLength(0);
+  });
+
+  test("durante una rotacion de la llave de entidades, un token de la anterior sigue valiendo", async () => {
+    const t = entityToken();
+    const rotado = buildApp({
+      secrets,
+      entitySecrets: new SecretsManager({ active: "Xy4pT8nQ2vR6wZ1cB5mK3jL7hG9sDe0A", previous: [ENTITY_SECRET] }),
+      upstreams: { COMPARTICION_URL: comp.url },
+      issuer: "ms-identidad",
+      routes: RUTA_ENTIDAD,
+    });
+
+    await request(rotado).post("/api/v1/interna/entidad").set("Authorization", `Bearer ${t}`).send({}).expect(201);
+  });
+});
+
 describe("Lista blanca de rutas: lo que no esta declarado no se reenvia", () => {
   test.each([
     ["GET", "/api/v1/citizens"], // el metodo no coincide (solo POST esta declarado)
