@@ -3,3 +3,8 @@ node_modules/
 *.log
 .DS_Store
 coverage/
+
+# HT-03: los resumenes (*.json), logs (*.log) y HT03-RESULTADOS.md de scripts/load-test/results/ SI se
+# versionan (son la evidencia); solo el crudo por-punto (*-raw.ndjson, decenas de MB por archivo) se excluye.
+scripts/load-test/results/**/*-raw.ndjson
+!scripts/load-test/results/**/*.log

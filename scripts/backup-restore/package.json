@@ -1,0 +1,22 @@
+{
+  "name": "ht02-backup-restore",
+  "version": "1.0.0",
+  "description": "HT-02 -- respaldo y restauracion verificada de MongoDB (instancia completa) y MinIO (bucket carpeta-documentos). No pertenece a un solo microservicio: cruza las 5 bases del proyecto.",
+  "private": true,
+  "main": "backup.js",
+  "scripts": {
+    "backup": "node backup.js",
+    "restore:verify": "node restore-verify.js",
+    "test": "jest"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testTimeout": 30000
+  }
+}

@@ -1,0 +1,1529 @@
+=== [ht03-100rps-3replicas] Escalando a 3 replica(s) ===
+ Container arquitecturas-avanzadas-ms-identidad-1 Running 
+ Container arquitecturas-avanzadas-ms-notificaciones-1 Running 
+ Container arquitecturas-avanzadas-mongo-1 Running 
+ Container arquitecturas-avanzadas-ms-comparticion-1 Running 
+ Container arquitecturas-avanzadas-ms-gateway-1 Running 
+ Container arquitecturas-avanzadas-minio-1 Running 
+ Container arquitecturas-avanzadas-ms-interoperabilidad-1 Running 
+ Container arquitecturas-avanzadas-rabbitmq-1 Running 
+ Container arquitecturas-avanzadas-ms-documentos-1 Running 
+ Container arquitecturas-avanzadas-ms-documentos-3 Creating 
+ Container arquitecturas-avanzadas-ms-documentos-2 Creating 
+ Container arquitecturas-avanzadas-ms-documentos-3 Created 
+ Container arquitecturas-avanzadas-ms-documentos-2 Created 
+ Container arquitecturas-avanzadas-ms-documentos-2 Starting 
+ Container arquitecturas-avanzadas-ms-documentos-2 Started 
+ Container arquitecturas-avanzadas-ms-documentos-3 Starting 
+ Container arquitecturas-avanzadas-ms-documentos-3 Started 
+
+=== [ht03-100rps-3replicas] Estado PRE-corrida ===
+NAME                                             STATUS
+arquitecturas-avanzadas-ms-documentos-1          Up 14 minutes
+arquitecturas-avanzadas-ms-documentos-2          Up 7 seconds
+arquitecturas-avanzadas-ms-documentos-3          Up 6 seconds
+
+arquitecturas-avanzadas-ms-documentos-1 -> hostname=9f226adbca1c ready=200 {"status":"ready"}
+arquitecturas-avanzadas-ms-documentos-2 -> hostname=9f65c7497ab6 ready=200 {"status":"ready"}
+arquitecturas-avanzadas-ms-documentos-3 -> hostname=82c366242627 ready=200 {"status":"ready"}
+
+=== [ht03-100rps-3replicas] Warmup: 10 req/s, 15s (descartado, no se guarda) ===
+warmup listo
+
+=== [ht03-100rps-3replicas] Corrida OFICIAL: 100 req/s, 60s ===
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /scripts/load-test.js
+        output: json (/scripts/results/ht03-100rps-3replicas-raw.ndjson)
+
+     scenarios: (100.00%) 1 scenario, 400 max VUs, 1m30s max duration (incl. graceful stop):
+              * ht03_lectura_documentos: 100.00 iterations/s for 1m0s (maxVUs: 200-400, gracefulStop: 30s)
+
+
+running (0m01.0s), 003/200 VUs, 94 complete and 0 interrupted iterations
+ht03_lectura_documentos   [   2% ] 003/200 VUs  0m01.0s/1m0s  100.00 iters/s
+
+running (0m02.0s), 003/200 VUs, 194 complete and 0 interrupted iterations
+ht03_lectura_documentos   [   3% ] 003/200 VUs  0m02.0s/1m0s  100.00 iters/s
+
+running (0m03.0s), 003/200 VUs, 294 complete and 0 interrupted iterations
+ht03_lectura_documentos   [   5% ] 003/200 VUs  0m03.0s/1m0s  100.00 iters/s
+
+running (0m04.0s), 003/200 VUs, 394 complete and 0 interrupted iterations
+ht03_lectura_documentos   [   7% ] 003/200 VUs  0m04.0s/1m0s  100.00 iters/s
+
+running (0m05.0s), 002/200 VUs, 495 complete and 0 interrupted iterations
+ht03_lectura_documentos   [   8% ] 002/200 VUs  0m05.0s/1m0s  100.00 iters/s
+
+running (0m06.0s), 003/200 VUs, 594 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  10% ] 003/200 VUs  0m06.0s/1m0s  100.00 iters/s
+
+running (0m07.0s), 008/200 VUs, 689 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  12% ] 008/200 VUs  0m07.0s/1m0s  100.00 iters/s
+
+running (0m08.0s), 004/200 VUs, 793 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  13% ] 004/200 VUs  0m08.0s/1m0s  100.00 iters/s
+
+running (0m09.0s), 004/200 VUs, 893 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  15% ] 004/200 VUs  0m09.0s/1m0s  100.00 iters/s
+
+running (0m10.0s), 011/200 VUs, 986 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  17% ] 011/200 VUs  0m10.0s/1m0s  100.00 iters/s
+
+running (0m11.0s), 025/200 VUs, 1072 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  18% ] 025/200 VUs  0m11.0s/1m0s  100.00 iters/s
+
+running (0m12.0s), 039/200 VUs, 1158 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  20% ] 039/200 VUs  0m12.0s/1m0s  100.00 iters/s
+
+running (0m13.0s), 052/200 VUs, 1245 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  22% ] 052/200 VUs  0m13.0s/1m0s  100.00 iters/s
+
+running (0m14.0s), 057/200 VUs, 1340 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  23% ] 057/200 VUs  0m14.0s/1m0s  100.00 iters/s
+
+running (0m15.0s), 057/200 VUs, 1440 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  25% ] 057/200 VUs  0m15.0s/1m0s  100.00 iters/s
+
+running (0m16.0s), 058/200 VUs, 1539 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  27% ] 058/200 VUs  0m16.0s/1m0s  100.00 iters/s
+
+running (0m17.0s), 058/200 VUs, 1639 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  28% ] 058/200 VUs  0m17.0s/1m0s  100.00 iters/s
+
+running (0m18.0s), 059/200 VUs, 1738 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  30% ] 059/200 VUs  0m18.0s/1m0s  100.00 iters/s
+
+running (0m19.0s), 059/200 VUs, 1838 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  32% ] 059/200 VUs  0m19.0s/1m0s  100.00 iters/s
+
+running (0m20.0s), 058/200 VUs, 1939 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  33% ] 058/200 VUs  0m20.0s/1m0s  100.00 iters/s
+
+running (0m21.0s), 058/200 VUs, 2039 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  35% ] 058/200 VUs  0m21.0s/1m0s  100.00 iters/s
+
+running (0m22.0s), 058/200 VUs, 2139 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  37% ] 058/200 VUs  0m22.0s/1m0s  100.00 iters/s
+
+running (0m23.0s), 062/200 VUs, 2235 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  38% ] 062/200 VUs  0m23.0s/1m0s  100.00 iters/s
+
+running (0m24.0s), 085/200 VUs, 2312 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  40% ] 085/200 VUs  0m24.0s/1m0s  100.00 iters/s
+
+running (0m25.0s), 093/200 VUs, 2404 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  42% ] 093/200 VUs  0m25.0s/1m0s  100.00 iters/s
+
+running (0m26.0s), 107/200 VUs, 2490 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  43% ] 107/200 VUs  0m26.0s/1m0s  100.00 iters/s
+
+running (0m27.0s), 116/200 VUs, 2581 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  45% ] 116/200 VUs  0m27.0s/1m0s  100.00 iters/s
+
+running (0m28.0s), 124/200 VUs, 2673 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  47% ] 124/200 VUs  0m28.0s/1m0s  100.00 iters/s
+
+running (0m29.0s), 142/200 VUs, 2755 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  48% ] 142/200 VUs  0m29.0s/1m0s  100.00 iters/s
+
+running (0m30.0s), 153/200 VUs, 2844 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  50% ] 153/200 VUs  0m30.0s/1m0s  100.00 iters/s
+
+running (0m31.0s), 165/200 VUs, 2932 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  52% ] 165/200 VUs  0m31.0s/1m0s  100.00 iters/s
+
+running (0m32.0s), 187/200 VUs, 3010 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  53% ] 187/200 VUs  0m32.0s/1m0s  100.00 iters/s
+
+running (0m33.0s), 202/203 VUs, 3092 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  55% ] 202/203 VUs  0m33.0s/1m0s  100.00 iters/s
+
+running (0m34.0s), 202/203 VUs, 3192 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  57% ] 202/203 VUs  0m34.0s/1m0s  100.00 iters/s
+
+running (0m35.0s), 202/203 VUs, 3292 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  58% ] 202/203 VUs  0m35.0s/1m0s  100.00 iters/s
+
+running (0m36.0s), 202/203 VUs, 3392 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  60% ] 202/203 VUs  0m36.0s/1m0s  100.00 iters/s
+
+running (0m37.0s), 202/204 VUs, 3491 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  62% ] 202/204 VUs  0m37.0s/1m0s  100.00 iters/s
+
+running (0m38.0s), 203/204 VUs, 3590 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  63% ] 203/204 VUs  0m38.0s/1m0s  100.00 iters/s
+
+running (0m39.0s), 202/204 VUs, 3691 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  65% ] 202/204 VUs  0m39.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:09Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:09Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:09Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:09Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:09Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:09Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:09Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:09Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:09Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:09Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m40.0s), 194/204 VUs, 3799 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  67% ] 194/204 VUs  0m40.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:10Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:10Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m41.0s), 188/204 VUs, 3905 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  68% ] 188/204 VUs  0m41.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:11Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:11Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m42.0s), 180/204 VUs, 4013 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  70% ] 180/204 VUs  0m42.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:12Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:13Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:13Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:13Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:13Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m43.0s), 179/204 VUs, 4114 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  72% ] 179/204 VUs  0m43.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:13Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:13Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:13Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:13Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:13Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:13Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:13Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:13Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:13Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:13Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m44.0s), 188/204 VUs, 4205 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  73% ] 188/204 VUs  0m44.0s/1m0s  100.00 iters/s
+
+running (0m45.0s), 214/214 VUs, 4269 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  75% ] 214/214 VUs  0m45.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:15Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:15Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m46.0s), 234/235 VUs, 4328 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  77% ] 234/235 VUs  0m46.0s/1m0s  100.00 iters/s
+
+running (0m47.0s), 253/253 VUs, 4391 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  78% ] 253/253 VUs  0m47.0s/1m0s  100.00 iters/s
+
+running (0m48.0s), 270/271 VUs, 4456 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  80% ] 270/271 VUs  0m48.0s/1m0s  100.00 iters/s
+
+running (0m49.0s), 296/296 VUs, 4505 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  82% ] 296/296 VUs  0m49.0s/1m0s  100.00 iters/s
+
+running (0m50.0s), 325/325 VUs, 4547 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  83% ] 325/325 VUs  0m50.0s/1m0s  100.00 iters/s
+
+running (0m51.0s), 348/348 VUs, 4601 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  85% ] 348/348 VUs  0m51.0s/1m0s  100.00 iters/s
+
+running (0m52.0s), 357/358 VUs, 4682 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  87% ] 357/358 VUs  0m52.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m53.0s), 374/375 VUs, 4748 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  88% ] 374/375 VUs  0m53.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:23Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:23Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m54.0s), 383/384 VUs, 4830 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  90% ] 383/384 VUs  0m54.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:24Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:24Z" level=warning msg="Insufficient VUs, reached 400 active VUs and cannot initialize more" executor=constant-arrival-rate scenario=ht03_lectura_documentos
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m55.0s), 400/400 VUs, 4871 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  92% ] 400/400 VUs  0m55.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:25Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:25Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:26Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:26Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:26Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:26Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:26Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:26Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m56.0s), 400/400 VUs, 4900 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  93% ] 400/400 VUs  0m56.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:26Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:26Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:26Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:26Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:26Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:26Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:26Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:26Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:26Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:26Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:26Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:26Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:26Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:26Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:26Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:26Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:27Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:27Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m57.0s), 400/400 VUs, 4923 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  95% ] 400/400 VUs  0m57.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:27Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:27Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:27Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:27Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:27Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:27Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:27Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:27Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m58.0s), 400/400 VUs, 4934 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  97% ] 400/400 VUs  0m58.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:28Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:29Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:29Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:29Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:29Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:29Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (0m59.0s), 400/400 VUs, 4972 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  98% ] 400/400 VUs  0m59.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:29Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:29Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:29Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:29Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:29Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:29Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m00.0s), 400/400 VUs, 5000 complete and 0 interrupted iterations
+ht03_lectura_documentos   [ 100% ] 400/400 VUs  1m00.0s/1m0s  100.00 iters/s
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:30Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:30Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m01.0s), 388/400 VUs, 5012 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:31Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:31Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m02.0s), 370/400 VUs, 5030 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:32Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m03.0s), 360/400 VUs, 5040 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+
+running (1m04.0s), 360/400 VUs, 5040 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+
+running (1m05.0s), 360/400 VUs, 5040 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+
+running (1m06.0s), 360/400 VUs, 5040 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+
+running (1m07.0s), 360/400 VUs, 5040 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+
+running (1m08.0s), 360/400 VUs, 5040 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+
+running (1m09.0s), 360/400 VUs, 5040 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+
+running (1m10.0s), 360/400 VUs, 5040 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:40Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:40Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:40Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:40Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:40Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:40Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:40Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:40Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:40Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:40Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:40Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:40Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:40Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:40Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:41Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:41Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:41Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:41Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:41Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:41Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m11.0s), 350/400 VUs, 5050 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:41Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:41Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:41Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:41Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:41Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:41Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m12.0s), 345/400 VUs, 5055 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:42Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:42Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m13.0s), 333/400 VUs, 5067 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:43Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:43Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:43Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:43Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:43Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:43Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:43Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:43Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:43Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:43Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:43Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:43Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m14.0s), 318/400 VUs, 5082 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:44Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m15.0s), 293/400 VUs, 5107 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:45Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:45Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m16.0s), 271/400 VUs, 5129 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:46Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:46Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m17.0s), 253/400 VUs, 5147 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:47Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:47Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m18.0s), 235/400 VUs, 5165 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:48Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:48Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m19.0s), 209/400 VUs, 5191 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:49Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m20.0s), 177/400 VUs, 5223 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:50Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m21.0s), 154/400 VUs, 5246 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:51Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:51Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m22.0s), 135/400 VUs, 5265 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:52Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:52Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m23.0s), 114/400 VUs, 5286 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:53Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:53Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+
+running (1m24.0s), 084/400 VUs, 5316 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:54Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:54Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:55Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m25.0s), 056/400 VUs, 5344 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:55Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:55Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:55Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:55Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:55Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:55Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:55Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:55Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:55Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:55Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:56Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:56Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:56Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:56Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:56Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:56Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:56Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:56Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m26.0s), 042/400 VUs, 5358 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:56Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:56Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:56Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:56Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:56Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:56Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:56Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:56Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:56Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:56Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:56Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:56Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:56Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:56Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:57Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:57Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:57Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:57Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m27.0s), 033/400 VUs, 5367 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:57Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:57Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:57Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:57Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:57Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:57Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:57Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:57Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m28.0s), 025/400 VUs, 5375 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:58Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:58Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:59Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:59Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:59Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:59Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:59Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:59Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:59Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:59Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m29.0s), 008/400 VUs, 5392 complete and 0 interrupted iterations
+ht03_lectura_documentos ↓ [ 100% ] 400/400 VUs  1m0s  100.00 iters/s
+time="2026-09-24T05:23:59Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:59Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:59Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:59Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:59Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:59Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:59Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:59Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:23:59Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:23:59Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:24:00Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:24:00Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:24:00Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:24:00Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+time="2026-09-24T05:24:00Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:3000/api/v1/citizens/ht03-loadtest-0001/documents?page=1&pageSize=10\": dial: i/o timeout"
+time="2026-09-24T05:24:00Z" level=error msg="HT-03: respuesta inesperada -- status=0 body=" source=console
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 10800  120.176899/s
+    checks_succeeded...: 89.87% 9706 out of 10800
+    checks_failed......: 10.12% 1094 out of 10800
+
+    ✗ status es 200
+      ↳  89% — ✓ 4853 / ✗ 547
+    ✗ cuerpo con forma esperada
+      ↳  89% — ✓ 4853 / ✗ 547
+
+    CUSTOM
+    ht03_respuestas_por_instancia.....: 4853   54.001712/s
+    ht03_respuestas_sin_instance_id...: 547    6.086737/s
+
+    HTTP
+    http_req_duration.................: avg=16.76ms min=0s      med=15.4ms  max=132.69ms p(90)=24.34ms p(95)=33.96ms p(99)=77.4ms 
+      { expected_response:true }......: avg=18.65ms min=10.07ms med=15.72ms max=132.69ms p(90)=25.93ms p(95)=36.61ms p(99)=86.02ms
+    http_req_failed...................: 10.12% 547 out of 5400
+    http_reqs.........................: 5400   60.088449/s
+
+    EXECUTION
+    dropped_iterations................: 601    6.687622/s
+    iteration_duration................: avg=3.1s    min=13.12ms med=19.38ms max=30s      p(90)=30s     p(95)=30s     p(99)=30s    
+    iterations........................: 5400   60.088449/s
+    vus...............................: 8      min=2           max=400
+    vus_max...........................: 400    min=200         max=400
+
+    NETWORK
+    data_received.....................: 15 MB  166 kB/s
+    data_sent.........................: 2.1 MB 24 kB/s
+
+
+
+
+running (1m29.9s), 000/400 VUs, 5400 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/400 VUs  1m0s  100.00 iters/s
+
+=== [ht03-100rps-3replicas] Estado POST-corrida ===
+NAME                                             STATUS
+arquitecturas-avanzadas-ms-documentos-1          Up 16 minutes
+arquitecturas-avanzadas-ms-documentos-2          Up 2 minutes
+arquitecturas-avanzadas-ms-documentos-3          Up 2 minutes
+
+[ht03-100rps-3replicas] listo

@@ -1,7 +1,10 @@
 /**
  * Tabla de enrutamiento del gateway. Es una lista BLANCA: lo que no esta aqui responde 404 y nunca se
- * reenvia. Por defecto una ruta exige access token; solo las marcadas `public: true` pasan sin el
+ * reenvia. Por defecto una ruta exige access token de CIUDADANO; solo las marcadas `public: true` pasan sin el
  * (las que sirven para OBTENER un token o registrarse).
+ *
+ * `actor: "entidad"` marca las rutas que exigen un token INSTITUCIONAL (ADR-07): otro emisor, otra llave y
+ * `act: entidad`. Una ruta de entidad NUNCA se abre con un token de ciudadano, ni al reves.
  *
  * Para un servicio nuevo: agregar su URL en config/env.js (`upstreams`) y sus rutas aqui.
  * `prefix: true` hace que la ruta cubra tambien todo lo que cuelgue de ella; `pattern` (RegExp) para rutas con
@@ -17,10 +20,26 @@ const ROUTES = [
   // ms-comparticion -- HU-06.1: registro de una entidad institucional. Publica (la entidad aun no tiene cuenta con nosotros);
   // el servicio puede exigir un token de registro (x-registration-token), que el gateway reenvia intacto.
   { method: "POST", path: "/api/v1/institutions", upstream: "COMPARTICION_URL", public: true },
+  // ms-comparticion -- ADR-07: la entidad canjea sus credenciales por un token institucional. Publica por la misma
+  // razon que el login del ciudadano: no se puede exigir un token para pedir un token.
+  { method: "POST", path: "/api/v1/institutions/auth/token", upstream: "COMPARTICION_URL", public: true },
   // ms-documentos -- HU-03: carga de un documento a la carpeta del ciudadano (el servicio verifica que :id sea el del token)
   { method: "POST", pattern: /^\/api\/v1\/citizens\/[A-Za-z0-9_-]{1,64}\/documents$/, upstream: "DOCUMENTOS_URL" },
   // ms-documentos -- HU-08: consulta paginada (?page=&pageSize=) de los documentos de la carpeta; mismo control de dueno en el servicio
   { method: "GET", pattern: /^\/api\/v1\/citizens\/[A-Za-z0-9_-]{1,64}\/documents$/, upstream: "DOCUMENTOS_URL" },
+  // ms-documentos -- HU-10 (RF-11): una entidad emisora entrega un documento en la carpeta de un ciudadano. Exige
+  // token INSTITUCIONAL (ADR-07), no de ciudadano; el servicio ademas comprueba que la entidad este verificada.
+  // No lleva el ciudadano en la ruta: va por su direccion unica, dentro del cuerpo.
+  { method: "POST", path: "/api/v1/documents/inbound", upstream: "DOCUMENTOS_URL", actor: "entidad" },
+  // ms-documentos -- HU-06.3 (RF-27), institucional: crear/consultar solicitudes documentales. Token INSTITUCIONAL
+  // (ADR-07); el servicio resuelve al ciudadano por direccionUnica (nunca va en la ruta ni en el token).
+  { method: "POST", path: "/api/v1/document-requests", upstream: "DOCUMENTOS_URL", actor: "entidad" },
+  { method: "GET", path: "/api/v1/document-requests", upstream: "DOCUMENTOS_URL", actor: "entidad" },
+  { method: "GET", pattern: /^\/api\/v1\/document-requests\/[A-Za-z0-9_-]{1,64}$/, upstream: "DOCUMENTOS_URL", actor: "entidad" },
+  // ms-documentos -- HU-06.3 (RF-28/RF-29), ciudadano: consultar y autorizar/rechazar sus propias solicitudes. Token
+  // de CIUDADANO (por defecto); "me" es literal -- el servicio saca al ciudadano del token, nunca de la ruta.
+  { method: "GET", path: "/api/v1/citizens/me/document-requests", upstream: "DOCUMENTOS_URL" },
+  { method: "PATCH", pattern: /^\/api\/v1\/citizens\/me\/document-requests\/[A-Za-z0-9_-]{1,64}\/decision$/, upstream: "DOCUMENTOS_URL" },
 ];
 
 function findRoute(method, path, routes = ROUTES) {

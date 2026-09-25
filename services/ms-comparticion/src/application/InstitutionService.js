@@ -1,3 +1,4 @@
+const argon2 = require("argon2");
 const crypto = require("crypto");
 const logger = require("../tracing/logger");
 const { TIPOS } = require("../domain/Institution");
@@ -18,9 +19,30 @@ class ConflictError extends Error {
     this.name = "ConflictError";
   }
 }
+/** No existe ninguna entidad con ese NIT: no hay nada que verificar ni revocar (ADR-07). */
+class InstitutionNotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "InstitutionNotFoundError";
+  }
+}
+/** La entidad YA estaba en el estado pedido: no se escribio nada (operacion idempotente, ADR-07). */
+class AlreadyInStateError extends Error {
+  constructor(message, { verificada, verificadaEn, verificadaPor }) {
+    super(message);
+    this.name = "AlreadyInStateError";
+    this.verificada = verificada;
+    this.verificadaEn = verificadaEn;
+    this.verificadaPor = verificadaPor;
+  }
+}
 
 const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 const PHONE_RE = /^[0-9+()\-\s]{7,20}$/;
+// Credencial de la entidad (ADR-07): misma longitud minima que la del ciudadano (HU-01) y un tope que evita usar
+// Argon2 como vector de consumo de CPU.
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 1024;
 
 /**
  * Los caracteres de control (saltos de linea, tabuladores...) se REEMPLAZAN por un espacio, no se borran: dos palabras
@@ -29,6 +51,23 @@ const PHONE_RE = /^[0-9+()\-\s]{7,20}$/;
  */
 function clean(value) {
   return [...String(value)].map((c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 ? " " : c)).join("").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Lo que la operacion de verificacion devuelve de una entidad. Es para la consola del operador (que ya conoce a la
+ * entidad, la esta verificando), no para una respuesta HTTP: aun asi no expone la credencial ni la carpeta.
+ */
+function toPublicView(doc) {
+  return {
+    institutionId: String(doc._id),
+    nombre: doc.nombre,
+    tipo: doc.tipo,
+    nit: doc.nit,
+    verificada: doc.verificada === true,
+    verificadaEn: doc.verificadaEn || null,
+    verificadaPor: doc.verificadaPor || null,
+    motivoVerificacion: doc.motivoVerificacion || null,
+  };
 }
 
 /**
@@ -90,8 +129,18 @@ class InstitutionService {
       else direccion = d;
     }
 
+    // Credencial OPCIONAL (ADR-07). Opcional, no obligatoria, por dos razones: el contrato de HU-06.1 ya esta
+    // mergeado (responde exactamente {institutionId}) y la entidad puede registrarse hoy sin querer autenticarse
+    // todavia. Una entidad sin contrasena simplemente NO puede autenticarse (ver EntityAuthService).
+    let password = null;
+    if (data.password !== undefined && data.password !== null && data.password !== "") {
+      if (typeof data.password !== "string" || data.password.length < MIN_PASSWORD_LENGTH || data.password.length > MAX_PASSWORD_LENGTH) {
+        problems.push(`password debe ser una cadena de ${MIN_PASSWORD_LENGTH} a ${MAX_PASSWORD_LENGTH} caracteres`);
+      } else password = data.password;
+    }
+
     if (problems.length) throw new ValidationError(problems);
-    return { nombre, tipo, nit: nit.nit, nitDv: nit.dv, correoContacto, telefono, direccion };
+    return { nombre, tipo, nit: nit.nit, nitDv: nit.dv, correoContacto, telefono, direccion, password };
   }
 
   /**
@@ -99,9 +148,11 @@ class InstitutionService {
    * @returns {{institutionId: string}}
    */
   async register(input) {
-    const data = this._validate(input); // los datos invalidos no se auditan: aun no hay un actor identificable
+    const { password, ...data } = this._validate(input); // los datos invalidos no se auditan: aun no hay un actor identificable
+    // Argon2id (ADR-06), la misma politica que la contrasena del ciudadano. Nunca se guarda ni se registra en claro.
+    const passwordHash = password ? await argon2.hash(password) : null;
     try {
-      const institution = await this.institutionRepository.create({ ...data, verificada: false, carpeta: { id: crypto.randomUUID(), estado: "activa", creadaEn: this.now() } });
+      const institution = await this.institutionRepository.create({ ...data, passwordHash, verificada: false, carpeta: { id: crypto.randomUUID(), estado: "activa", creadaEn: this.now() } });
       await this._audit(data.nit, "exito", undefined, institution._id.toString());
       return { institutionId: institution._id.toString() };
     } catch (err) {
@@ -115,9 +166,120 @@ class InstitutionService {
   }
 
   /**
+   * ADR-07: verifica o revoca la verificacion de una entidad. Es una decision HUMANA del operador tomada fuera de
+   * banda (no hay fuente externa que consultar: GovCarpeta no conoce instituciones y no hay API del RUES/DIAN en el
+   * alcance), y lo unico que hace el sistema es REGISTRARLA con su fecha, su responsable y su motivo.
+   *
+   * No existe ninguna ruta HTTP que llegue aqui a proposito: la unica interfaz es `scripts/verify-institution.js`,
+   * que exige acceso al despliegue. Asi una entidad no puede verificarse a si misma.
+   *
+   * Pasos: validar argumentos -> localizar por NIT -> comprobar que existe -> cambio CONDICIONAL (idempotente)
+   * -> guardar estado + fecha + responsable + motivo -> auditar como `sistema`.
+   *
+   * @param {{nit: string, decididaPor: string, motivo: string}} input
+   * @param {{dryRun?: boolean}} options  dryRun: valida y consulta, pero NO escribe nada
+   * @returns {{status: "dry-run"|"aplicada", verificada: boolean, institucion: object}}
+   * @throws {ValidationError} argumentos invalidos (nada consultado ni escrito)
+   * @throws {InstitutionNotFoundError} no hay entidad con ese NIT
+   * @throws {AlreadyInStateError} ya estaba en ese estado: no se escribio nada
+   */
+  async setVerification({ nit, decididaPor, motivo } = {}, { verificada, dryRun = false } = {}) {
+    const clean = this._validateVerification({ nit, decididaPor, motivo }, { verificada, dryRun });
+    const accion = verificada ? "institucion.verificar" : "institucion.revocar_verificacion";
+
+    const current = await this.institutionRepository.findByNit(clean.nit);
+    if (!current) {
+      await this._auditVerification(accion, clean, "fallo", "nit_no_registrado");
+      throw new InstitutionNotFoundError(`No hay ninguna institucion registrada con el NIT ${clean.nit}. No se cambio nada.`);
+    }
+    if (current.verificada === verificada) {
+      await this._auditVerification(accion, clean, "rechazo", "sin_cambios", current._id);
+      throw new AlreadyInStateError(
+        `La institucion ya estaba ${verificada ? "verificada" : "sin verificar"} (desde ${current.verificadaEn ? current.verificadaEn.toISOString() : "el registro"}). No se cambio nada.`,
+        current
+      );
+    }
+
+    if (dryRun) {
+      return { status: "dry-run", verificada, institucion: toPublicView(current) };
+    }
+
+    const result = await this.institutionRepository.setVerification(clean.nit, {
+      verificada,
+      decididaEn: this.now(),
+      decididaPor: clean.decididaPor,
+      motivo: clean.motivo,
+    });
+    // Otra ejecucion simultanea pudo adelantarse entre la lectura y la escritura: se trata igual que el caso de arriba.
+    if (result.status !== "aplicada") {
+      await this._auditVerification(accion, clean, "rechazo", "sin_cambios", current._id);
+      throw new AlreadyInStateError(`La institucion ya estaba ${verificada ? "verificada" : "sin verificar"} (cambio simultaneo). No se cambio nada.`, result.institution || current);
+    }
+
+    await this._auditVerification(accion, clean, "exito", undefined, result.institution._id);
+    logger.info("institucion.verificacion_cambiada", { verificada }); // sin NIT ni nombre
+    return { status: "aplicada", verificada, institucion: toPublicView(result.institution) };
+  }
+
+  /** Azucar sobre setVerification: deja explicito en quien llama que esta verificando o revocando. */
+  verify(input, options = {}) {
+    return this.setVerification(input, { ...options, verificada: true });
+  }
+
+  revokeVerification(input, options = {}) {
+    return this.setVerification(input, { ...options, verificada: false });
+  }
+
+  _validateVerification({ nit, decididaPor, motivo }, { verificada, dryRun }) {
+    const problems = [];
+    if (typeof verificada !== "boolean") problems.push("verificada debe indicarse (usa verify() o revokeVerification())");
+
+    const parsed = parseNit(nit);
+    if (!parsed.ok) problems.push(parsed.reason);
+
+    const responsable = typeof decididaPor === "string" ? clean(decididaPor) : "";
+    // El responsable es obligatorio SIEMPRE: una decision sin responsable no es trazable, y en simulacion sirve
+    // para que quien la ejecuta vea exactamente lo que quedaria escrito.
+    if (responsable.length < 2 || responsable.length > 120) problems.push("decididaPor es obligatorio (2 a 120 caracteres): quien toma la decision");
+
+    const razon = typeof motivo === "string" ? clean(motivo) : "";
+    // El motivo es la EVIDENCIA de la revision. En simulacion se permite omitirlo (todavia no se escribe nada).
+    if (!dryRun && (razon.length < 5 || razon.length > 500)) problems.push("motivo es obligatorio (5 a 500 caracteres): en que se baso la decision");
+    else if (razon.length > 500) problems.push("motivo no puede superar 500 caracteres");
+
+    if (problems.length) throw new ValidationError(problems);
+    return { nit: parsed.ok ? parsed.nit : "", decididaPor: responsable, motivo: razon || null };
+  }
+
+  /** Bitacora de la decision: el actor es el OPERADOR actuando como sistema, no la entidad (ADR-07). */
+  async _auditVerification(action, { nit, decididaPor, motivo }, outcome, reason, institutionId) {
+    if (!this.auditLogger) return;
+    try {
+      await this.auditLogger.record({
+        actor: decididaPor,
+        // "sistema": la decision la toma el operador fuera de banda, no la entidad ni un ciudadano.
+        actorType: "sistema",
+        action,
+        resource: institutionId ? `institucion:${institutionId}` : `nit:${nit}`,
+        resourceOwner: String(nit),
+        outcome,
+        reason,
+        metadata: motivo ? { motivo } : undefined,
+      });
+    } catch (err) {
+      logger.error("audit.write_failed", { action, err });
+    }
+  }
+
+  /**
    * HU-06.2 (entrega de paquetes): true si la entidad con ese NIT tiene carpeta institucional (entrega INTERNA al
    * ecosistema); false si no (entonces se usa el envio por correo, RF-26). Un NIT invalido o inexistente es simplemente
    * "no tiene carpeta", no un error: quien entrega debe poder caer al correo.
+   *
+   * NOTA PARA EL EQUIPO (HU-06.2, otro integrante): esta funcion NO mira `verificada`, y se deja asi a proposito.
+   * Con ADR-07 una entidad puede existir con carpeta activa y NO estar verificada; habra que decidir si, para
+   * entregar un paquete documental, una entidad sin verificar "tiene carpeta" (entrega interna) o debe caer al
+   * envio por correo (RF-26). Es una decision de HU-06.2, no de la verificacion.
    */
   async hasInstitutionalFolder({ nit } = {}) {
     const parsed = parseNit(nit);
@@ -127,4 +289,4 @@ class InstitutionService {
   }
 }
 
-module.exports = { InstitutionService, ValidationError, ConflictError };
+module.exports = { InstitutionService, ValidationError, ConflictError, InstitutionNotFoundError, AlreadyInStateError, toPublicView };

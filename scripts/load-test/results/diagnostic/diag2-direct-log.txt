@@ -1,0 +1,287 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /scripts/load-test.js
+        output: json (/scripts/results/diagnostic/diag2-direct-raw.ndjson)
+
+     scenarios: (100.00%) 1 scenario, 200 max VUs, 1m30s max duration (incl. graceful stop):
+              * ht03_lectura_documentos: 50.00 iterations/s for 1m0s (maxVUs: 100-200, gracefulStop: 30s)
+
+
+running (0m00.9s), 001/100 VUs, 46 complete and 0 interrupted iterations
+ht03_lectura_documentos   [   2% ] 001/100 VUs  0m00.9s/1m0s  50.00 iters/s
+
+running (0m01.9s), 001/100 VUs, 96 complete and 0 interrupted iterations
+ht03_lectura_documentos   [   3% ] 001/100 VUs  0m01.9s/1m0s  50.00 iters/s
+
+running (0m02.9s), 001/100 VUs, 146 complete and 0 interrupted iterations
+ht03_lectura_documentos   [   5% ] 001/100 VUs  0m02.9s/1m0s  50.00 iters/s
+
+running (0m03.9s), 001/100 VUs, 196 complete and 0 interrupted iterations
+ht03_lectura_documentos   [   7% ] 001/100 VUs  0m03.9s/1m0s  50.00 iters/s
+
+running (0m04.9s), 001/100 VUs, 246 complete and 0 interrupted iterations
+ht03_lectura_documentos   [   8% ] 001/100 VUs  0m04.9s/1m0s  50.00 iters/s
+
+running (0m05.9s), 003/100 VUs, 294 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  10% ] 003/100 VUs  0m05.9s/1m0s  50.00 iters/s
+
+running (0m06.9s), 005/100 VUs, 342 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  12% ] 005/100 VUs  0m06.9s/1m0s  50.00 iters/s
+
+running (0m07.9s), 018/100 VUs, 379 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  13% ] 018/100 VUs  0m07.9s/1m0s  50.00 iters/s
+
+running (0m08.9s), 006/100 VUs, 441 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  15% ] 006/100 VUs  0m08.9s/1m0s  50.00 iters/s
+
+running (0m09.9s), 008/100 VUs, 489 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  17% ] 008/100 VUs  0m09.9s/1m0s  50.00 iters/s
+
+running (0m10.9s), 001/100 VUs, 546 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  18% ] 001/100 VUs  0m10.9s/1m0s  50.00 iters/s
+
+running (0m11.9s), 001/100 VUs, 596 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  20% ] 001/100 VUs  0m11.9s/1m0s  50.00 iters/s
+
+running (0m12.9s), 001/100 VUs, 646 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  22% ] 001/100 VUs  0m12.9s/1m0s  50.00 iters/s
+
+running (0m13.9s), 001/100 VUs, 696 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  23% ] 001/100 VUs  0m13.9s/1m0s  50.00 iters/s
+
+running (0m14.9s), 001/100 VUs, 746 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  25% ] 001/100 VUs  0m14.9s/1m0s  50.00 iters/s
+
+running (0m15.9s), 001/100 VUs, 796 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  27% ] 001/100 VUs  0m15.9s/1m0s  50.00 iters/s
+
+running (0m16.9s), 003/100 VUs, 844 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  28% ] 003/100 VUs  0m16.9s/1m0s  50.00 iters/s
+
+running (0m17.9s), 001/100 VUs, 896 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  30% ] 001/100 VUs  0m17.9s/1m0s  50.00 iters/s
+
+running (0m18.9s), 001/100 VUs, 946 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  32% ] 001/100 VUs  0m18.9s/1m0s  50.00 iters/s
+
+running (0m19.9s), 002/100 VUs, 995 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  33% ] 002/100 VUs  0m19.9s/1m0s  50.00 iters/s
+
+running (0m20.9s), 001/100 VUs, 1046 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  35% ] 001/100 VUs  0m20.9s/1m0s  50.00 iters/s
+
+running (0m21.9s), 001/100 VUs, 1096 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  37% ] 001/100 VUs  0m21.9s/1m0s  50.00 iters/s
+
+running (0m22.9s), 001/100 VUs, 1146 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  38% ] 001/100 VUs  0m22.9s/1m0s  50.00 iters/s
+
+running (0m23.9s), 002/100 VUs, 1195 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  40% ] 002/100 VUs  0m23.9s/1m0s  50.00 iters/s
+
+running (0m24.9s), 009/100 VUs, 1238 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  42% ] 009/100 VUs  0m24.9s/1m0s  50.00 iters/s
+
+running (0m25.9s), 011/100 VUs, 1286 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  43% ] 011/100 VUs  0m25.9s/1m0s  50.00 iters/s
+
+running (0m26.9s), 012/100 VUs, 1335 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  45% ] 012/100 VUs  0m26.9s/1m0s  50.00 iters/s
+
+running (0m27.9s), 003/100 VUs, 1394 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  47% ] 003/100 VUs  0m27.9s/1m0s  50.00 iters/s
+
+running (0m28.9s), 004/100 VUs, 1443 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  48% ] 004/100 VUs  0m28.9s/1m0s  50.00 iters/s
+
+running (0m29.9s), 002/100 VUs, 1495 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  50% ] 002/100 VUs  0m29.9s/1m0s  50.00 iters/s
+
+running (0m30.9s), 010/100 VUs, 1537 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  52% ] 010/100 VUs  0m30.9s/1m0s  50.00 iters/s
+
+running (0m31.9s), 001/100 VUs, 1596 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  53% ] 001/100 VUs  0m31.9s/1m0s  50.00 iters/s
+
+running (0m32.9s), 001/100 VUs, 1646 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  55% ] 001/100 VUs  0m32.9s/1m0s  50.00 iters/s
+
+running (0m33.9s), 001/100 VUs, 1696 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  57% ] 001/100 VUs  0m33.9s/1m0s  50.00 iters/s
+
+running (0m34.9s), 002/100 VUs, 1745 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  58% ] 002/100 VUs  0m34.9s/1m0s  50.00 iters/s
+
+running (0m35.9s), 002/100 VUs, 1795 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  60% ] 002/100 VUs  0m35.9s/1m0s  50.00 iters/s
+
+running (0m36.9s), 002/100 VUs, 1845 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  62% ] 002/100 VUs  0m36.9s/1m0s  50.00 iters/s
+
+running (0m37.9s), 002/100 VUs, 1895 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  63% ] 002/100 VUs  0m37.9s/1m0s  50.00 iters/s
+
+running (0m38.9s), 001/100 VUs, 1946 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  65% ] 001/100 VUs  0m38.9s/1m0s  50.00 iters/s
+
+running (0m39.9s), 001/100 VUs, 1996 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  67% ] 001/100 VUs  0m39.9s/1m0s  50.00 iters/s
+
+running (0m40.9s), 001/100 VUs, 2046 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  68% ] 001/100 VUs  0m40.9s/1m0s  50.00 iters/s
+
+running (0m41.9s), 001/100 VUs, 2096 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  70% ] 001/100 VUs  0m41.9s/1m0s  50.00 iters/s
+
+running (0m42.9s), 001/100 VUs, 2146 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  72% ] 001/100 VUs  0m42.9s/1m0s  50.00 iters/s
+
+running (0m43.9s), 001/100 VUs, 2196 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  73% ] 001/100 VUs  0m43.9s/1m0s  50.00 iters/s
+
+running (0m44.9s), 001/100 VUs, 2246 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  75% ] 001/100 VUs  0m44.9s/1m0s  50.00 iters/s
+
+running (0m45.9s), 001/100 VUs, 2296 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  77% ] 001/100 VUs  0m45.9s/1m0s  50.00 iters/s
+
+running (0m46.9s), 002/100 VUs, 2345 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  78% ] 002/100 VUs  0m46.9s/1m0s  50.00 iters/s
+
+running (0m47.9s), 001/100 VUs, 2396 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  80% ] 001/100 VUs  0m47.9s/1m0s  50.00 iters/s
+
+running (0m48.9s), 001/100 VUs, 2446 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  82% ] 001/100 VUs  0m48.9s/1m0s  50.00 iters/s
+
+running (0m49.9s), 001/100 VUs, 2496 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  83% ] 001/100 VUs  0m49.9s/1m0s  50.00 iters/s
+
+running (0m50.9s), 001/100 VUs, 2546 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  85% ] 001/100 VUs  0m50.9s/1m0s  50.00 iters/s
+
+running (0m51.9s), 001/100 VUs, 2596 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  87% ] 001/100 VUs  0m51.9s/1m0s  50.00 iters/s
+
+running (0m52.9s), 001/100 VUs, 2646 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  88% ] 001/100 VUs  0m52.9s/1m0s  50.00 iters/s
+
+running (0m53.9s), 003/100 VUs, 2694 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  90% ] 003/100 VUs  0m53.9s/1m0s  50.00 iters/s
+
+running (0m54.9s), 001/100 VUs, 2746 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  92% ] 001/100 VUs  0m54.9s/1m0s  50.00 iters/s
+
+running (0m55.9s), 001/100 VUs, 2796 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  93% ] 001/100 VUs  0m55.9s/1m0s  50.00 iters/s
+
+running (0m56.9s), 002/100 VUs, 2845 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  95% ] 002/100 VUs  0m56.9s/1m0s  50.00 iters/s
+
+running (0m57.9s), 001/100 VUs, 2896 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  97% ] 001/100 VUs  0m57.9s/1m0s  50.00 iters/s
+
+running (0m58.9s), 001/100 VUs, 2946 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  98% ] 001/100 VUs  0m58.9s/1m0s  50.00 iters/s
+
+running (0m59.9s), 001/100 VUs, 2996 complete and 0 interrupted iterations
+ht03_lectura_documentos   [ 100% ] 001/100 VUs  0m59.9s/1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 6000    100.001823/s
+    checks_succeeded...: 100.00% 6000 out of 6000
+    checks_failed......: 0.00%   0 out of 6000
+
+    ✓ status es 200
+    ✓ cuerpo con forma esperada
+
+    CUSTOM
+    ht03_respuestas_por_instancia...: 3000   50.000911/s
+
+    HTTP
+    http_req_duration...............: avg=42.58ms min=6.66ms med=15.62ms max=802.17ms p(90)=113.51ms p(95)=212.59ms p(99)=338.47ms
+      { expected_response:true }....: avg=42.58ms min=6.66ms med=15.62ms max=802.17ms p(90)=113.51ms p(95)=212.59ms p(99)=338.47ms
+    http_req_failed.................: 0.00%  0 out of 3000
+    http_reqs.......................: 3000   50.000911/s
+
+    EXECUTION
+    iteration_duration..............: avg=43.58ms min=6.98ms med=16.74ms max=802.83ms p(90)=115.08ms p(95)=213.79ms p(99)=339.45ms
+    iterations......................: 3000   50.000911/s
+    vus.............................: 0      min=0         max=17 
+    vus_max.........................: 100    min=100       max=100
+
+    NETWORK
+    data_received...................: 9.3 MB 155 kB/s
+    data_sent.......................: 1.3 MB 22 kB/s
+
+
+
+
+running (1m00.0s), 000/100 VUs, 3000 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 000/100 VUs  1m0s  50.00 iters/s

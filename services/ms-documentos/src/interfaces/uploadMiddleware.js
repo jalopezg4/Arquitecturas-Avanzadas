@@ -5,6 +5,12 @@ const { UnsupportedMediaTypeError, PayloadTooLargeError, ValidationError } = req
 /**
  * Recibe UN archivo (campo "archivo") en memoria, con limites duros: tamano, cantidad de archivos y de campos.
  * El PDF se rechaza pronto por tipo declarado; la validacion definitiva (firma real del PDF, metadatos) es del servicio.
+ *
+ * `maxUploadBytes` es por caso de uso: la carga del ciudadano (HU-03) usa el general y la recepcion institucional
+ * (HU-10) el suyo, mas alto. SIEMPRE hay un limite, aunque el criterio de HU-10 diga "sin limite de tamano": el
+ * archivo entero se procesa en memoria (`multer.memoryStorage`), asi que sin tope una sola peticion puede tumbar el
+ * servicio. Quitarlo de verdad exigiria subir al storage por partes (streaming), un rediseno fuera de esta HU.
+ * Ver docs/SEGURIDAD.md, seccion 7.
  */
 function uploadMiddleware({ maxUploadBytes }) {
   const upload = multer({

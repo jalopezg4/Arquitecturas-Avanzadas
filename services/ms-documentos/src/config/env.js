@@ -10,6 +10,8 @@ const isLocal = nodeEnv === "development" || nodeEnv === "test";
 
 // DEBE ser el mismo valor que en ms-identidad para que, en desarrollo local, este servicio acepte los tokens que ese firma.
 const INSECURE_DEV_JWT_SECRET = "solo-para-desarrollo-local-nunca-usar-en-despliegue"; // secret-scan:allow
+// Igual, pero para los tokens INSTITUCIONALES (ADR-07): el mismo valor de desarrollo que usa ms-comparticion.
+const INSECURE_DEV_ENTITY_JWT_SECRET = "solo-para-desarrollo-local-entidades-nunca-en-despliegue"; // secret-scan:allow
 
 const list = (value) =>
   (value || "")
@@ -28,6 +30,12 @@ const config = {
   jwtSecret: process.env.JWT_SECRET || (isLocal ? INSECURE_DEV_JWT_SECRET : ""),
   jwtSecretPrevious: list(process.env.JWT_SECRET_PREVIOUS),
   jwtIssuer: process.env.JWT_ISSUER || "ms-identidad",
+  // ADR-07: llave con la que ms-comparticion FIRMA los tokens institucionales; aqui solo se VERIFICARIAN.
+  // Todavia no la usa ninguna ruta (la primera sera HU-10): es opcional, y si se define debe ser fuerte y
+  // DISTINTA de JWT_SECRET. En local cae a la misma llave de desarrollo que usa ms-comparticion.
+  entityJwtSecret: process.env.ENTITY_JWT_SECRET || (isLocal ? INSECURE_DEV_ENTITY_JWT_SECRET : ""),
+  entityJwtSecretPrevious: list(process.env.ENTITY_JWT_SECRET_PREVIOUS),
+  entityJwtIssuer: process.env.ENTITY_JWT_ISSUER || "ms-comparticion",
   // Object storage S3-compatible (MinIO en desarrollo, S3/Cloudinary/etc. en despliegue). Solo se guarda la CLAVE en Mongo.
   s3: {
     endpoint: process.env.S3_ENDPOINT || (isLocal ? "http://localhost:9000" : ""),
@@ -48,6 +56,11 @@ const config = {
     // Cuota de documentos NO certificados por ciudadano (RNF-04). Los certificados no cuentan.
     quotaNoCertificados: toInt(process.env.QUOTA_NO_CERTIFICADOS, 5),
     maxUploadBytes: toInt(process.env.MAX_UPLOAD_BYTES, 10 * 1024 * 1024),
+    // HU-10: limite propio de la recepcion institucional, mas alto que el del ciudadano. El criterio de la historia
+    // dice "sin limite de tamano" para certificados, pero el archivo se procesa en memoria (multer.memoryStorage):
+    // sin tope, una sola peticion tumba el servicio. Se deja en el maximo que ya admite la politica (50 MB) y la
+    // desviacion queda documentada en docs/SEGURIDAD.md, seccion 7.
+    maxInboundBytes: toInt(process.env.MAX_INBOUND_UPLOAD_BYTES, 50 * 1024 * 1024),
   },
   presignedDownloadTtlSeconds: toInt(process.env.PRESIGNED_URL_DOWNLOAD_TTL_SECONDS, 60 * 60),
   // Cuanto espera la confirmacion del broker antes de responder igual (la notificacion no es camino critico, ADR-04).

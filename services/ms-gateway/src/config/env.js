@@ -10,6 +10,8 @@ const isLocal = nodeEnv === "development" || nodeEnv === "test";
 
 // DEBE ser el mismo valor que en ms-identidad para que, en desarrollo local, el gateway acepte los tokens que ese servicio firma.
 const INSECURE_DEV_JWT_SECRET = "solo-para-desarrollo-local-nunca-usar-en-despliegue"; // secret-scan:allow
+// Igual, pero para los tokens INSTITUCIONALES (ADR-07): el mismo valor de desarrollo que usa ms-comparticion.
+const INSECURE_DEV_ENTITY_JWT_SECRET = "solo-para-desarrollo-local-entidades-nunca-en-despliegue"; // secret-scan:allow
 
 const list = (value) =>
   (value || "")
@@ -26,6 +28,12 @@ const config = {
   jwtSecret: process.env.JWT_SECRET || (isLocal ? INSECURE_DEV_JWT_SECRET : ""),
   jwtSecretPrevious: list(process.env.JWT_SECRET_PREVIOUS),
   jwtIssuer: process.env.JWT_ISSUER || "ms-identidad",
+  // ADR-07: llave con la que ms-comparticion FIRMA los tokens institucionales; aqui solo se VERIFICAN. Es distinta
+  // de JWT_SECRET a proposito. En local cae a la misma llave de desarrollo que usa ms-comparticion; sin ella, las
+  // rutas marcadas `actor: "entidad"` responden 401 (fallan cerrado).
+  entityJwtSecret: process.env.ENTITY_JWT_SECRET || (isLocal ? INSECURE_DEV_ENTITY_JWT_SECRET : ""),
+  entityJwtSecretPrevious: list(process.env.ENTITY_JWT_SECRET_PREVIOUS),
+  entityJwtIssuer: process.env.ENTITY_JWT_ISSUER || "ms-comparticion",
   // Servicios destino. Cada microservicio nuevo agrega aqui su URL y una linea en src/routes.js.
   upstreams: {
     IDENTIDAD_URL: process.env.IDENTIDAD_URL || "http://localhost:3001",

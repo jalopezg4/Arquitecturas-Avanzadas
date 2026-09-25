@@ -48,7 +48,22 @@ const seed = (extra = {}) =>
     eventoPublicado: false,
     ...extra,
   });
-const backdate = (doc, ms) => Document.collection.updateOne({ _id: doc._id }, { $set: { createdAt: new Date(NOW.getTime() - ms) } });
+/**
+ * Envejece un documento. `createdAt` lo pone `timestamps` con el reloj REAL, no con el `now` inyectado, asi que la
+ * unica forma de simular antiguedad es reescribirlo por la coleccion nativa.
+ *
+ * Dos cuidados, porque `collection` es el driver NATIVO y no se comporta como Mongoose:
+ *   1. NO castea el `_id`. Uno en texto (como el `documentoId` que devuelve `DocumentService.upload()`) no encuentra
+ *      nada, asi que se acepta en cualquiera de las dos formas.
+ *   2. No encontrar nada NO es un error para el driver: devuelve `matchedCount: 0` y sigue. Se comprueba aqui, o el
+ *      test falla mucho mas abajo y por un motivo que no es el real.
+ */
+const backdate = async (doc, ms) => {
+  const _id = typeof doc._id === "string" ? new mongoose.Types.ObjectId(doc._id) : doc._id;
+  const res = await Document.collection.updateOne({ _id }, { $set: { createdAt: new Date(NOW.getTime() - ms) } });
+  if (res.matchedCount !== 1) throw new Error(`backdate: no se encontro el documento ${String(doc._id)} (¿el _id no es del tipo esperado?)`);
+  return res;
+};
 
 function build(publisher, overrides = {}) {
   return new EventReconciler({ documentRepository: new DocumentRepository(), eventPublisher: publisher, minAgeMs: 60000, publishTimeoutMs: 200, now: () => NOW, ...overrides });
@@ -158,10 +173,14 @@ describe("EventReconciler: reenvia los documento.cargado que no se publicaron", 
     const { documentoId } = await service.upload({ ciudadanoId: OWNER, file: { buffer: pdf(), mimetype: "application/pdf" }, metadata: validMeta });
     expect((await Document.findById(documentoId)).eventoPublicado).toBe(false);
     const original = failing.publish.mock.calls[0][1];
-    await backdate({ _id: documentoId }, 5 * 60000);
 
+    // Aqui el documento lo creo `upload()`, asi que su `createdAt` es el del reloj REAL (lo pone `timestamps`), no
+    // el `NOW` inyectado. Para que supere `minAgeMs` se adelanta el reloj del RECONCILIADOR, en vez de envejecer el
+    // documento con backdate(): `cargadoEn` sale de `createdAt`, asi que reescribirlo cambiaria el mensaje que este
+    // mismo test compara. Adelantar el reloj es ademas lo que pasa de verdad en produccion: el tiempo avanza, el
+    // documento no se reescribe.
     const healthy = makeFakePublisher();
-    await build(healthy).reconcileOnce();
+    await build(healthy, { now: () => new Date(Date.now() + 5 * 60000) }).reconcileOnce();
 
     expect(healthy.publish.mock.calls[0][1]).toEqual(original); // exactamente el mismo mensaje
     expect((await Document.findById(documentoId)).eventoPublicado).toBe(true);

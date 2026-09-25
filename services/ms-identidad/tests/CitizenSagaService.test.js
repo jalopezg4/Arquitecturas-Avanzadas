@@ -177,7 +177,7 @@ describe("CitizenSagaService.register()", () => {
     const dump = JSON.stringify(payload);
     expect(dump).not.toContain(validInput.password);
     expect(dump).not.toContain("argon2");
-    expect(Object.keys(payload).sort()).toEqual(["ciudadanoId", "correo", "direccionUnica", "documento", "nombre"]);
+    expect(Object.keys(payload).sort()).toEqual(["ciudadanoId", "correo", "direccionUnica", "documento", "nombre", "telefono"]);
   });
 
   test("NO falla el registro si eventPublisher.publish() rechaza (evento no es camino critico, ADR-04)", async () => {
@@ -276,5 +276,69 @@ describe("CitizenSagaService.register()", () => {
 
     await expect(service.register(validInput)).rejects.toThrow();
     expect(publisher.publish).not.toHaveBeenCalled();
+  });
+
+  describe("telefono (HU-06.3, Paso 3.1 -- opcional)", () => {
+    test("A. registro exitoso SIN telefono: queda null, no bloquea el registro", async () => {
+      const repo = makeFakeRepo();
+      const service = new CitizenSagaService({ citizenRepository: repo, govCarpetaClient: makeFakeGovCarpeta(), eventPublisher: makeFakePublisher() });
+
+      await service.register(validInput); // validInput no trae telefono
+
+      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ telefono: null }));
+    });
+
+    test("registro exitoso con telefono null explicito: tambien queda null", async () => {
+      const repo = makeFakeRepo();
+      const service = new CitizenSagaService({ citizenRepository: repo, govCarpetaClient: makeFakeGovCarpeta(), eventPublisher: makeFakePublisher() });
+
+      await service.register({ ...validInput, telefono: null });
+
+      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ telefono: null }));
+    });
+
+    test("B. registro exitoso con telefono valido: se persiste tal cual", async () => {
+      const repo = makeFakeRepo();
+      const service = new CitizenSagaService({ citizenRepository: repo, govCarpetaClient: makeFakeGovCarpeta(), eventPublisher: makeFakePublisher() });
+
+      await service.register({ ...validInput, telefono: "3001234567" });
+
+      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ telefono: "3001234567" }));
+    });
+
+    test.each([
+      ["formato invalido (letras)", "abc123"],
+      ["demasiado corto", "123"],
+      ["objeto", { numero: "3001234567" }],
+      ["arreglo", ["3001234567"]],
+      ["numero", 3001234567],
+      ["boolean", true],
+    ])("C. rechaza con ValidationError si telefono es %s", async (_name, telefono) => {
+      const repo = makeFakeRepo();
+      const service = new CitizenSagaService({ citizenRepository: repo, govCarpetaClient: makeFakeGovCarpeta(), eventPublisher: makeFakePublisher() });
+
+      await expect(service.register({ ...validInput, telefono })).rejects.toThrow(ValidationError);
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    test("D. el evento ciudadano.registrado incluye el telefono cuando fue registrado", async () => {
+      const publisher = makeFakePublisher();
+      const service = new CitizenSagaService({ citizenRepository: makeFakeRepo(), govCarpetaClient: makeFakeGovCarpeta(), eventPublisher: publisher });
+
+      await service.register({ ...validInput, telefono: "3001234567" });
+
+      const [, payload] = publisher.publish.mock.calls[0];
+      expect(payload.telefono).toBe("3001234567");
+    });
+
+    test("E. el evento NO inventa un telefono cuando el ciudadano no lo proporciono (viaja null)", async () => {
+      const publisher = makeFakePublisher();
+      const service = new CitizenSagaService({ citizenRepository: makeFakeRepo(), govCarpetaClient: makeFakeGovCarpeta(), eventPublisher: publisher });
+
+      await service.register(validInput);
+
+      const [, payload] = publisher.publish.mock.calls[0];
+      expect(payload.telefono).toBeNull();
+    });
   });
 });

@@ -15,6 +15,7 @@ const prod = (overrides = {}) => ({
   rabbitUri: cred("amqps", "svc", "Zq8mV2nX9pLr", "broker.interno:5671"),
   mongoUri: cred("mongodb+srv", "svc", "Zq8mV2nX9pLr", "cluster0.mongodb.net/ms-notificaciones"),
   mail: { transport: "smtp", from: "no-responder@carpetacolombia.co", smtp: { host: "smtp.proveedor.co", port: 587, user: "apikey-prod", pass: "w8Zk3Tq0mVx2Lr7Pn5Yc1H", security: "starttls", timeoutMs: 8000 } },
+  sms: { transport: "console" },
   staleClaimMs: 60000,
   ...overrides,
 });
@@ -31,11 +32,11 @@ describe("ConfigValidator de ms-notificaciones", () => {
   });
 
   test("en local se acepta console y no se exige SMTP", () => {
-    expect(validateConfig({ isLocal: true, rabbitUri: "amqp://localhost", mongoUri: "mongodb://localhost/x", mail: { transport: "console", from: "a@b.co", smtp: {} }, staleClaimMs: 1000 })).toEqual([]);
+    expect(validateConfig({ isLocal: true, rabbitUri: "amqp://localhost", mongoUri: "mongodb://localhost/x", mail: { transport: "console", from: "a@b.co", smtp: {} }, sms: { transport: "console" }, staleClaimMs: 1000 })).toEqual([]);
   });
 
   test("EMAIL_TRANSPORT desconocido y MAIL_FROM invalido, tambien en local", () => {
-    const problems = validateConfig({ isLocal: true, mail: { transport: "paloma", from: "no-es-correo", smtp: {} }, staleClaimMs: 1000 }).join("\n");
+    const problems = validateConfig({ isLocal: true, mail: { transport: "paloma", from: "no-es-correo", smtp: {} }, sms: { transport: "console" }, staleClaimMs: 1000 }).join("\n");
     expect(problems).toContain("EMAIL_TRANSPORT debe ser uno de");
     expect(problems).toContain("MAIL_FROM debe ser un correo valido");
   });
@@ -77,10 +78,18 @@ describe("ConfigValidator de ms-notificaciones", () => {
   test("NOTIFICATION_STALE_CLAIM_MS debe ser un entero positivo", () => {
     expect(validateConfig(prod({ staleClaimMs: 0 })).join()).toContain("NOTIFICATION_STALE_CLAIM_MS");
   });
+
+  test("SMS_TRANSPORT=console se acepta, incluso fuera de local (sin proveedor real todavia)", () => {
+    expect(validateConfig(prod({ sms: { transport: "console" } }))).toEqual([]);
+  });
+
+  test("un SMS_TRANSPORT desconocido se rechaza", () => {
+    expect(validateConfig(prod({ sms: { transport: "twilio" } })).join()).toContain("SMS_TRANSPORT debe ser uno de");
+  });
 });
 
 describe("arranque de ms-notificaciones (env.js)", () => {
-  const MANAGED = ["NODE_ENV", "EMAIL_TRANSPORT", "MAIL_FROM", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_SECURITY", "MONGO_URI", "RABBITMQ_URI", "NOTIFICATION_STALE_CLAIM_MS"];
+  const MANAGED = ["NODE_ENV", "EMAIL_TRANSPORT", "MAIL_FROM", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_SECURITY", "SMS_TRANSPORT", "MONGO_URI", "RABBITMQ_URI", "NOTIFICATION_STALE_CLAIM_MS"];
   function loadEnvWith(vars) {
     const saved = { ...process.env };
     for (const k of MANAGED) delete process.env[k];
@@ -105,6 +114,7 @@ describe("arranque de ms-notificaciones (env.js)", () => {
     const cfg = loadEnvWith({ NODE_ENV: "development" });
     expect(cfg.mail.transport).toBe("console");
     expect(cfg.mail.from).toBe("no-responder@carpetacolombia.co");
+    expect(cfg.sms.transport).toBe("console");
     expect(cfg.staleClaimMs).toBe(60000);
   });
 

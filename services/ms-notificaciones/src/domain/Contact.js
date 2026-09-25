@@ -9,6 +9,8 @@ const contactSchema = new mongoose.Schema(
     ciudadanoId: { type: String, required: true, unique: true },
     nombre: { type: String, required: true },
     correo: { type: String, required: true },
+    // HU-06.3 (RF-28): opcional. `null` si el ciudadano no lo registro en ms-identidad.
+    telefono: { type: String, default: null },
   },
   { timestamps: true }
 );

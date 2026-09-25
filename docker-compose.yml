@@ -49,8 +49,11 @@ services:
 
   ms-documentos:
     build: ./services/ms-documentos
-    ports:
-      - "3002:3002"
+    # HT-03: sin publicacion fija al host (era "3002:3002") para poder escalar con
+    # `docker compose up --scale ms-documentos=N` -- solo alcanzable via la red interna del compose
+    # (el gateway, ya publicado en :3000, sigue siendo el punto de entrada real).
+    expose:
+      - "3002"
     environment:
       # Solo desarrollo local (ver README). Fuera de este compose NODE_ENV nunca debe ser development y
       # JWT_SECRET es obligatorio y DEBE ser el mismo que usa ms-identidad.
@@ -64,6 +67,11 @@ services:
       S3_PUBLIC_ENDPOINT: http://localhost:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}  # secret-scan:allow -- credencial de desarrollo local; fuera de local el servicio rechaza minioadmin
+      # HU-10 (ADR-07): aqui solo se VERIFICAN los tokens institucionales que firma ms-comparticion; debe ser la
+      # misma llave que alli y distinta de JWT_SECRET. Sin ella, POST /api/v1/documents/inbound responde 401.
+      ENTITY_JWT_SECRET: ${ENTITY_JWT_SECRET:-}
+      # Tamano maximo de un documento entregado por una entidad emisora (tope duro 50 MB: se procesa en memoria).
+      MAX_INBOUND_UPLOAD_BYTES: ${MAX_INBOUND_UPLOAD_BYTES:-52428800}
     depends_on:
       - mongo
       - rabbitmq
@@ -105,8 +113,12 @@ services:
     depends_on:
       - mongo
 
-  # Comparticion autorizada de documentos (HU-06.1: registro de entidades institucionales). REGISTRATION_TOKEN es opcional:
-  # si se define, POST /api/v1/institutions exige el encabezado x-registration-token (vacio = registro abierto).
+  # Comparticion autorizada de documentos (HU-06.1: registro de entidades institucionales; ADR-07: autenticacion
+  # institucional). REGISTRATION_TOKEN es opcional: si se define, POST /api/v1/institutions exige el encabezado
+  # x-registration-token (vacio = registro abierto).
+  # ENTITY_JWT_SECRET es la llave con la que ESTE servicio firma los tokens institucionales. Es DISTINTA de
+  # JWT_SECRET (la de ciudadanos, de ms-identidad) a proposito: son dos mundos separados. En development cae a
+  # una llave de desarrollo; fuera de este compose es obligatoria y el servicio no arranca sin ella.
   ms-comparticion:
     build: ./services/ms-comparticion
     ports:
@@ -115,8 +127,28 @@ services:
       NODE_ENV: development
       MONGO_URI: mongodb://mongo:27017/ms-comparticion
       REGISTRATION_TOKEN: ${REGISTRATION_TOKEN:-}
+      ENTITY_JWT_SECRET: ${ENTITY_JWT_SECRET:-}
     depends_on:
       - mongo
+
+  # Servicios Premium y analitica de metadatos (HU-07). HU-07.1 (analitica, REST sincrono hacia ms-documentos),
+  # HU-07.2 (casos PQRS) y HU-07.3 (solicitud documental, implementacion PARCIAL: solo registro local, sin
+  # protocolo multioperador) implementadas, protegidas con token institucional (ADR-07); todavia no esta cableado
+  # al gateway.
+  ms-analitica:
+    build: ./services/ms-analitica
+    ports:
+      - "3006:3006"
+    environment:
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017/ms-analitica
+      # ADR-07: debe ser la misma llave que usa ms-comparticion para firmar los tokens institucionales.
+      ENTITY_JWT_SECRET: ${ENTITY_JWT_SECRET:-}
+      # HU-07.1: endpoint interno de agregacion de metadatos. Nombre DNS del servicio, nunca localhost.
+      DOCUMENTOS_URL: http://ms-documentos:3002
+    depends_on:
+      - mongo
+      - ms-documentos
 
   ms-gateway:
     build: ./services/ms-gateway
@@ -130,6 +162,9 @@ services:
       DOCUMENTOS_URL: http://ms-documentos:3002
       COMPARTICION_URL: http://ms-comparticion:3005
       JWT_SECRET: ${JWT_SECRET:-}
+      # ADR-07: aqui solo se VERIFICAN los tokens institucionales; debe ser la misma que usa ms-comparticion
+      # para firmarlos y distinta de JWT_SECRET (el gateway no arranca si son iguales).
+      ENTITY_JWT_SECRET: ${ENTITY_JWT_SECRET:-}
     depends_on:
       - ms-identidad
       - ms-documentos

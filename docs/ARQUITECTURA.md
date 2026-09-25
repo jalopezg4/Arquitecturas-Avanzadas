@@ -10,19 +10,21 @@ Microservicios, cada uno propietario exclusivo de su base de datos. Comunicació
 
 | Microservicio | Responsabilidad | Historias |
 |---|---|---|
-| `ms-gateway` | Enrutamiento, TLS, validación JWT | HU-02 (validación de token; ver `docs/SEGURIDAD.md`, sección 6) |
-| `ms-identidad` | Registro, login, portabilidad | HU-01, HU-02, HU-11 |
-| `ms-documentos` | Carga, consulta, descarga, custodia | HU-03, HU-08, HU-09, HU-10 |
+| `ms-gateway` | Enrutamiento, TLS, validación JWT (de ciudadano y de entidad) | HU-02 (validación de token; ver `docs/SEGURIDAD.md`, sección 6) |
+| `ms-identidad` | Registro, login y portabilidad **del ciudadano** | HU-01, HU-02, HU-11 |
+| `ms-documentos` | Carga, consulta, descarga, custodia y **recepción desde entidades emisoras** | HU-03, HU-08, HU-10 (HU-09 pendiente) |
 | `ms-autenticacion` | Autenticación documental con GovCarpeta | HU-04 |
 | `ms-interoperabilidad` | Transferencias entre operadores | HU-05a (directorio de operadores; ver `docs/SEGURIDAD.md`, sección 9), HU-05b, HU-05c |
 | `ms-notificaciones` | Correo y SMS | consumidor transversal (HU-03 confirmación de carga, HU-01 bienvenida; solo correo por ahora) |
-| `ms-comparticion` | Compartición autorizada y entidades institucionales | HU-06.1 (registro de entidades; ver `docs/SEGURIDAD.md`, sección 10), HU-06.2 a 06.4 |
-| (por definir E3) | Analítica, Premium | HU-07.x |
+| `ms-comparticion` | Compartición autorizada, entidades institucionales y **autenticación de entidades** | HU-06.1 (registro de entidades; ver `docs/SEGURIDAD.md`, sección 10), ADR-07 (autenticación institucional; sección 12), HU-06.2 a 06.4 |
+| `ms-analitica` | Servicios Premium y analítica de metadatos, protegidos con token institucional (ADR-07). HU-07.1 y HU-07.2 implementadas; HU-07.3 implementada **parcialmente** (solo registro local de la solicitud) — la identificación del operador destino, la transferencia, el consentimiento y la entrega documental multioperador quedan fuera de alcance hasta HU-05c/HU-06.3 | HU-07.1, HU-07.2, HU-07.3 (parcial) |
 
 ## Decisiones clave que afectan el código (ADRs 2-6)
 
 - **Persistencia**: objetivo documentado es políglota (PostgreSQL para identidad/interoperabilidad, MongoDB para el resto). **Para esta entrega usamos MongoDB en todos** — ver nota de alcance en el README principal.
 - **Seguridad (ADR-06)**: ver `docs/SEGURIDAD.md` (secretos, TLS/mTLS, rotación). Contraseñas con **Argon2id** (no bcrypt). Tokens de sesión firmados de **15 minutos** + refresh token de vigencia mayor. Autorización verificada en cada microservicio, no solo en el gateway. URLs prefirmadas de vigencia limitada para exponer archivos a terceros (GovCarpeta: 15 min; descarga propia del ciudadano: 1 hora).
+- **Dos tipos de actor, dos autenticaciones (ADR-07)**: la autenticación de **ciudadanos** pertenece a `ms-identidad` y la de **instituciones** a `ms-comparticion`, que ya es dueño de sus datos. Cada tipo de actor usa un JWT independiente (`iss` distinto, `act: "entidad"` en el institucional) y un **secreto criptográfico independiente** (`JWT_SECRET` frente a `ENTITY_JWT_SECRET`, que no pueden ser iguales). Ningún token sirve donde corresponde al otro. Detalle en `docs/ADR-07-AUTENTICACION-INSTITUCIONAL.md` y `docs/SEGURIDAD.md`, sección 12.
+- **Autenticación ≠ verificación (ADR-07)**: una entidad no verificada **puede autenticarse**, pero no puede ejecutar operaciones institucionales sensibles (HU-10, HU-06.3). La verificación es una **decisión humana del operador registrada fuera de banda** (`npm run verify:institution` en `ms-comparticion`), no una comprobación automática contra una fuente externa —no existe ninguna—. Se aplica como autorización con `requireVerifiedEntity` (**403**, no 401) leyendo el claim `ver` del token, sin llamadas síncronas entre servicios: por eso una revocación tarda hasta 15 minutos en propagarse a `ms-documentos`.
 - **Comunicación asíncrona y saga (ADR-04)**: el registro de ciudadano (HU-01) es una **saga orquestada por ms-identidad** con compensación explícita (`unregisterCitizen` si algo falla después de confirmar en GovCarpeta). Todo lo que no es camino crítico va por evento (RabbitMQ), con reintentos y cola de mensajes fallidos.
 - **Object storage**: compatible S3, solo se guarda la clave del objeto en la base de datos, nunca el binario. En desarrollo local es **MinIO** (`quay.io/minio/minio`, ya no se publica en Docker Hub); en despliegue, S3 u otro proveedor compatible. Detalle de la carga en `docs/SEGURIDAD.md`, sección 7.
 

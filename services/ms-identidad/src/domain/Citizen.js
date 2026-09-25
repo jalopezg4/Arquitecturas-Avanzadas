@@ -8,6 +8,10 @@ const citizenSchema = new mongoose.Schema(
     nombre: { type: String, required: true },
     direccion: { type: String, required: true },
     correo: { type: String, required: true },
+    // HU-06.3 (RF-28): OPCIONAL a proposito -- no rompe a los ciudadanos ya registrados y el caso de estudio nunca
+    // lo exige para registrarse. `null` mientras no se informe; viaja en `ciudadano.registrado` para que
+    // ms-notificaciones pueda enviar SMS ademas de correo cuando exista.
+    telefono: { type: String, default: null },
     passwordHash: { type: String, required: true },
     // HU-02: proteccion contra fuerza bruta. El contador y el bloqueo se actualizan de forma
     // atomica en CitizenRepository (nunca leer-modificar-guardar: dos intentos simultaneos se perderian).

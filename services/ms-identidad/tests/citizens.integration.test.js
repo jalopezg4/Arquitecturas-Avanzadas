@@ -157,3 +157,51 @@ describe("Registro rechazado o dudoso por GovCarpeta: no bloquea el documento (h
   });
 
 });
+
+describe("telefono en el registro (HU-06.3, Paso 3.1)", () => {
+  const Citizen = require("../src/domain/Citizen");
+
+  test("A. 201 sin telefono: queda null en la base", async () => {
+    app = buildAppWithGovCarpeta(makeFakeGovCarpeta());
+
+    const res = await request(app).post("/api/v1/citizens").send(validBody);
+
+    expect(res.status).toBe(201);
+    const stored = await Citizen.findOne({ documento: validBody.documento }).lean();
+    expect(stored.telefono).toBeNull();
+  });
+
+  test("B. 201 con telefono valido: se persiste tal cual", async () => {
+    app = buildAppWithGovCarpeta(makeFakeGovCarpeta());
+
+    const res = await request(app).post("/api/v1/citizens").send({ ...validBody, telefono: "3001234567" });
+
+    expect(res.status).toBe(201);
+    const stored = await Citizen.findOne({ documento: validBody.documento }).lean();
+    expect(stored.telefono).toBe("3001234567");
+  });
+
+  test("C. 400 con telefono invalido ('abc123')", async () => {
+    app = buildAppWithGovCarpeta(makeFakeGovCarpeta());
+
+    const res = await request(app).post("/api/v1/citizens").send({ ...validBody, telefono: "abc123" });
+
+    expect(res.status).toBe(400);
+    expect(await Citizen.countDocuments()).toBe(0);
+  });
+
+  test("D/E. el evento ciudadano.registrado lleva el telefono informado, o null si no se informo", async () => {
+    const citizenRepository = new CitizenRepository();
+    const publisher = makeFakePublisher();
+    const citizenSagaService = new CitizenSagaService({ citizenRepository, govCarpetaClient: makeFakeGovCarpeta(), eventPublisher: publisher });
+    app = buildApp({ citizenSagaService });
+
+    await request(app).post("/api/v1/citizens").send({ ...validBody, telefono: "3001234567" }).expect(201);
+    const [, conTelefono] = publisher.publish.mock.calls[0];
+    expect(conTelefono.telefono).toBe("3001234567");
+
+    await request(app).post("/api/v1/citizens").send({ ...validBody, documento: validBody.documento + 1 }).expect(201);
+    const [, sinTelefono] = publisher.publish.mock.calls[1];
+    expect(sinTelefono.telefono).toBeNull();
+  });
+});

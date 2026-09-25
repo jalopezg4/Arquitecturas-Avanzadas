@@ -23,9 +23,16 @@ class ServiceUnavailableError extends Error {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Mismo criterio que PHONE_RE en ms-comparticion (InstitutionService.js): copia propia a proposito, ningun
+// microservicio importa codigo de otro.
+const PHONE_RE = /^[0-9+()\-\s]{7,20}$/;
 
 function isNonEmptyString(v) {
   return typeof v === "string" && v.trim().length > 0;
+}
+
+function isValidTelefono(v) {
+  return typeof v === "string" && PHONE_RE.test(v);
 }
 
 function isValidDocumento(v) {
@@ -56,7 +63,7 @@ class CitizenSagaService {
     this.auditLogger = auditLogger;
   }
 
-  _validateInput({ documento, nombre, direccion, correo, password }) {
+  _validateInput({ documento, nombre, direccion, correo, password, telefono }) {
     if (documento === undefined || documento === null || !nombre || !direccion || !correo || !password) {
       throw new ValidationError("documento, nombre, direccion, correo y password son requeridos");
     }
@@ -74,6 +81,11 @@ class CitizenSagaService {
     }
     if (!isNonEmptyString(password) || password.length < 8) {
       throw new ValidationError("password debe tener al menos 8 caracteres");
+    }
+    // Opcional: ausente o null es valido (HU-06.3, RF-28). Si viene, debe ser un string con formato de telefono --
+    // ni objetos, ni arrays, ni numeros: `typeof v === "string"` en isValidTelefono descarta todo eso.
+    if (telefono !== undefined && telefono !== null && !isValidTelefono(telefono)) {
+      throw new ValidationError("telefono invalido");
     }
   }
 
@@ -102,14 +114,14 @@ class CitizenSagaService {
     }
   }
 
-  async register({ documento, nombre, direccion, correo, password }) {
-    this._validateInput({ documento, nombre, direccion, correo, password });
+  async register({ documento, nombre, direccion, correo, password, telefono }) {
+    this._validateInput({ documento, nombre, direccion, correo, password, telefono });
     // Normaliza a Number una vez validado -- GovCarpeta y el esquema de Mongo esperan number.
     documento = Number(documento);
 
     // Los errores de validacion no se auditan: aun no hay un actor identificable.
     try {
-      const result = await this._runSaga({ documento, nombre, direccion, correo, password });
+      const result = await this._runSaga({ documento, nombre, direccion, correo, password, telefono });
       await this._audit(documento, "exito");
       return result;
     } catch (err) {
@@ -118,7 +130,7 @@ class CitizenSagaService {
     }
   }
 
-  async _runSaga({ documento, nombre, direccion, correo, password }) {
+  async _runSaga({ documento, nombre, direccion, correo, password, telefono }) {
     logger.info("saga.registro.inicio");
     const existing = await this.citizenRepository.findByDocumento(documento);
     if (existing) {
@@ -147,6 +159,7 @@ class CitizenSagaService {
       nombre,
       direccion,
       correo,
+      telefono: telefono || null, // ausente o "" -> null explicito, igual que el default del esquema
       passwordHash,
       direccionUnica,
       estado: "pendiente",

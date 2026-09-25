@@ -30,6 +30,16 @@ function makeEventHandlers({ notificationService }) {
       need(text(payload.entidadAvaladora, 300), "entidadAvaladora invalida");
       await notificationService.onDocumentUploaded(payload);
     },
+
+    async solicitudCreada(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido");
+      need(typeof payload.solicitudId === "string" && ID_RE.test(payload.solicitudId), "solicitudId invalido (sin el no hay idempotencia)");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      need(text(payload.descripcion, 2000), "descripcion invalida"); // limite igual al de ms-documentos (MAX_DESCRIPCION_LENGTH)
+      need(text(payload.creadaEn, 40), "creadaEn invalida");
+      await notificationService.onDocumentRequestCreated(payload);
+    },
   };
 }
 

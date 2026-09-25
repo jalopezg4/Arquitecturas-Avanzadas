@@ -1,0 +1,22 @@
+{
+  "name": "ht03-load-test",
+  "version": "1.0.0",
+  "description": "HT-03 -- prueba de carga y escalamiento horizontal manual de ms-documentos (endpoint de solo lectura via el gateway).",
+  "private": true,
+  "scripts": {
+    "mint-token": "node mint-test-token.js",
+    "seed": "node seed-test-data.js",
+    "test": "jest"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^9.4.0"
+  },
+  "jest": {
+    "testTimeout": 30000
+  }
+}

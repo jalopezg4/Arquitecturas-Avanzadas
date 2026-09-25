@@ -29,6 +29,9 @@ async function publishCitizenRegistered(eventPublisher, citizen, { timeoutMs = D
       // TLS en despliegue) y viaja solo a colas propias. Nunca la contrasena ni su resumen.
       nombre: citizen.nombre,
       correo: citizen.correo,
+      // HU-06.3 (RF-28): opcional. Viaja como `null` si el ciudadano no lo registro -- nunca se inventa un valor
+      // (ms-notificaciones todavia no consume este campo; Paso 3.1 solo lo deja disponible en el evento).
+      telefono: citizen.telefono || null,
     }), timeoutMs);
     return true;
   } catch (err) {

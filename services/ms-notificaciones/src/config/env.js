@@ -30,6 +30,10 @@ const config = {
       timeoutMs: toInt(process.env.SMTP_TIMEOUT_MS, 8000),
     },
   },
+  // HU-06.3 (RF-28), Paso 3.3-A: SMS best-effort. Sin proveedor real todavia, unico valor valido es "console".
+  sms: {
+    transport: process.env.SMS_TRANSPORT || "console",
+  },
   // Un aviso "en proceso" mas viejo que esto se considera abandonado (el proceso murio a medias) y otro lo retoma.
   staleClaimMs: toInt(process.env.NOTIFICATION_STALE_CLAIM_MS, 60000),
 };

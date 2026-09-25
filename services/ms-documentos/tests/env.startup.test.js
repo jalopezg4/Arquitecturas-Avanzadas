@@ -17,7 +17,7 @@ const PROD_ENV = {
   S3_SECRET_ACCESS_KEY: "w8Zk3Tq0mVx2Lr7Pn5Yc1Hd6Fj4Sg9Ab",
 };
 
-const MANAGED = ["NODE_ENV", "JWT_SECRET", "JWT_SECRET_PREVIOUS", "RABBITMQ_URI", "MONGO_URI", "S3_ENDPOINT", "S3_PUBLIC_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_FORCE_PATH_STYLE", "QUOTA_NO_CERTIFICADOS", "MAX_UPLOAD_BYTES", "PRESIGNED_URL_DOWNLOAD_TTL_SECONDS", "REQUIRE_TLS", "TLS_CERT_PATH", "TLS_KEY_PATH"];
+const MANAGED = ["NODE_ENV", "JWT_SECRET", "JWT_SECRET_PREVIOUS", "RABBITMQ_URI", "MONGO_URI", "S3_ENDPOINT", "S3_PUBLIC_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_FORCE_PATH_STYLE", "QUOTA_NO_CERTIFICADOS", "MAX_UPLOAD_BYTES", "MAX_INBOUND_UPLOAD_BYTES", "PRESIGNED_URL_DOWNLOAD_TTL_SECONDS", "REQUIRE_TLS", "TLS_CERT_PATH", "TLS_KEY_PATH"];
 
 function loadEnvWith(vars) {
   const saved = { ...process.env };
@@ -39,7 +39,7 @@ describe("arranque de ms-documentos (env.js)", () => {
     const cfg = loadEnvWith(PROD_ENV);
     expect(cfg.isLocal).toBe(false);
     expect(cfg.s3.bucket).toBe("carpeta-documentos");
-    expect(cfg.limits).toEqual({ quotaNoCertificados: 5, maxUploadBytes: 10 * 1024 * 1024 });
+    expect(cfg.limits).toEqual({ quotaNoCertificados: 5, maxUploadBytes: 10 * 1024 * 1024, maxInboundBytes: 50 * 1024 * 1024 });
   });
 
   test("NODE_ENV ausente o vacio falla cerrado: no se asume development", () => {
@@ -75,8 +75,18 @@ describe("arranque de ms-documentos (env.js)", () => {
 
   test("la cuota, el tamano y el bucket se leen de las variables de entorno", () => {
     const cfg = loadEnvWith({ NODE_ENV: "test", QUOTA_NO_CERTIFICADOS: "3", MAX_UPLOAD_BYTES: "2048", S3_BUCKET: "otro-bucket" });
-    expect(cfg.limits).toEqual({ quotaNoCertificados: 3, maxUploadBytes: 2048 });
+    expect(cfg.limits).toEqual({ quotaNoCertificados: 3, maxUploadBytes: 2048, maxInboundBytes: 50 * 1024 * 1024 });
     expect(cfg.s3.bucket).toBe("otro-bucket");
+  });
+
+  test("HU-10: el limite de la recepcion institucional se lee del entorno y tiene sus propias reglas", () => {
+    const cfg = loadEnvWith({ NODE_ENV: "test", MAX_INBOUND_UPLOAD_BYTES: "20971520" });
+    expect(cfg.limits.maxInboundBytes).toBe(20971520);
+
+    // No puede superar el tope duro (el archivo se procesa en memoria) ni quedar por debajo del limite del ciudadano.
+    expect(() => loadEnvWith({ NODE_ENV: "test", MAX_INBOUND_UPLOAD_BYTES: String(60 * 1024 * 1024) })).toThrow(/MAX_INBOUND_UPLOAD_BYTES/);
+    expect(() => loadEnvWith({ NODE_ENV: "test", MAX_UPLOAD_BYTES: "10485760", MAX_INBOUND_UPLOAD_BYTES: "1024" })).toThrow(/MAX_INBOUND_UPLOAD_BYTES/);
+    expect(() => loadEnvWith({ NODE_ENV: "test", MAX_INBOUND_UPLOAD_BYTES: "0" })).toThrow(/MAX_INBOUND_UPLOAD_BYTES/);
   });
 
   test("una vigencia de URL prefirmada fuera de politica (> 1 hora) impide arrancar", () => {

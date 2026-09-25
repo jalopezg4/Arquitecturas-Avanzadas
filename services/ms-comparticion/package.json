@@ -1,18 +1,21 @@
 {
   "name": "ms-comparticion",
   "version": "1.0.0",
-  "description": "Comparticion autorizada de documentos - Operador Carpeta Ciudadana (HU-06.1 registro de entidad institucional)",
+  "description": "Comparticion autorizada de documentos - Operador Carpeta Ciudadana (HU-06.1 registro de entidades, autenticacion institucional)",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "jest",
+    "verify:institution": "node scripts/verify-institution.js",
     "scan:secrets": "node scripts/scan-secrets.js"
   },
   "type": "commonjs",
   "dependencies": {
+    "argon2": "^0.41.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.5.0"
   },
   "devDependencies": {

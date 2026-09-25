@@ -1,8 +1,10 @@
+const http = require("http");
 const express = require("express");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 const tracingMiddleware = require("./tracing/tracingMiddleware");
 const logger = require("./tracing/logger");
 const requireAuth = require("./security/requireAuth");
+const requireEntityAuth = require("./security/requireEntityAuth");
 const { ROUTES, findRoute } = require("./routes");
 
 /** Cuerpo de error cuando el servicio destino no responde: no se filtran detalles internos (host, puerto, traza). */
@@ -19,10 +21,15 @@ function upstreamError(err, req, res) {
  *   1. asigna/propaga el trace-id (HT-06),
  *   2. busca la ruta en la lista blanca (si no esta: 404, nunca se reenvia),
  *   3. si la ruta no es publica, exige un access token valido ANTES de contactar al servicio destino,
+ *      y del TIPO que esa ruta pide: ciudadano por defecto, institucional si dice `actor: "entidad"` (ADR-07),
  *   4. reenvia la peticion (con el Authorization intacto: cada microservicio VUELVE a validar el token).
  * El gateway es la primera barrera, no la unica.
+ *
+ * `entitySecrets` (llavero de ENTITY_JWT_SECRET) es OPCIONAL: sin el, las rutas de entidad responden 401
+ * (fallan cerrado) y las de ciudadano siguen funcionando igual. Las dos llaves son distintas a proposito, asi
+ * que un token de ciudadano nunca abre una ruta de entidad ni al reves.
  */
-function buildApp({ secrets, upstreams, issuer, timeoutMs = 10000, routes = ROUTES }) {
+function buildApp({ secrets, entitySecrets, upstreams, issuer, entityIssuer, timeoutMs = 10000, routes = ROUTES }) {
   const app = express();
   app.disable("x-powered-by");
   app.use(tracingMiddleware);
@@ -32,18 +39,31 @@ function buildApp({ secrets, upstreams, issuer, timeoutMs = 10000, routes = ROUT
 
   // NO se usa express.json(): el cuerpo pasa como flujo hacia el servicio destino, sin parsearlo ni reescribirlo.
   const proxies = {};
+  // HT-03: el proxy hacia ms-documentos desactiva keep-alive (agente propio, sin reutilizar el global) para
+  // que cada peticion dispare una resolucion DNS nueva y aproveche el reparto round-robin de Docker cuando
+  // el servicio esta escalado a varias replicas. Los demas upstreams no cambian: siguen con el agente por
+  // defecto, porque hoy corren como una sola instancia.
+  const documentosAgent = new http.Agent({ keepAlive: false });
   for (const [name, target] of Object.entries(upstreams)) {
-    proxies[name] = createProxyMiddleware({ target, changeOrigin: false, proxyTimeout: timeoutMs, // solo el plazo del DESTINO: `timeout` cortaria la conexion del cliente sin darle un 504
-      on: { error: upstreamError } });
+    proxies[name] = createProxyMiddleware({
+      target,
+      changeOrigin: false,
+      proxyTimeout: timeoutMs, // solo el plazo del DESTINO: `timeout` cortaria la conexion del cliente sin darle un 504
+      ...(name === "DOCUMENTOS_URL" ? { agent: documentosAgent } : {}),
+      on: { error: upstreamError },
+    });
   }
   const authenticate = requireAuth(secrets, { issuer });
+  const authenticateEntity = requireEntityAuth(entitySecrets, entityIssuer ? { issuer: entityIssuer } : undefined);
 
   app.use((req, res, next) => {
     const route = findRoute(req.method, req.path, routes);
     const proxy = route && proxies[route.upstream];
     if (!proxy) return res.status(404).json({ error: "ruta no encontrada" });
     if (route.public) return proxy(req, res, next);
-    return authenticate(req, res, () => proxy(req, res, next));
+    // El tipo de actor lo decide la RUTA, no el token: un token no puede elegir por donde entrar.
+    const guard = route.actor === "entidad" ? authenticateEntity : authenticate;
+    return guard(req, res, () => proxy(req, res, next));
   });
 
   return app;

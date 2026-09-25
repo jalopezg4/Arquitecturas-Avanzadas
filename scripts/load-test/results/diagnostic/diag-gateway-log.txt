@@ -1,0 +1,110 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /scripts/load-test.js
+        output: json (/scripts/results/diagnostic/diag-gateway-raw.ndjson)
+
+     scenarios: (100.00%) 1 scenario, 80 max VUs, 50s max duration (incl. graceful stop):
+              * ht03_lectura_documentos: 20.00 iterations/s for 20s (maxVUs: 40-80, gracefulStop: 30s)
+
+
+running (01.0s), 00/40 VUs, 20 complete and 0 interrupted iterations
+ht03_lectura_documentos   [   5% ] 00/40 VUs  01.0s/20s  20.00 iters/s
+
+running (02.0s), 00/40 VUs, 40 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  10% ] 00/40 VUs  02.0s/20s  20.00 iters/s
+
+running (03.0s), 00/40 VUs, 60 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  15% ] 00/40 VUs  03.0s/20s  20.00 iters/s
+
+running (04.0s), 00/40 VUs, 80 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  20% ] 00/40 VUs  04.0s/20s  20.00 iters/s
+
+running (05.0s), 00/40 VUs, 100 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  25% ] 00/40 VUs  05.0s/20s  20.00 iters/s
+
+running (06.0s), 00/40 VUs, 120 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  30% ] 00/40 VUs  06.0s/20s  20.00 iters/s
+
+running (07.0s), 00/40 VUs, 140 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  35% ] 00/40 VUs  07.0s/20s  20.00 iters/s
+
+running (08.0s), 00/40 VUs, 160 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  40% ] 00/40 VUs  08.0s/20s  20.00 iters/s
+
+running (09.0s), 00/40 VUs, 180 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  45% ] 00/40 VUs  09.0s/20s  20.00 iters/s
+
+running (10.0s), 00/40 VUs, 200 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  50% ] 00/40 VUs  10.0s/20s  20.00 iters/s
+
+running (11.0s), 00/40 VUs, 220 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  55% ] 00/40 VUs  11.0s/20s  20.00 iters/s
+
+running (12.0s), 00/40 VUs, 240 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  60% ] 00/40 VUs  12.0s/20s  20.00 iters/s
+
+running (13.0s), 00/40 VUs, 260 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  65% ] 00/40 VUs  13.0s/20s  20.00 iters/s
+
+running (14.0s), 00/40 VUs, 280 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  70% ] 00/40 VUs  14.0s/20s  20.00 iters/s
+
+running (15.0s), 00/40 VUs, 300 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  75% ] 00/40 VUs  15.0s/20s  20.00 iters/s
+
+running (16.0s), 00/40 VUs, 320 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  80% ] 00/40 VUs  16.0s/20s  20.00 iters/s
+
+running (17.0s), 00/40 VUs, 340 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  85% ] 00/40 VUs  17.0s/20s  20.00 iters/s
+
+running (18.0s), 00/40 VUs, 360 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  90% ] 00/40 VUs  18.0s/20s  20.00 iters/s
+
+running (19.0s), 00/40 VUs, 380 complete and 0 interrupted iterations
+ht03_lectura_documentos   [  95% ] 00/40 VUs  19.0s/20s  20.00 iters/s
+
+running (20.0s), 00/40 VUs, 400 complete and 0 interrupted iterations
+ht03_lectura_documentos   [ 100% ] 00/40 VUs  20.0s/20s  20.00 iters/s
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 802     40.055721/s
+    checks_succeeded...: 100.00% 802 out of 802
+    checks_failed......: 0.00%   0 out of 802
+
+    ✓ status es 200
+    ✓ cuerpo con forma esperada
+
+    CUSTOM
+    ht03_respuestas_por_instancia...: 401    20.027861/s
+
+    HTTP
+    http_req_duration...............: avg=14.91ms min=10.15ms med=13.69ms max=60.34ms p(90)=19.66ms p(95)=21.67ms p(99)=31.1ms 
+      { expected_response:true }....: avg=14.91ms min=10.15ms med=13.69ms max=60.34ms p(90)=19.66ms p(95)=21.67ms p(99)=31.1ms 
+    http_req_failed.................: 0.00%  0 out of 401
+    http_reqs.......................: 401    20.027861/s
+
+    EXECUTION
+    iteration_duration..............: avg=18.49ms min=12.93ms med=17.16ms max=72.96ms p(90)=23.87ms p(95)=26.75ms p(99)=37.45ms
+    iterations......................: 401    20.027861/s
+    vus.............................: 0      min=0        max=0 
+    vus_max.........................: 40     min=40       max=40
+
+    NETWORK
+    data_received...................: 1.2 MB 62 kB/s
+    data_sent.......................: 175 kB 8.8 kB/s
+
+
+
+
+running (20.0s), 00/40 VUs, 401 complete and 0 interrupted iterations
+ht03_lectura_documentos ✓ [ 100% ] 00/40 VUs  20s  20.00 iters/s
