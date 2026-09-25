@@ -45,8 +45,8 @@ class NotificationService {
   }
 
   /** ciudadano.registrado (HU-01): guarda a quien avisar y le da la bienvenida (una sola vez por ciudadano). */
-  async onCitizenRegistered({ ciudadanoId, nombre, correo, direccionUnica }) {
-    await this.contacts.upsert({ ciudadanoId, nombre: clean(nombre, 120), correo: clean(correo, 200) });
+  async onCitizenRegistered({ ciudadanoId, nombre, correo, direccionUnica, telefono }) {
+    await this.contacts.upsert({ ciudadanoId, nombre: clean(nombre, 120), correo: clean(correo, 200), telefono: telefono ? clean(telefono, 20) : null });
     return this._deliver({
       eventKey: `ciudadano.registrado:${ciudadanoId}`,
       tipo: "bienvenida",

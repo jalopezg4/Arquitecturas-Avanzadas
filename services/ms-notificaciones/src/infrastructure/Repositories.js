@@ -3,8 +3,8 @@ const Notification = require("../domain/Notification");
 
 class ContactRepository {
   /** Crea o actualiza el contacto. Idempotente y seguro ante eventos simultaneos (el indice unico decide). */
-  async upsert({ ciudadanoId, nombre, correo }) {
-    const update = { $set: { nombre, correo } };
+  async upsert({ ciudadanoId, nombre, correo, telefono }) {
+    const update = { $set: { nombre, correo, telefono: telefono || null } };
     try {
       await Contact.updateOne({ ciudadanoId }, update, { upsert: true });
     } catch (err) {

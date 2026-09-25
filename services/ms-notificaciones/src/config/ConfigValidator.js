@@ -7,6 +7,8 @@
 const WEAK_URI_PASSWORDS = new Set(["guest", "admin", "root", "password", "123456", "changeme", "test"]);
 const WEAK_SMTP_PASSWORDS = new Set(["password", "changeme", "admin", "root", "test", "123456", "smtp", "mail"]);
 const TRANSPORTS = ["console", "smtp"];
+// HU-06.3 (RF-28), Paso 3.3-A: sin proveedor real todavia (SMS best-effort, ver NotificationService).
+const SMS_TRANSPORTS = ["console"];
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 
 class ConfigError extends Error {
@@ -30,6 +32,10 @@ function validateConfig(cfg) {
 
   if (!TRANSPORTS.includes(mail.transport)) problems.push(`EMAIL_TRANSPORT debe ser uno de: ${TRANSPORTS.join(", ")}`);
   if (!mail.from || !EMAIL_RE.test(mail.from)) problems.push("MAIL_FROM debe ser un correo valido");
+
+  // Sin proveedor real todavia: a diferencia de EMAIL_TRANSPORT, "console" es valido en cualquier ambiente (SMS best-effort).
+  const sms = cfg.sms || {};
+  if (!SMS_TRANSPORTS.includes(sms.transport)) problems.push(`SMS_TRANSPORT debe ser uno de: ${SMS_TRANSPORTS.join(", ")}`);
 
   if (!cfg.isLocal) {
     // Con "console" nadie recibe nada: en un ambiente real seria un fallo silencioso (el aviso se marca como enviado).
@@ -73,4 +79,4 @@ function assertValidConfig(cfg) {
   if (problems.length) throw new ConfigError(problems);
 }
 
-module.exports = { validateConfig, assertValidConfig, ConfigError, TRANSPORTS };
+module.exports = { validateConfig, assertValidConfig, ConfigError, TRANSPORTS, SMS_TRANSPORTS };

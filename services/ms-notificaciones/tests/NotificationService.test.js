@@ -226,6 +226,28 @@ describe("ciudadano.registrado -> contacto + bienvenida (HU-01)", () => {
     expect(sender.send).toHaveBeenCalledTimes(1);
   });
 
+  test("HU-06.3 (RF-28): sin telefono en el evento, el contacto nuevo queda con telefono=null y el flujo sigue igual", async () => {
+    await handlers.ciudadanoRegistrado(registered);
+
+    expect((await Contact.findOne({ ciudadanoId: ANA }).lean()).telefono).toBeNull();
+    expect(sender.send).toHaveBeenCalledTimes(1);
+  });
+
+  test("HU-06.3 (RF-28): con telefono en el evento, se almacena en el contacto", async () => {
+    await handlers.ciudadanoRegistrado({ ...registered, telefono: "+57 3001234567" });
+
+    expect((await Contact.findOne({ ciudadanoId: ANA }).lean()).telefono).toBe("+57 3001234567");
+  });
+
+  test("HU-06.3 (RF-28): un contacto existente sin telefono recibe uno en un evento posterior", async () => {
+    await handlers.ciudadanoRegistrado(registered);
+    expect((await Contact.findOne({ ciudadanoId: ANA }).lean()).telefono).toBeNull();
+
+    await handlers.ciudadanoRegistrado({ ...registered, telefono: "+57 3001234567" });
+
+    expect((await Contact.findOne({ ciudadanoId: ANA }).lean()).telefono).toBe("+57 3001234567");
+  });
+
   test.each([
     ["sin nombre (evento anterior al enriquecimiento)", { nombre: undefined }],
     ["sin correo (evento anterior al enriquecimiento)", { correo: undefined }],
