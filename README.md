@@ -29,6 +29,7 @@ Microservicios (ADR-01 del expediente), cada uno dueño exclusivo de su base de 
 | `services/ms-notificaciones` | 3003 | Correos por eventos (confirmación de carga, bienvenida) | HU-03, HU-01 |
 | `services/ms-interoperabilidad` | 3004 | Directorio de operadores y publicación del endpoint de transferencia | HU-05a, HU-05b (HU-05c pendiente) |
 | `services/ms-comparticion` | 3005 | Registro **y autenticación** de entidades institucionales | HU-06.1, ADR-07 (HU-06.2 a 06.4 pendientes) |
+| `services/ms-analitica` | 3006 | Analítica de metadatos y casos PQRS, protegidos con token institucional (ADR-07) | HU-07.1, HU-07.2, HU-07.3 (parcial: solo registro local, multioperador completo pendiente de HU-05c/HU-06.3) |
 | `services/ms-autenticacion` | — | Por empezar | HU-04 |
 
 Infraestructura local (Docker): MongoDB `27017`, RabbitMQ `5672` (consola `15672`), MinIO `9000` (consola `9001`).

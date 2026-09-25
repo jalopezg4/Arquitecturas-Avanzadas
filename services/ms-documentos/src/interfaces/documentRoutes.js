@@ -17,6 +17,15 @@ const { requireOwner } = require("./documentController");
  * verificada por el operador (403) -> 3) recien entonces se lee el archivo -> 4) controlador. No lleva `:id` en la
  * ruta a proposito: el destinatario se nombra por su direccion unica y se resuelve dentro del servicio, asi que no
  * hay ningun `ciudadanoId` que el cliente pueda elegir.
+ *
+ * Analitica de metadatos para la institucion emisora (HU-07.1)
+ * GET /documents/analytics/summary
+ * Mismo token INSTITUCIONAL (ADR-07) que /documents/inbound, pero SIN requireVerifiedEntity: por ahora esta ruta
+ * solo exige identidad institucional, no verificacion (y mucho menos un plan Premium -- ver docs/SEGURIDAD.md,
+ * seccion 12.2, esa misma decision ya se documento para ms-analitica/HU-07.2). Aunque cuelga de `/api/v1` como
+ * cualquier otra ruta, es interna de servicio: no esta en la lista blanca del gateway (routes.js) todavia, asi
+ * que solo es alcanzable directamente contra este servicio, igual que ya pasaba con /documents/inbound antes de
+ * HU-10 y sigue pasando con /api/v1/cases en ms-analitica.
  */
 function documentRoutes({ controller, secrets, entitySecrets, issuer, entityIssuer, auditLogger, maxUploadBytes, maxInboundBytes }) {
   const router = express.Router();
@@ -30,6 +39,9 @@ function documentRoutes({ controller, secrets, entitySecrets, issuer, entityIssu
     uploadMiddleware({ maxUploadBytes: maxInboundBytes }),
     controller.receive
   );
+
+  router.get("/documents/analytics/summary", requireEntityAuth(entitySecrets, entityIssuer ? { issuer: entityIssuer } : undefined), controller.analyticsSummary);
+
   return router;
 }
 

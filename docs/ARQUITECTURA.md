@@ -17,7 +17,7 @@ Microservicios, cada uno propietario exclusivo de su base de datos. Comunicació
 | `ms-interoperabilidad` | Transferencias entre operadores | HU-05a (directorio de operadores; ver `docs/SEGURIDAD.md`, sección 9), HU-05b, HU-05c |
 | `ms-notificaciones` | Correo y SMS | consumidor transversal (HU-03 confirmación de carga, HU-01 bienvenida; solo correo por ahora) |
 | `ms-comparticion` | Compartición autorizada, entidades institucionales y **autenticación de entidades** | HU-06.1 (registro de entidades; ver `docs/SEGURIDAD.md`, sección 10), ADR-07 (autenticación institucional; sección 12), HU-06.2 a 06.4 |
-| (por definir E3) | Analítica, Premium | HU-07.x |
+| `ms-analitica` | Servicios Premium y analítica de metadatos, protegidos con token institucional (ADR-07). HU-07.1 y HU-07.2 implementadas; HU-07.3 implementada **parcialmente** (solo registro local de la solicitud) — la identificación del operador destino, la transferencia, el consentimiento y la entrega documental multioperador quedan fuera de alcance hasta HU-05c/HU-06.3 | HU-07.1, HU-07.2, HU-07.3 (parcial) |
 
 ## Decisiones clave que afectan el código (ADRs 2-6)
 

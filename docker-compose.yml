@@ -131,6 +131,25 @@ services:
     depends_on:
       - mongo
 
+  # Servicios Premium y analitica de metadatos (HU-07). HU-07.1 (analitica, REST sincrono hacia ms-documentos),
+  # HU-07.2 (casos PQRS) y HU-07.3 (solicitud documental, implementacion PARCIAL: solo registro local, sin
+  # protocolo multioperador) implementadas, protegidas con token institucional (ADR-07); todavia no esta cableado
+  # al gateway.
+  ms-analitica:
+    build: ./services/ms-analitica
+    ports:
+      - "3006:3006"
+    environment:
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017/ms-analitica
+      # ADR-07: debe ser la misma llave que usa ms-comparticion para firmar los tokens institucionales.
+      ENTITY_JWT_SECRET: ${ENTITY_JWT_SECRET:-}
+      # HU-07.1: endpoint interno de agregacion de metadatos. Nombre DNS del servicio, nunca localhost.
+      DOCUMENTOS_URL: http://ms-documentos:3002
+    depends_on:
+      - mongo
+      - ms-documentos
+
   ms-gateway:
     build: ./services/ms-gateway
     ports:

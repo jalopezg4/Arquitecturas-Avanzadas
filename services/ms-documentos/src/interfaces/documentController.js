@@ -26,7 +26,7 @@ function requireOwner(auditLogger, action = "documento.cargar") {
   };
 }
 
-function makeDocumentController(documentService, inboundDocumentService) {
+function makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService) {
   return {
     async list(req, res, next) {
       try {
@@ -70,6 +70,26 @@ function makeDocumentController(documentService, inboundDocumentService) {
           metadata: { titulo: body.titulo, entidadAvaladora: body.entidadAvaladora, fecha: body.fecha },
         });
         return res.status(result.duplicado ? 200 : 201).json({ documentoId: result.documentoId, duplicado: result.duplicado });
+      } catch (err) {
+        return next(err);
+      }
+    },
+
+    /**
+     * HU-07.1: metricas agregadas de los documentos que la institucion del token EMITIO. `emisorInstitutionId`
+     * sale UNICAMENTE de `req.auth.institutionId` (puesto por requireEntityAuth tras verificar el token): nunca
+     * de `req.query`, aunque el cliente mande uno. `from`/`to` son los unicos filtros que se leen del query;
+     * cualquier otro parametro (incluido un `institutionId` o `ciudadanoId` que alguien intente mandar) se ignora
+     * en silencio, igual que `list()` ignora cualquier query param fuera de `page`/`pageSize`.
+     */
+    async analyticsSummary(req, res, next) {
+      try {
+        const result = await documentAnalyticsService.summarize({
+          emisorInstitutionId: req.auth.institutionId,
+          from: req.query.from,
+          to: req.query.to,
+        });
+        return res.status(200).json(result);
       } catch (err) {
         return next(err);
       }

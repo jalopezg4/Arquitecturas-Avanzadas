@@ -32,6 +32,37 @@ class DocumentRepository {
   async markEventPublished(id) {
     await Document.updateOne({ _id: id }, { eventoPublicado: true });
   }
+
+  /**
+   * HU-07.1: agregaciones de SOLO los documentos que `emisorInstitutionId` entrego (nunca los que un ciudadano
+   * cargo por su cuenta: esos no llevan `emisorInstitutionId`). `from`/`to` ya vienen como `Date` (o `null`) --
+   * la interpretacion de los parametros de la peticion es responsabilidad del servicio, no de este repositorio.
+   * `emisorInstitutionId` ya esta indexado (Document.js); `fecha` no -- ver nota en DocumentAnalyticsService.
+   */
+  async summarizeByEmisor(emisorInstitutionId, { from, to } = {}) {
+    const match = { emisorInstitutionId };
+    if (from || to) {
+      match.fecha = {};
+      if (from) match.fecha.$gte = from;
+      if (to) match.fecha.$lte = to;
+    }
+    const [facets] = await Document.aggregate([
+      { $match: match },
+      {
+        $facet: {
+          total: [{ $count: "count" }],
+          porEstado: [{ $group: { _id: "$estado", count: { $sum: 1 } } }],
+          porMimeType: [{ $group: { _id: "$mimeType", count: { $sum: 1 } } }],
+          tamano: [{ $group: { _id: null, total: { $sum: "$tamanoBytes" }, promedio: { $avg: "$tamanoBytes" } } }],
+          serieTemporal: [
+            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$fecha", timezone: "UTC" } }, cantidad: { $sum: 1 } } },
+            { $sort: { _id: 1 } },
+          ],
+        },
+      },
+    ]);
+    return facets;
+  }
 }
 
 module.exports = DocumentRepository;

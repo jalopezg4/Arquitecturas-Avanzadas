@@ -303,5 +303,38 @@ Es **403 y no 401** a propósito: la credencial es válida y se reconoció a la 
 - **No hay forma de asignar ni rotar la credencial** de una entidad ya registrada: la contraseña solo se fija al registrarse (es opcional), y una entidad registrada sin ella no puede autenticarse.
 - **No hay revocación del token institucional**: un token robado vale hasta 15 minutos, igual que el del ciudadano.
 - **No hay limitación de tasa** en el endpoint de login (el bloqueo es por entidad, no por origen), como en todo el resto del sistema.
-- **Ninguna ruta protegida de entidad existe aún**: HU-10 y HU-06.3 las traerán. `requireVerifiedEntity` está escrito y probado, pero **no lo monta ninguna ruta**.
+- **La primera ruta protegida de entidad es `ms-analitica` (HU-07.2, ver 12.2)**; HU-10 y HU-06.3 traerán las siguientes. `requireVerifiedEntity` está escrito y probado en `ms-documentos`, pero **no lo monta ninguna ruta todavía**.
 - **`hasInstitutionalFolder()` no mira `verificada`** y se dejó así a propósito: es una decisión de HU-06.2 (otro integrante) si una entidad sin verificar "tiene carpeta" para recibir un paquete o debe caer al envío por correo (RF-26).
+
+## 12.2 Casos PQRS y autorización Premium (`ms-analitica`, HU-07.2)
+
+> **Institución autenticada ≠ institución Premium.** `/api/v1/cases` exige hoy un token institucional válido (ADR-07, sección 12) y nada más. No existe todavía ningún control de que la institución tenga contratado el servicio Premium que HU-07 describe ("como servicio Premium cobrable del operador").
+
+`requireEntityAuth` verifica identidad (firma, emisor, `act: "entidad"`, expiración) exactamente igual que en cualquier otra ruta institucional; `PqrsCaseService` no consulta ningún atributo de plan antes de crear o modificar un caso. En la práctica, **cualquier institución registrada en `ms-comparticion` puede usar HU-07.2**, esté o no pagando por Premium.
+
+**Esto es deliberado, no un olvido.** El mecanismo de autorización Premium (qué instituciones lo tienen, dónde vive ese dato, cómo se revoca) es una decisión de diseño pendiente — se evaluaron tres alternativas (claim en el JWT institucional, consulta síncrona a `ms-comparticion` en cada petición, y un atributo replicado vía evento con proyección local en `ms-analitica`) y ninguna se implementó a propósito, para no comprometerse con un mecanismo antes de que el curso lo exija con más detalle (facturación, planes, vigencia).
+
+Mientras esa decisión no se tome:
+
+- **No se agrega `premium` al JWT institucional** (ni al de `ms-comparticion` al firmar, ni a lo que `requireEntityAuth` espera al verificar).
+- **No se agrega ningún campo `premium`/`plan` a `Institution`** (`ms-comparticion` sigue siendo la única dueña de ese modelo, ADR-01).
+- **No existe ningún mecanismo alternativo** (tabla propia en `ms-analitica`, variable de entorno, lista blanca) que simule Premium mientras tanto: sería un sistema paralelo que habría que desmontar después.
+
+**Consecuencia práctica.** HU-07.2 está funcionalmente completa (creación, consulta, listado y cambio de estado de casos PQRS, con ownership institucional correcto) pero **no cumple todavía** la restricción de negocio "servicio Premium cobrable" de HU-07. Se documenta aquí para que quede explícito en la entrega, y no se descubra al revisar el código.
+
+## 12.3 Solicitud documental multioperador (`ms-analitica`, HU-07.3) — implementación parcial
+
+> HU-07.3 se implementa parcialmente mediante el registro local de solicitudes documentales. La identificación automática del operador actual del ciudadano, el envío interinstitucional, el consentimiento del ciudadano y la transferencia/entrega documental quedan pendientes de HU-05c y HU-06.3.
+
+Antes de implementar este paso se hizo una inspección explícita del código de `ms-interoperabilidad`, `ms-documentos` y `ms-comparticion` (no una suposición): `ms-interoperabilidad` no expone hoy ningún endpoint de negocio (solo `/health`/`/ready`); `OperatorDirectoryService` únicamente resuelve un operador ya conocido por `operatorId`/`name`, nunca "a qué operador pertenece este ciudadano"; y tanto `HU-05c` como `HU-06.3` están **especificadas en `docs/HISTORIAS_DE_USUARIO.md` pero sin una sola línea de código** (`TransferSagaService`/`TransferConfirmService` no existen en ningún archivo del repositorio; solo se nombran en ese documento de planificación).
+
+`POST /api/v1/document-requests` crea un `DocumentRequest`: `institutionId` (del token, ADR-07, igual que en HU-07.2), `direccionUnica` (validada solo por FORMA, mismo patrón y misma expresión regular que `InboundDocumentService` usa para el `destinatario` de HU-10), `descripcion` y `operadorDestinoId` opcional. El único estado posible es `registrada`.
+
+Explícitamente, en esta versión:
+
+- **`operadorDestinoId` solo puede registrarse si la institución solicitante YA LO CONOCE de antemano** (por fuera del sistema); es un dato de texto libre con formato validado, no una referencia verificada.
+- **No se valida `operadorDestinoId` contra `ms-interoperabilidad`**: ese servicio no expone ningún endpoint de negocio para eso hoy (ver inspección arriba). Validarlo habría exigido crear ese endpoint, fuera del alcance de este paso.
+- **No existe descubrimiento automático del operador de un ciudadano.** No es una limitación de esta implementación: es una limitación del ecosistema completo — GovCarpeta nunca expuso esa capacidad (mismo hallazgo ya documentado para HU-05a).
+- **No existe todavía ningún protocolo de transferencia, envío interinstitucional, ni consentimiento del ciudadano.** `DocumentRequestService` no hace ninguna llamada HTTP saliente ni publica ningún evento RabbitMQ: es exclusivamente un registro local.
+
+**Consecuencia práctica.** `POST/GET /api/v1/document-requests` están funcionalmente completos como *registro* (con el mismo aislamiento institucional que HU-07.1/07.2: la institución sale siempre del token, nunca del cuerpo, y una solicitud ajena responde `404`, no `403`, mismo criterio que `PqrsCase`). Lo que HU-07.3 describe como historia completa — "solicitar documentos a clientes sin importar en qué operador estén afiliados" — **no está implementado ni parcialmente simulado**: no hay ningún camino, ni siquiera de prueba, que llegue a otro operador o a un ciudadano real. Se documenta aquí para que quede explícito en la entrega, y no se confunda un registro local con una solicitud multioperador funcional.

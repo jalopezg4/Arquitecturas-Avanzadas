@@ -1,0 +1,32 @@
+{
+  "name": "ms-analitica",
+  "version": "1.0.0",
+  "description": "Servicios Premium y analitica de metadatos - Operador Carpeta Ciudadana (HU-07)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "jest",
+    "scan:secrets": "node scripts/scan-secrets.js"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.7.4",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.5.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^9.4.0",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testTimeout": 30000,
+    "maxWorkers": 2,
+    "setupFiles": [
+      "./tests/setupEnv.js"
+    ]
+  }
+}

@@ -12,6 +12,7 @@ const AuditLogger = require("./infrastructure/AuditLogger");
 const AuditRepository = require("./infrastructure/AuditRepository");
 const { DocumentService } = require("./application/DocumentService");
 const { InboundDocumentService } = require("./application/InboundDocumentService");
+const { DocumentAnalyticsService } = require("./application/DocumentAnalyticsService");
 const EventReconciler = require("./application/EventReconciler");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { makeCitizenRegisteredHandler } = require("./interfaces/eventHandlers");
@@ -72,10 +73,13 @@ async function main() {
     folderRepository,
     maxInboundBytes: env.limits.maxInboundBytes,
   });
+  // HU-07.1: agregaciones de metadatos para la institucion del token (nunca RabbitMQ/proyeccion en este MVP).
+  const documentAnalyticsService = new DocumentAnalyticsService({ documentRepository });
 
   const app = buildApp({
     documentService,
     inboundDocumentService,
+    documentAnalyticsService,
     secrets,
     entitySecrets,
     issuer: env.jwtIssuer,
