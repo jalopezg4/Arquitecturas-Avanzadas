@@ -213,6 +213,131 @@ describe("ms-documentos: POST /api/v1/citizens/:id/documents (HU-03)", () => {
   });
 });
 
+describe("ms-documentos: HU-06.3 (RF-27/28/29) -- solicitudes documentales", () => {
+  const ENTITY_SECRET = "Wd6nK2pR8vZ4tQ1yB7mX3jL5hG9sCe0A";
+  const entitySecrets = new SecretsManager({ active: ENTITY_SECRET });
+  const entityToken = (claims = {}, options = {}, keyRing = entitySecrets) =>
+    keyRing.sign({ typ: "access", act: "entidad", ...claims }, { issuer: "ms-comparticion", subject: "665f1c04c9de9c4c34f6b52a", expiresIn: 900, ...options });
+  const SOLICITUD_ID = "6ab68fddb64d2aa730b415aa";
+
+  let docs;
+  let gw;
+  beforeEach(async () => {
+    docs = await startUpstream();
+    gw = buildApp({ secrets, entitySecrets, upstreams: { IDENTIDAD_URL: upstream.url, DOCUMENTOS_URL: docs.url }, issuer: "ms-identidad", timeoutMs: 2000 });
+  });
+  afterEach(async () => {
+    await docs.close();
+  });
+
+  test("POST /api/v1/document-requests exige token institucional y se reenvia a ms-documentos", async () => {
+    const t = entityToken();
+
+    await request(gw).post("/api/v1/document-requests").set("Authorization", `Bearer ${t}`).send({ direccionUnica: "x@carpetacolombia.co", descripcion: "Notas" }).expect(201);
+
+    expect(docs.calls).toHaveLength(1);
+    expect(docs.calls[0]).toMatchObject({ method: "POST", path: "/api/v1/document-requests" });
+    expect(docs.calls[0].headers.authorization).toBe(`Bearer ${t}`);
+  });
+
+  test("POST /api/v1/document-requests con token de CIUDADANO -> 401, ms-documentos no recibe nada", async () => {
+    await request(gw).post("/api/v1/document-requests").set("Authorization", `Bearer ${token()}`).send({}).expect(401);
+    expect(docs.calls).toHaveLength(0);
+  });
+
+  test("GET /api/v1/document-requests (listado institucional) exige token institucional y se reenvia", async () => {
+    const t = entityToken();
+
+    await request(gw).get("/api/v1/document-requests?page=1").set("Authorization", `Bearer ${t}`).expect(201);
+
+    expect(docs.calls[0]).toMatchObject({ method: "GET", path: "/api/v1/document-requests", query: { page: "1" } });
+    expect(docs.calls[0].headers.authorization).toBe(`Bearer ${t}`);
+  });
+
+  test("GET /api/v1/document-requests/:id exige token institucional y se reenvia", async () => {
+    const t = entityToken();
+
+    await request(gw).get(`/api/v1/document-requests/${SOLICITUD_ID}`).set("Authorization", `Bearer ${t}`).expect(201);
+
+    expect(docs.calls[0]).toMatchObject({ method: "GET", path: `/api/v1/document-requests/${SOLICITUD_ID}` });
+  });
+
+  test.each([
+    ["GET", "/api/v1/document-requests/a b"],
+    ["GET", "/api/v1/document-requests/a%2Fb"],
+    ["GET", `/api/v1/document-requests/${"x".repeat(65)}`],
+    ["GET", "/api/v1/document-requests/id/extra"],
+    ["DELETE", "/api/v1/document-requests"],
+    ["PUT", `/api/v1/document-requests/${SOLICITUD_ID}`],
+  ])("%s %s -> 404 (patron estricto / metodo no declarado), no llega a ms-documentos", async (method, path) => {
+    const res = await request(gw)[method.toLowerCase()](path).set("Authorization", `Bearer ${entityToken()}`);
+    expect(res.status).toBe(404);
+    expect(docs.calls).toHaveLength(0);
+  });
+
+  test("GET /api/v1/citizens/me/document-requests exige token de CIUDADANO y se reenvia", async () => {
+    const t = token();
+
+    await request(gw).get("/api/v1/citizens/me/document-requests").set("Authorization", `Bearer ${t}`).expect(201);
+
+    expect(docs.calls[0]).toMatchObject({ method: "GET", path: "/api/v1/citizens/me/document-requests" });
+    expect(docs.calls[0].headers.authorization).toBe(`Bearer ${t}`);
+  });
+
+  test("GET /api/v1/citizens/me/document-requests con token INSTITUCIONAL -> 401, no se reenvia", async () => {
+    await request(gw).get("/api/v1/citizens/me/document-requests").set("Authorization", `Bearer ${entityToken()}`).expect(401);
+    expect(docs.calls).toHaveLength(0);
+  });
+
+  test("PATCH .../document-requests/:id/decision exige token de CIUDADANO y se reenvia con el body intacto", async () => {
+    const t = token();
+
+    await request(gw).patch(`/api/v1/citizens/me/document-requests/${SOLICITUD_ID}/decision`).set("Authorization", `Bearer ${t}`).send({ decision: "autorizar" }).expect(201);
+
+    expect(docs.calls[0]).toMatchObject({ method: "PATCH", path: `/api/v1/citizens/me/document-requests/${SOLICITUD_ID}/decision`, body: { decision: "autorizar" } });
+    expect(docs.calls[0].headers.authorization).toBe(`Bearer ${t}`);
+  });
+
+  test("PATCH .../decision con token INSTITUCIONAL -> 401, no se reenvia (un token de entidad no decide por el ciudadano)", async () => {
+    await request(gw).patch(`/api/v1/citizens/me/document-requests/${SOLICITUD_ID}/decision`).set("Authorization", `Bearer ${entityToken()}`).send({ decision: "autorizar" }).expect(401);
+    expect(docs.calls).toHaveLength(0);
+  });
+
+  test.each([
+    ["PATCH", `/api/v1/citizens/me/document-requests/a b/decision`],
+    ["PATCH", `/api/v1/citizens/me/document-requests/${SOLICITUD_ID}/decision/extra`],
+    ["PATCH", `/api/v1/citizens/me/document-requests/${SOLICITUD_ID}`],
+    ["GET", "/api/v1/citizens/otro-id-cualquiera/document-requests"], // no hay ruta parametrizada: solo /me
+  ])("%s %s -> 404 (patron estricto / ruta ajena), no llega a ms-documentos", async (method, path) => {
+    const res = await request(gw)[method.toLowerCase()](path).set("Authorization", `Bearer ${token()}`);
+    expect(res.status).toBe(404);
+    expect(docs.calls).toHaveLength(0);
+  });
+
+  test("sin token en ninguna de las 5 rutas -> 401 y ms-documentos no recibe nada", async () => {
+    const rutas = [
+      ["post", "/api/v1/document-requests"],
+      ["get", "/api/v1/document-requests"],
+      ["get", `/api/v1/document-requests/${SOLICITUD_ID}`],
+      ["get", "/api/v1/citizens/me/document-requests"],
+      ["patch", `/api/v1/citizens/me/document-requests/${SOLICITUD_ID}/decision`],
+    ];
+    for (const [method, path] of rutas) {
+      const res = await request(gw)[method](path).send({});
+      expect(res.status).toBe(401);
+    }
+    expect(docs.calls).toHaveLength(0);
+  });
+
+  test("sin ENTITY_JWT_SECRET configurado, las rutas institucionales fallan CERRADO (401) y no reenvian nada", async () => {
+    const sinLlave = buildApp({ secrets, upstreams: { DOCUMENTOS_URL: docs.url }, issuer: "ms-identidad" });
+
+    await request(sinLlave).post("/api/v1/document-requests").set("Authorization", `Bearer ${entityToken()}`).send({}).expect(401);
+
+    expect(docs.calls).toHaveLength(0);
+  });
+});
+
 describe("ms-comparticion: POST /api/v1/institutions (HU-06.1, publica)", () => {
   let comp;
   let gw;

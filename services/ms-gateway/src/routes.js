@@ -31,6 +31,15 @@ const ROUTES = [
   // token INSTITUCIONAL (ADR-07), no de ciudadano; el servicio ademas comprueba que la entidad este verificada.
   // No lleva el ciudadano en la ruta: va por su direccion unica, dentro del cuerpo.
   { method: "POST", path: "/api/v1/documents/inbound", upstream: "DOCUMENTOS_URL", actor: "entidad" },
+  // ms-documentos -- HU-06.3 (RF-27), institucional: crear/consultar solicitudes documentales. Token INSTITUCIONAL
+  // (ADR-07); el servicio resuelve al ciudadano por direccionUnica (nunca va en la ruta ni en el token).
+  { method: "POST", path: "/api/v1/document-requests", upstream: "DOCUMENTOS_URL", actor: "entidad" },
+  { method: "GET", path: "/api/v1/document-requests", upstream: "DOCUMENTOS_URL", actor: "entidad" },
+  { method: "GET", pattern: /^\/api\/v1\/document-requests\/[A-Za-z0-9_-]{1,64}$/, upstream: "DOCUMENTOS_URL", actor: "entidad" },
+  // ms-documentos -- HU-06.3 (RF-28/RF-29), ciudadano: consultar y autorizar/rechazar sus propias solicitudes. Token
+  // de CIUDADANO (por defecto); "me" es literal -- el servicio saca al ciudadano del token, nunca de la ruta.
+  { method: "GET", path: "/api/v1/citizens/me/document-requests", upstream: "DOCUMENTOS_URL" },
+  { method: "PATCH", pattern: /^\/api\/v1\/citizens\/me\/document-requests\/[A-Za-z0-9_-]{1,64}\/decision$/, upstream: "DOCUMENTOS_URL" },
 ];
 
 function findRoute(method, path, routes = ROUTES) {
