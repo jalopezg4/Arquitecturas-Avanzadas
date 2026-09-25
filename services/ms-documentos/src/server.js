@@ -15,6 +15,7 @@ const { InboundDocumentService } = require("./application/InboundDocumentService
 const { DocumentAnalyticsService } = require("./application/DocumentAnalyticsService");
 const { SolicitudService } = require("./application/SolicitudService");
 const SolicitudRepository = require("./infrastructure/SolicitudRepository");
+const SolicitudEventReconciler = require("./application/SolicitudEventReconciler");
 const EventReconciler = require("./application/EventReconciler");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { makeCitizenRegisteredHandler } = require("./interfaces/eventHandlers");
@@ -77,8 +78,15 @@ async function main() {
   });
   // HU-07.1: agregaciones de metadatos para la institucion del token (nunca RabbitMQ/proyeccion en este MVP).
   const documentAnalyticsService = new DocumentAnalyticsService({ documentRepository });
-  // HU-06.3 (PASO 1): solo nucleo institucional (crear/consultar solicitudes); autorizar/rechazar es el PASO 2.
-  const solicitudService = new SolicitudService({ solicitudRepository: new SolicitudRepository(), folderRepository });
+  // HU-06.3: nucleo institucional (PASO 1), decision ciudadana (PASO 2) y publicacion de `solicitud.creada`
+  // (PASO 3.2) -- mismo eventPublisher compartido que ya usa documentService, mismo criterio de timeout.
+  const solicitudRepository = new SolicitudRepository();
+  const solicitudService = new SolicitudService({ solicitudRepository, folderRepository, eventPublisher, eventPublishTimeoutMs: env.eventPublishTimeoutMs });
+
+  // Reenvio de los solicitud.creada que no se pudieron publicar al crear (mismo criterio/config que el de documento.cargado).
+  if (env.reconcile.intervalMs > 0) {
+    new SolicitudEventReconciler({ solicitudRepository, eventPublisher, minAgeMs: env.reconcile.minAgeMs, publishTimeoutMs: env.eventPublishTimeoutMs }).start(env.reconcile.intervalMs);
+  }
 
   const app = buildApp({
     documentService,

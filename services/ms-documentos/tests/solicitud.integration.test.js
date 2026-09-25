@@ -24,6 +24,7 @@ const AuditRepository = require("../src/infrastructure/AuditRepository");
 const AuditLogger = require("../src/infrastructure/AuditLogger");
 const { SolicitudService } = require("../src/application/SolicitudService");
 const { makeCitizenRegisteredHandler } = require("../src/interfaces/eventHandlers");
+const { makeFakePublisher } = require("./helpers");
 
 const CITIZEN_SECRET = "Zq8mV2nX9pLr5tYc7bW1kD4hJ6fG3sAu"; // 32 caracteres, solo de prueba
 const ENTITY_SECRET = "Wd6nK2pR8vZ4tQ1yB7mX3jL5hG9sCe0A";
@@ -58,7 +59,9 @@ beforeEach(async () => {
   await Promise.all([Solicitud.createIndexes(), Folder.createIndexes(), AuditEntry.createIndexes()]); // dropDatabase() borra los indices
   folderRepository = new FolderRepository();
   const auditLogger = new AuditLogger({ auditRepository: new AuditRepository() });
-  const solicitudService = new SolicitudService({ solicitudRepository: new SolicitudRepository(), folderRepository });
+  // eventPublisher fake (PASO 3.2): estos tests son de PASO 1/2 (institucional/ciudadano), no de eventos -- la
+  // cobertura de `solicitud.creada` vive en solicitudEvents.integration.test.js.
+  const solicitudService = new SolicitudService({ solicitudRepository: new SolicitudRepository(), folderRepository, eventPublisher: makeFakePublisher() });
   app = buildApp({ solicitudService, secrets, entitySecrets, issuer: "ms-identidad", entityIssuer: "ms-comparticion", auditLogger });
 
   await makeCitizenRegisteredHandler({ folderRepository })({ ciudadanoId: ANA, direccionUnica: DIR_ANA });

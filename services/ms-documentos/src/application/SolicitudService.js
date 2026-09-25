@@ -1,5 +1,16 @@
+const logger = require("../tracing/logger");
 const { ValidationError } = require("./DocumentService");
 const { DestinatarioNoEncontradoError, DIRECCION_RE, MAX_DIRECCION } = require("./InboundDocumentService");
+const { solicitudCreadaPayload } = require("./solicitudEvents");
+
+/** Mismo helper que DocumentService.js (copia local, no compartida entre archivos del mismo servicio a proposito). */
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`sin confirmacion del broker tras ${ms} ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 /**
  * No existe ninguna solicitud con ese id PARA ESTA institucion. Se usa tanto si el id no existe como si
@@ -70,9 +81,11 @@ function toCitizenView(doc) {
 }
 
 /**
- * HU-06.3 (RF-27/28/29). PASO 1: nucleo institucional (crear/consultar solicitudes). PASO 2 (este agregado):
- * consulta y decision del CIUDADANO. Todavia NO implementa notificaciones (correo/SMS) ni ningun mecanismo de
- * entrega documental: `autorizada` es solo un estado, no dispara nada (eso es HU-06.2, fuera de este paso).
+ * HU-06.3 (RF-27/28/29). PASO 1: nucleo institucional (crear/consultar solicitudes). PASO 2: consulta y decision
+ * del CIUDADANO. PASO 3.2 (este archivo): publica `solicitud.creada` al crear, para que ms-notificaciones pueda
+ * avisar al ciudadano -- ese consumo/envio NO se implementa aqui (ms-notificaciones, fuera de este paso). La
+ * decision (`autorizar`/`rechazar`) sigue sin disparar nada: no hay evento `solicitud.autorizada` ni ningun
+ * mecanismo de entrega documental todavia (eso es HU-06.2, fuera de este paso).
  *
  * `direccionUnica` se valida por FORMA con exactamente la misma expresion (`DIRECCION_RE`/`MAX_DIRECCION`) que
  * `InboundDocumentService` (HU-10): reutilizada por import, no duplicada. A diferencia de HU-10 -- donde una
@@ -83,9 +96,26 @@ function toCitizenView(doc) {
  * revisión antes del PASO 2 por si se prefiere endurecerla al criterio de HU-10.
  */
 class SolicitudService {
-  constructor({ solicitudRepository, folderRepository }) {
+  constructor({ solicitudRepository, folderRepository, eventPublisher, eventPublishTimeoutMs = 3000 }) {
     this.solicitudRepository = solicitudRepository;
     this.folderRepository = folderRepository;
+    this.eventPublisher = eventPublisher;
+    this.eventPublishTimeoutMs = eventPublishTimeoutMs;
+  }
+
+  /**
+   * Publica `solicitud.creada`. Si el broker no responde a tiempo o rechaza, la creacion NO falla (ya respondio
+   * 201 a la institucion): queda `eventoPublicado:false` y lo reenvia `SolicitudEventReconciler`. Mismo patron
+   * que `DocumentService._publish` para `documento.cargado`.
+   */
+  async _publish(solicitud) {
+    const payload = solicitudCreadaPayload(solicitud);
+    try {
+      await withTimeout(this.eventPublisher.publish("solicitud.creada", payload), this.eventPublishTimeoutMs);
+      await this.solicitudRepository.markEventPublished(solicitud._id);
+    } catch (err) {
+      logger.error("solicitud.evento_no_publicado", { solicitudId: payload.solicitudId, note: "lo reenvia SolicitudEventReconciler", err });
+    }
   }
 
   async create({ institutionId, direccionUnica, descripcion }) {
@@ -114,6 +144,7 @@ class SolicitudService {
       descripcion: cleanDescripcion,
       estado: "pendiente_autorizacion",
     });
+    await this._publish(created);
     return toInstitutionView(created);
   }
 

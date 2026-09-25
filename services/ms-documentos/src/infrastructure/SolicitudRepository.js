@@ -38,6 +38,15 @@ class SolicitudRepository {
   async decide(id, ciudadanoId, { estado, decisionAt, decisionBy }) {
     return Solicitud.findOneAndUpdate({ _id: id, ciudadanoId, estado: "pendiente_autorizacion" }, { $set: { estado, decisionAt, decisionBy } }, { new: true }).lean();
   }
+
+  /** Solicitudes cuyo evento `solicitud.creada` no se pudo publicar, con al menos `olderThan` de antiguedad. */
+  async findUnpublished({ olderThan, limit }) {
+    return Solicitud.find({ eventoPublicado: false, createdAt: { $lte: olderThan } }).sort({ createdAt: 1 }).limit(limit);
+  }
+
+  async markEventPublished(id) {
+    await Solicitud.updateOne({ _id: id }, { eventoPublicado: true });
+  }
 }
 
 module.exports = SolicitudRepository;

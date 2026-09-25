@@ -4,11 +4,16 @@ const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
 
 const EXCHANGE = "carpeta-ciudadana.events";
 
-// El evento que publica este servicio es para ms-notificaciones. Sin una cola ligada al topic exchange, RabbitMQ
-// descarta el mensaje al no haber nadie suscrito; por eso se pre-declara aqui la cola que usara, durable y ligada a la
-// routing key, para que los mensajes queden esperando aunque el consumidor no este corriendo. Declarar una cola es
-// idempotente.
-const ANTICIPATED_BINDINGS = [{ queue: "ms-notificaciones.documento-cargado", routingKey: "documento.cargado" }];
+// Los eventos que publica este servicio son para ms-notificaciones. Sin una cola ligada al topic exchange, RabbitMQ
+// descarta el mensaje al no haber nadie suscrito; por eso se pre-declaran aqui las colas que usara, durables y ligadas
+// a su routing key, para que los mensajes queden esperando aunque el consumidor no este corriendo. Declarar una cola
+// es idempotente.
+const ANTICIPATED_BINDINGS = [
+  { queue: "ms-notificaciones.documento-cargado", routingKey: "documento.cargado" },
+  // HU-06.3 (PASO 3.2): ms-notificaciones todavia no consume esta cola (fuera de este paso); se predeclara igual,
+  // mismo criterio que arriba, para que los eventos no se pierdan en cuanto ese consumidor exista.
+  { queue: "ms-notificaciones.solicitud-creada", routingKey: "solicitud.creada" },
+];
 
 class EventPublisher {
   constructor(rabbitUri, { connect = amqp.connect } = {}) {

@@ -24,6 +24,9 @@ const solicitudSchema = new mongoose.Schema(
     // Trazabilidad del consentimiento (PASO 2): quien decidio y cuando. Ambos null hasta que el ciudadano decida.
     decisionAt: { type: Date, default: null },
     decisionBy: { type: String, default: null },
+    // true cuando el broker confirmo `solicitud.creada` (PASO 3.2); false = SolicitudEventReconciler lo reenvia.
+    // Mismo patron que Document.eventoPublicado.
+    eventoPublicado: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
