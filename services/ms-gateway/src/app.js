@@ -1,3 +1,4 @@
+const http = require("http");
 const express = require("express");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 const tracingMiddleware = require("./tracing/tracingMiddleware");
@@ -38,9 +39,19 @@ function buildApp({ secrets, entitySecrets, upstreams, issuer, entityIssuer, tim
 
   // NO se usa express.json(): el cuerpo pasa como flujo hacia el servicio destino, sin parsearlo ni reescribirlo.
   const proxies = {};
+  // HT-03: el proxy hacia ms-documentos desactiva keep-alive (agente propio, sin reutilizar el global) para
+  // que cada peticion dispare una resolucion DNS nueva y aproveche el reparto round-robin de Docker cuando
+  // el servicio esta escalado a varias replicas. Los demas upstreams no cambian: siguen con el agente por
+  // defecto, porque hoy corren como una sola instancia.
+  const documentosAgent = new http.Agent({ keepAlive: false });
   for (const [name, target] of Object.entries(upstreams)) {
-    proxies[name] = createProxyMiddleware({ target, changeOrigin: false, proxyTimeout: timeoutMs, // solo el plazo del DESTINO: `timeout` cortaria la conexion del cliente sin darle un 504
-      on: { error: upstreamError } });
+    proxies[name] = createProxyMiddleware({
+      target,
+      changeOrigin: false,
+      proxyTimeout: timeoutMs, // solo el plazo del DESTINO: `timeout` cortaria la conexion del cliente sin darle un 504
+      ...(name === "DOCUMENTOS_URL" ? { agent: documentosAgent } : {}),
+      on: { error: upstreamError },
+    });
   }
   const authenticate = requireAuth(secrets, { issuer });
   const authenticateEntity = requireEntityAuth(entitySecrets, entityIssuer ? { issuer: entityIssuer } : undefined);

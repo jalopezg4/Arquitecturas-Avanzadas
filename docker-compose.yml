@@ -49,8 +49,11 @@ services:
 
   ms-documentos:
     build: ./services/ms-documentos
-    ports:
-      - "3002:3002"
+    # HT-03: sin publicacion fija al host (era "3002:3002") para poder escalar con
+    # `docker compose up --scale ms-documentos=N` -- solo alcanzable via la red interna del compose
+    # (el gateway, ya publicado en :3000, sigue siendo el punto de entrada real).
+    expose:
+      - "3002"
     environment:
       # Solo desarrollo local (ver README). Fuera de este compose NODE_ENV nunca debe ser development y
       # JWT_SECRET es obligatorio y DEBE ser el mismo que usa ms-identidad.
