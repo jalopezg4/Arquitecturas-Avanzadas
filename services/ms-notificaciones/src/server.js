@@ -6,6 +6,7 @@ const Contact = require("./domain/Contact");
 const Notification = require("./domain/Notification");
 const { ContactRepository, NotificationRepository } = require("./infrastructure/Repositories");
 const { createEmailSender } = require("./infrastructure/EmailSenders");
+const { createSmsSender } = require("./infrastructure/SmsSenders");
 const { EventConsumer } = require("./infrastructure/EventConsumer");
 const { NotificationService } = require("./application/NotificationService");
 const makeEventHandlers = require("./interfaces/eventHandlers");
@@ -20,6 +21,7 @@ async function main() {
     contactRepository: new ContactRepository(),
     notificationRepository: new NotificationRepository(),
     emailSender: createEmailSender(env.mail),
+    smsSender: createSmsSender(env.sms),
     operatorName: process.env.OPERATOR_NAME || "MiFolio",
     staleClaimMs: env.staleClaimMs,
   });
@@ -30,6 +32,8 @@ async function main() {
   const consumers = [
     new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.ciudadano-registrado", routingKey: "ciudadano.registrado", handler: handlers.ciudadanoRegistrado }),
     new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.documento-cargado", routingKey: "documento.cargado", handler: handlers.documentoCargado }),
+    // HU-06.3 (RF-28), Paso 3.3-B: ms-documentos ya predeclara esta cola (EventPublisher.js) desde el Paso 3.2.
+    new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.solicitud-creada", routingKey: "solicitud.creada", handler: handlers.solicitudCreada }),
   ];
   // Si RabbitMQ no esta disponible al arrancar, el servicio NO cae: el consumidor reconecta solo.
   for (const consumer of consumers) {

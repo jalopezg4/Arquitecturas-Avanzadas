@@ -15,6 +15,7 @@ const STALE_MS = 60000;
 
 let mongoServer;
 let sender;
+let smsSender;
 let service;
 let handlers;
 let clock;
@@ -36,13 +37,18 @@ beforeEach(async () => {
   await Promise.all([Contact.createIndexes(), Notification.createIndexes()]); // dropDatabase() borra los indices unicos
   clock = { now: new Date("2026-09-20T10:00:00Z") };
   sender = { send: jest.fn(async () => ({ messageId: "m1" })) };
-  service = new NotificationService({ contactRepository: new ContactRepository(), notificationRepository: new NotificationRepository(), emailSender: sender, operatorName: "MiFolio", staleClaimMs: STALE_MS, now: () => clock.now });
+  smsSender = { send: jest.fn(async () => ({ messageId: "sms1" })) };
+  service = new NotificationService({ contactRepository: new ContactRepository(), notificationRepository: new NotificationRepository(), emailSender: sender, smsSender, operatorName: "MiFolio", staleClaimMs: STALE_MS, now: () => clock.now });
   handlers = makeEventHandlers({ notificationService: service });
 });
 
 const registered = { ciudadanoId: ANA, documento: 1234567890, direccionUnica: "1234567890-ab12@carpetacolombia.co", nombre: "Ana Gomez", correo: "ana@example.com" };
 const uploaded = (extra = {}) => ({ eventId: EVENT_ID, documentoId: "6aaea1c04c9de9c4c34f6b52", ciudadanoId: ANA, titulo: "Diploma de grado", entidadAvaladora: "Universidad EAFIT", estado: "temporal", cargadoEn: "2026-09-20T09:59:00.000Z", ...extra });
 const withContact = () => handlers.ciudadanoRegistrado(registered).then(() => sender.send.mockClear());
+const withPhoneContact = () => handlers.ciudadanoRegistrado({ ...registered, telefono: "+57 3001234567" }).then(() => sender.send.mockClear());
+
+const SOLICITUD_ID = "6aaea1c04c9de9c4c34f6b70";
+const solicitudCreada = (extra = {}) => ({ eventId: SOLICITUD_ID, solicitudId: SOLICITUD_ID, ciudadanoId: ANA, descripcion: "Copia del certificado de notas del ultimo semestre", creadaEn: "2026-09-20T09:59:00.000Z", ...extra });
 
 describe("documento.cargado -> correo de confirmacion (RF-21)", () => {
   test("envia UN correo al ciudadano con el titulo, la entidad y el estado", async () => {
@@ -259,6 +265,129 @@ describe("ciudadano.registrado -> contacto + bienvenida (HU-01)", () => {
     await expect(handlers.ciudadanoRegistrado({ ...registered, ...override })).rejects.toThrow(PermanentError);
     expect(sender.send).not.toHaveBeenCalled();
     expect(await Contact.countDocuments()).toBe(0);
+  });
+});
+
+describe("solicitud.creada -> correo + SMS best-effort (HU-06.3, RF-28)", () => {
+  test("Contact existente + email exitoso: procesa correctamente (asunto, descripcion y fecha)", async () => {
+    await withContact();
+
+    await handlers.solicitudCreada(solicitudCreada());
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    const mail = sender.send.mock.calls[0][0];
+    expect(mail.to).toBe("ana@example.com");
+    expect(mail.subject).toBe("Una institucion solicito documentacion de tu carpeta ciudadana");
+    expect(mail.text).toContain("Hola Ana Gomez");
+    expect(mail.text).toContain("Copia del certificado de notas del ultimo semestre");
+    expect(mail.text).toContain("2026-09-20T09:59:00.000Z");
+  });
+
+  test("Contact inexistente: PermanentError y no se manda nada (ni correo ni SMS)", async () => {
+    await expect(handlers.solicitudCreada(solicitudCreada())).rejects.toThrow(PermanentError);
+    expect(sender.send).not.toHaveBeenCalled();
+    expect(smsSender.send).not.toHaveBeenCalled();
+    expect(await Notification.countDocuments()).toBe(0);
+  });
+
+  test("el correo queda registrado con eventKey solicitud.creada:<solicitudId>", async () => {
+    await withContact();
+    await handlers.solicitudCreada(solicitudCreada());
+
+    const n = await Notification.findOne({ eventKey: `solicitud.creada:${SOLICITUD_ID}` }).lean();
+    expect(n).toMatchObject({ estado: "enviado", tipo: "solicitud_creada", ciudadanoId: ANA });
+  });
+
+  test("Contact CON telefono: despues del correo intenta el SMS", async () => {
+    await withPhoneContact();
+
+    await handlers.solicitudCreada(solicitudCreada());
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    expect(smsSender.send).toHaveBeenCalledTimes(1);
+    const sms = smsSender.send.mock.calls[0][0];
+    expect(sms.to).toBe("+57 3001234567");
+    expect(sms.text).not.toContain("Copia del certificado de notas"); // corto y sin la descripcion (dato del ciudadano)
+    expect(sender.send.mock.invocationCallOrder[0]).toBeLessThan(smsSender.send.mock.invocationCallOrder[0]);
+  });
+
+  test("Contact SIN telefono: no intenta SMS y no genera error", async () => {
+    await withContact();
+
+    await handlers.solicitudCreada(solicitudCreada());
+
+    expect(smsSender.send).not.toHaveBeenCalled();
+  });
+
+  test("SMS exitoso: el flujo termina correctamente (no lanza, no crea Notification extra)", async () => {
+    await withPhoneContact();
+
+    await expect(handlers.solicitudCreada(solicitudCreada())).resolves.toBeUndefined(); // no lanza
+
+    expect(await Notification.countDocuments({ tipo: "solicitud_creada" })).toBe(1); // solo la del correo
+  });
+
+  test("SMS falla: el metodo NO lanza excepcion", async () => {
+    await withPhoneContact();
+    smsSender.send.mockRejectedValueOnce(new Error("proveedor sms caido"));
+
+    await expect(handlers.solicitudCreada(solicitudCreada())).resolves.toBeUndefined(); // no lanza
+  });
+
+  test("SMS falla: no se vuelve a ejecutar el correo ni se crea un Notification para el SMS", async () => {
+    await withPhoneContact();
+    smsSender.send.mockRejectedValueOnce(new Error("proveedor sms caido"));
+
+    await handlers.solicitudCreada(solicitudCreada());
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    expect(await Notification.countDocuments({ tipo: "solicitud_creada" })).toBe(1);
+    const n = await Notification.findOne({ eventKey: `solicitud.creada:${SOLICITUD_ID}` }).lean();
+    expect(n.estado).toBe("enviado"); // el fallo del SMS no afecta el estado del correo
+  });
+
+  test("evento duplicado: se mantiene la idempotencia existente del correo (un solo envio)", async () => {
+    await withPhoneContact();
+
+    await handlers.solicitudCreada(solicitudCreada());
+    await handlers.solicitudCreada(solicitudCreada());
+    await handlers.solicitudCreada(solicitudCreada());
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    expect(await Notification.countDocuments({ tipo: "solicitud_creada" })).toBe(1);
+  });
+
+  test("evento duplicado: tampoco reenvia el SMS (solo la entrega que de verdad mando el correo)", async () => {
+    await withPhoneContact();
+
+    await handlers.solicitudCreada(solicitudCreada());
+    await handlers.solicitudCreada(solicitudCreada());
+
+    expect(smsSender.send).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([
+    ["sin eventId", { eventId: undefined }],
+    ["sin solicitudId (no habria idempotencia)", { solicitudId: undefined }],
+    ["solicitudId con caracteres raros", { solicitudId: "a b/c" }],
+    ["sin ciudadanoId", { ciudadanoId: undefined }],
+    ["ciudadanoId con ../", { ciudadanoId: "../x" }],
+    ["sin descripcion", { descripcion: "  " }],
+    ["sin creadaEn", { creadaEn: undefined }],
+  ])("payload invalido (%s) -> PermanentError y no se manda nada", async (_name, override) => {
+    await withPhoneContact();
+    await expect(handlers.solicitudCreada(solicitudCreada(override))).rejects.toThrow(PermanentError);
+    expect(sender.send).not.toHaveBeenCalled();
+    expect(smsSender.send).not.toHaveBeenCalled();
+  });
+
+  test("payload valido: delega correctamente en NotificationService.onDocumentRequestCreated", async () => {
+    await withContact();
+    const spy = jest.spyOn(service, "onDocumentRequestCreated");
+
+    await handlers.solicitudCreada(solicitudCreada());
+
+    expect(spy).toHaveBeenCalledWith(solicitudCreada());
   });
 });
 

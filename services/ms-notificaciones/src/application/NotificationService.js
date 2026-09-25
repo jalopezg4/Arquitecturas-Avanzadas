@@ -17,10 +17,11 @@ function clean(value, max = 200) {
  * El destinatario sale del contacto local (copia de ciudadano.registrado): este servicio no consulta a nadie.
  */
 class NotificationService {
-  constructor({ contactRepository, notificationRepository, emailSender, operatorName = "MiFolio", staleClaimMs = 60000, now = () => new Date() }) {
+  constructor({ contactRepository, notificationRepository, emailSender, smsSender, operatorName = "MiFolio", staleClaimMs = 60000, now = () => new Date() }) {
     this.contacts = contactRepository;
     this.notifications = notificationRepository;
     this.emailSender = emailSender;
+    this.smsSender = smsSender;
     this.operatorName = clean(operatorName, 60);
     this.staleClaimMs = staleClaimMs;
     this.now = now;
@@ -87,6 +88,50 @@ class NotificationService {
         "Este es un aviso automatico; no respondas a este correo.",
       ].join("\n"),
     });
+  }
+
+  /**
+   * solicitud.creada (HU-06.3, RF-28): avisa al ciudadano que una institucion solicito documentacion suya.
+   * El email usa el mecanismo existente (idempotente, se reintenta si falla). El SMS es best-effort y se intenta
+   * DESPUES, fuera de `_deliver()`: si falla, se loguea y NUNCA se relanza -- no debe reintentar el evento (el email
+   * ya quedo `enviado`, reintentar lo duplicaria) ni crear un segundo `Notification`.
+   */
+  async onDocumentRequestCreated({ solicitudId, ciudadanoId, descripcion, creadaEn }) {
+    const contact = await this.contacts.find(ciudadanoId);
+    // Sin contacto no hay a quien escribir y reintentar no lo arregla (el contacto llega por otro evento): fallidos.
+    if (!contact) throw new PermanentError("no hay contacto para el ciudadano (ciudadano.registrado no procesado)");
+
+    const result = await this._deliver({
+      eventKey: `solicitud.creada:${solicitudId}`,
+      tipo: "solicitud_creada",
+      ciudadanoId,
+      to: contact.correo,
+      subject: `Una institucion solicito documentacion de tu carpeta ciudadana`,
+      text: [
+        `Hola ${clean(contact.nombre, 120)},`,
+        "",
+        `Una institucion solicito acceso a documentacion de tu carpeta ciudadana: ${clean(descripcion, 300)}`,
+        `Fecha de la solicitud: ${clean(creadaEn, 40)}`,
+        "",
+        "Ingresa a tu carpeta ciudadana para autorizar o rechazar esta solicitud.",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+
+    // Solo en la entrega que de verdad mando el correo: una redelivery de un evento YA procesado (`duplicate: true`)
+    // no debe reenviar el SMS (no tiene claim propio que lo deduplique, a diferencia del correo via `_deliver()`).
+    if (contact.telefono && !result.duplicate) await this._attemptSms(contact.telefono);
+    return result;
+  }
+
+  /** SMS best-effort: nunca lanza. Sin datos sensibles (ni el numero ni el texto se registran, ver ConsoleSmsSender). */
+  async _attemptSms(to) {
+    try {
+      await this.smsSender.send({ to, text: `${this.operatorName}: una institucion solicito documentacion de tu carpeta ciudadana. Ingresa para revisar la solicitud.` });
+      logger.info("sms.enviado", { tipo: "solicitud_creada" });
+    } catch (err) {
+      logger.error("sms.envio_fallido", { tipo: "solicitud_creada", err });
+    }
   }
 }
 
