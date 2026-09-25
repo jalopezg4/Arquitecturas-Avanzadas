@@ -1,6 +1,7 @@
 const logger = require("../tracing/logger");
 const { ValidationError, UnsupportedMediaTypeError, PayloadTooLargeError, QuotaExceededError, StorageUnavailableError } = require("../application/DocumentService");
 const { DestinatarioNoEncontradoError, EnvioConflictError } = require("../application/InboundDocumentService");
+const { SolicitudNotFoundError, SolicitudYaDecididaError } = require("../application/SolicitudService");
 
 /**
  * El dueno de la carpeta es quien lleva el token: /citizens/:id/documents solo acepta que :id sea el sub del
@@ -26,7 +27,7 @@ function requireOwner(auditLogger, action = "documento.cargar") {
   };
 }
 
-function makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService) {
+function makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService, solicitudService) {
   return {
     async list(req, res, next) {
       try {
@@ -94,6 +95,72 @@ function makeDocumentController(documentService, inboundDocumentService, documen
         return next(err);
       }
     },
+
+    /**
+     * HU-06.3 (PASO 1): la institucion solicitante sale UNICAMENTE de `req.auth.institutionId` (token ya
+     * verificado por requireEntityAuth + requireVerifiedEntity). `ciudadanoId` y `estado` NUNCA se leen del
+     * cuerpo: si el cliente los manda, se ignoran (ni siquiera se destructuran aqui). El ciudadano se resuelve
+     * dentro del servicio via `direccionUnica`, igual que en HU-10.
+     */
+    async createSolicitud(req, res, next) {
+      try {
+        const body = req.body || {};
+        const result = await solicitudService.create({
+          institutionId: req.auth.institutionId,
+          direccionUnica: body.direccionUnica,
+          descripcion: body.descripcion,
+        });
+        return res.status(201).json(result);
+      } catch (err) {
+        return next(err);
+      }
+    },
+
+    async listSolicitudes(req, res, next) {
+      try {
+        const result = await solicitudService.list({ institutionId: req.auth.institutionId, page: req.query.page, pageSize: req.query.pageSize });
+        return res.status(200).json(result);
+      } catch (err) {
+        return next(err);
+      }
+    },
+
+    async getSolicitud(req, res, next) {
+      try {
+        const result = await solicitudService.get({ institutionId: req.auth.institutionId, solicitudId: req.params.id });
+        return res.status(200).json(result);
+      } catch (err) {
+        return next(err);
+      }
+    },
+
+    /**
+     * HU-06.3 (PASO 2): el ciudadano sale UNICAMENTE de `req.auth.ciudadanoId` (token de ciudadano ya validado
+     * por requireAuth). Nunca de query/body/params -- por eso la ruta es `/citizens/me/...`, no `/citizens/:id/...`.
+     */
+    async listMyDocumentRequests(req, res, next) {
+      try {
+        const result = await solicitudService.listForCitizen({ ciudadanoId: req.auth.ciudadanoId, page: req.query.page, pageSize: req.query.pageSize });
+        return res.status(200).json(result);
+      } catch (err) {
+        return next(err);
+      }
+    },
+
+    /**
+     * HU-06.3 (PASO 2): autorizar o rechazar una solicitud propia. `ciudadanoId` sale UNICAMENTE de
+     * `req.auth.ciudadanoId`; `decision` es el UNICO campo que se lee del cuerpo (nunca `estado`, `institutionId`
+     * ni `ciudadanoId`). No dispara ninguna notificacion ni entrega: solo cambia el estado (ver SolicitudService).
+     */
+    async decideDocumentRequest(req, res, next) {
+      try {
+        const body = req.body || {};
+        const result = await solicitudService.decide({ ciudadanoId: req.auth.ciudadanoId, solicitudId: req.params.id, decision: body.decision });
+        return res.status(200).json(result);
+      } catch (err) {
+        return next(err);
+      }
+    },
   };
 }
 
@@ -109,6 +176,13 @@ function errorHandler(err, _req, res, _next) {
   // HU-10: ese envioId ya se uso para otro envio. No se devuelve el documento anterior en silencio.
   if (err instanceof EnvioConflictError) return res.status(409).json({ error: err.message, documentoId: err.documentoId });
   if (err instanceof StorageUnavailableError) return res.status(503).json({ error: err.message });
+  // HU-06.3: solicitud inexistente o de otra institucion. Mismo criterio que DestinatarioNoEncontradoError: 404, no 403.
+  if (err instanceof SolicitudNotFoundError) return res.status(404).json({ error: err.message });
+  // HU-06.3: la solicitud ya tenia una decision. No hay revocacion de consentimiento en esta HU.
+  if (err instanceof SolicitudYaDecididaError) return res.status(409).json({ error: err.message });
+  // HU-06.3 es la primera ruta de este servicio que recibe JSON (express.json()); las demas reciben multipart.
+  if (err && err.type === "entity.too.large") return res.status(413).json({ error: "el cuerpo es demasiado grande" });
+  if (err && (err.type === "entity.parse.failed" || err instanceof SyntaxError)) return res.status(400).json({ error: "el cuerpo no es un JSON valido" });
   logger.error("documentos.error_inesperado", { err });
   return res.status(500).json({ error: "Error interno" });
 }

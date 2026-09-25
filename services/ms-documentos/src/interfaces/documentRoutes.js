@@ -26,6 +26,22 @@ const { requireOwner } = require("./documentController");
  * cualquier otra ruta, es interna de servicio: no esta en la lista blanca del gateway (routes.js) todavia, asi
  * que solo es alcanzable directamente contra este servicio, igual que ya pasaba con /documents/inbound antes de
  * HU-10 y sigue pasando con /api/v1/cases en ms-analitica.
+ *
+ * Solicitud documental intra-operador (HU-06.3)
+ * PASO 1 -- institucional: POST/GET /document-requests, GET /document-requests/:id
+ * Mismo par de middlewares que /documents/inbound (ADR-07): token INSTITUCIONAL (401) + entidad verificada por el
+ * operador (403) -- crear o consultar solicitudes sobre un ciudadano es tan sensible como entregarle un
+ * documento. Path DISTINTO del de ms-analitica (`/api/v1/premium/document-requests`, HU-07.3): son dos agregados
+ * y dos servicios diferentes, ver docs/SEGURIDAD.md seccion 12.3.
+ *
+ * PASO 2 -- ciudadano: GET /citizens/me/document-requests, PATCH /citizens/me/document-requests/:id/decision
+ * Mismo `requireAuth` (token de CIUDADANO) que /citizens/:id/documents. `me`, no `:id`, a proposito: la identidad
+ * es SIEMPRE `req.auth.ciudadanoId`, no hay ningun parametro de ruta con el que confundirla ni que revalidar.
+ * `decision` es el unico campo que se lee del cuerpo; el servicio hace la transicion de estado de forma atomica
+ * (ver SolicitudRepository.decide) y responde 409 si la solicitud ya tenia una decision.
+ *
+ * `express.json()`: primera vez que este servicio recibe cuerpo JSON (las demas rutas son multipart), por eso los
+ * errores de parseo se traducen en el errorHandler de documentController.js.
  */
 function documentRoutes({ controller, secrets, entitySecrets, issuer, entityIssuer, auditLogger, maxUploadBytes, maxInboundBytes }) {
   const router = express.Router();
@@ -41,6 +57,16 @@ function documentRoutes({ controller, secrets, entitySecrets, issuer, entityIssu
   );
 
   router.get("/documents/analytics/summary", requireEntityAuth(entitySecrets, entityIssuer ? { issuer: entityIssuer } : undefined), controller.analyticsSummary);
+
+  const authEntity = requireEntityAuth(entitySecrets, entityIssuer ? { issuer: entityIssuer } : undefined);
+  const jsonBody = express.json({ limit: "16kb" }); // una solicitud son unos pocos KB: un cuerpo grande es un abuso
+  router.post("/document-requests", authEntity, requireVerifiedEntity(auditLogger, "solicitud.crear"), jsonBody, controller.createSolicitud);
+  router.get("/document-requests", authEntity, requireVerifiedEntity(auditLogger, "solicitud.listar"), controller.listSolicitudes);
+  router.get("/document-requests/:id", authEntity, requireVerifiedEntity(auditLogger, "solicitud.consultar"), controller.getSolicitud);
+
+  const authCitizen = requireAuth(secrets, { issuer });
+  router.get("/citizens/me/document-requests", authCitizen, controller.listMyDocumentRequests);
+  router.patch("/citizens/me/document-requests/:id/decision", authCitizen, jsonBody, controller.decideDocumentRequest);
 
   return router;
 }

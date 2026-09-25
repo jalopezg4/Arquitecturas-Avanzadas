@@ -10,7 +10,7 @@ const { makeDocumentController, errorHandler } = require("./interfaces/documentC
  * `inboundDocumentService` y `entitySecrets` son de HU-10 (recepcion desde una entidad emisora). Sin ellos el
  * servicio sigue atendiendo al ciudadano igual: la ruta institucional responde 401 (el middleware falla cerrado).
  */
-function buildApp({ documentService, inboundDocumentService, documentAnalyticsService, secrets, entitySecrets, issuer, entityIssuer, auditLogger, maxUploadBytes, maxInboundBytes }) {
+function buildApp({ documentService, inboundDocumentService, documentAnalyticsService, solicitudService, secrets, entitySecrets, issuer, entityIssuer, auditLogger, maxUploadBytes, maxInboundBytes }) {
   const app = express();
   app.disable("x-powered-by");
   app.use(tracingMiddleware);
@@ -32,11 +32,12 @@ function buildApp({ documentService, inboundDocumentService, documentAnalyticsSe
   app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
   app.get("/ready", (_req, res) => res.status(200).json({ status: "ready" }));
 
-  // Sin express.json(): la unica ruta recibe multipart (multer) y nada aqui debe parsear cuerpos sin limite.
+  // La mayoria de rutas reciben multipart (multer); solo /document-requests (HU-06.3) usa express.json(), montado
+  // con su propio limite dentro de documentRoutes.js -- no hay un express.json() global aqui.
   app.use(
     "/api/v1",
     documentRoutes({
-      controller: makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService),
+      controller: makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService, solicitudService),
       secrets,
       entitySecrets,
       issuer,
