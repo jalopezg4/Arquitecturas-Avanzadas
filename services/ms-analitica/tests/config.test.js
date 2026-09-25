@@ -156,7 +156,7 @@ describe("salud (HT-01)", () => {
     await request(buildApp()).get("/api/v1/analytics/summary").expect(404);
   });
 
-  test("sin documentRequestService, /api/v1/document-requests responde 404 (no montado)", async () => {
-    await request(buildApp()).get("/api/v1/document-requests").expect(404);
+  test("sin documentRequestService, /api/v1/premium/document-requests responde 404 (no montado)", async () => {
+    await request(buildApp()).get("/api/v1/premium/document-requests").expect(404);
   });
 });

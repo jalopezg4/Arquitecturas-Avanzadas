@@ -1,6 +1,6 @@
 /**
- * HU-07.3 (implementacion PARCIAL, RFP-02) de extremo a extremo: POST/GET /api/v1/document-requests,
- * GET /api/v1/document-requests/:id.
+ * HU-07.3 (implementacion PARCIAL, RFP-02) de extremo a extremo: POST/GET /api/v1/premium/document-requests,
+ * GET /api/v1/premium/document-requests/:id.
  *
  * Cadena real: requireEntityAuth (401) -> controlador -> DocumentRequestService (ownership, validacion) -> Mongo.
  * Solo un registro local: NO hay cliente HTTP hacia ms-interoperabilidad en este servicio (no hay nada que
@@ -21,7 +21,7 @@ const entitySecrets = new SecretsManager({ active: ENTITY_SECRET });
 
 const EAFIT = "6aae9153b7655900026073f1";
 const ICESI = "6aae9153b7655900026073f2";
-const PATH = "/api/v1/document-requests";
+const PATH = "/api/v1/premium/document-requests";
 
 let mongoServer;
 let app;
