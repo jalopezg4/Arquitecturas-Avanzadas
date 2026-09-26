@@ -21,16 +21,21 @@ class RemoteFileError extends Error {
  * Devuelve `{buffer, contentType}`. Un 5xx o una falla de red es transitoria (`transient: true`); lo demas no.
  */
 class RemoteFileFetcher {
-  constructor({ timeoutMs = 30000, maxBytes = 50 * 1024 * 1024, allowPrivate = false } = {}) {
+  // `resolve` (dns.lookup por defecto) solo se inyecta en pruebas, para demostrar el bloqueo de DNS rebinding sin DNS real.
+  constructor({ timeoutMs = 30000, maxBytes = 50 * 1024 * 1024, allowPrivate = false, resolve = dns.lookup } = {}) {
     this.timeoutMs = timeoutMs;
     this.maxBytes = maxBytes;
     this.allowPrivate = allowPrivate;
+    this.resolve = resolve;
+    // Agentes propios SIN keep-alive: cada descarga resuelve y valida la IP de nuevo. Con el agente global de Node, una
+    // conexion reutilizada se saltaria la resolucion (y con ella la validacion).
+    this.agents = { "http:": new http.Agent({ keepAlive: false }), "https:": new https.Agent({ keepAlive: false }) };
   }
 
   _lookup() {
     const allowPrivate = this.allowPrivate;
     return (hostname, options, callback) => {
-      dns.lookup(hostname, { ...options, all: true }, (err, addresses) => {
+      this.resolve(hostname, { ...options, all: true }, (err, addresses) => {
         if (err) return callback(err);
         if (!allowPrivate && addresses.some((a) => isPrivateAddress(a.address))) return callback(new UnsafeTransferUrlError(`${hostname} resuelve a una direccion local o privada`));
         if (options && options.all) return callback(null, addresses);
@@ -48,7 +53,7 @@ class RemoteFileFetcher {
     }
     const client = url.protocol === "https:" ? https : http;
     return new Promise((resolve, reject) => {
-      const req = client.get(url, { lookup: this._lookup(), timeout: this.timeoutMs }, (res) => {
+      const req = client.get(url, { lookup: this._lookup(), timeout: this.timeoutMs, agent: this.agents[url.protocol] }, (res) => {
         if (res.statusCode < 200 || res.statusCode >= 300) {
           res.resume();
           return reject(new RemoteFileError(`el origen respondio ${res.statusCode}`, { transient: res.statusCode >= 500 }));

@@ -1,4 +1,6 @@
 const dns = require("dns");
+const nodeHttp = require("http");
+const nodeHttps = require("https");
 const axios = require("axios");
 const { assertSafeTransferUrl, UnsafeTransferUrlError, isPrivateAddress } = require("../security/transferUrl");
 const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
@@ -7,9 +9,9 @@ const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
  * `lookup` para axios que rechaza la conexion si el nombre resuelve a una IP local o privada. Va en el MISMO paso en
  * que se conecta: validar antes con dns.lookup y conectar despues dejaria una ventana para DNS rebinding.
  */
-function makeSafeLookup({ allowPrivate }) {
+function makeSafeLookup({ allowPrivate, resolve = dns.lookup }) {
   return function safeLookup(hostname, options, callback) {
-    dns.lookup(hostname, { ...options, all: true }, (err, addresses) => {
+    resolve(hostname, { ...options, all: true }, (err, addresses) => {
       if (err) return callback(err);
       const list = Array.isArray(addresses) ? addresses : [{ address: addresses, family: options.family || 4 }];
       if (!allowPrivate && list.some((a) => isPrivateAddress(a.address))) {
@@ -25,7 +27,8 @@ function makeSafeLookup({ allowPrivate }) {
  * Cliente HTTP hacia OTROS operadores (HU-05c): `transferCitizen` (origen -> destino) y `transferCitizenConfirm`
  * (destino -> origen). Sus direcciones las publican terceros no confiables, asi que:
  *   - el texto de la URL pasa la politica de HU-05a (esquema, sin credenciales, sin hosts/IPs locales);
- *   - la IP resuelta se valida al conectar (DNS rebinding);
+ *   - la IP resuelta se valida al conectar (DNS rebinding), SIEMPRE: agentes propios sin keep-alive, asi ninguna llamada
+ *     reutiliza un socket abierto antes (con el agente global de Node, un socket reutilizado se salta la resolucion);
  *   - sin redirecciones (un 302 hacia la red interna saltaria todo lo anterior);
  *   - plazo acotado y respuesta acotada (un operador lento o que responde basura no bloquea la saga).
  *
@@ -33,9 +36,20 @@ function makeSafeLookup({ allowPrivate }) {
  * para 5xx/red (transitorio).
  */
 class PeerOperatorClient {
-  constructor({ http, timeoutMs = 15000, allowPrivate = false, requireHttps = false } = {}) {
+  // `resolve` (dns.lookup por defecto) solo se inyecta en pruebas, para demostrar el bloqueo de DNS rebinding sin DNS real.
+  constructor({ http, timeoutMs = 15000, allowPrivate = false, requireHttps = false, resolve } = {}) {
     this.urlPolicy = { allowPrivate, requireHttps };
-    this.http = http || axios.create({ timeout: timeoutMs, maxRedirects: 0, maxContentLength: 64 * 1024, lookup: makeSafeLookup({ allowPrivate }) });
+    const lookup = makeSafeLookup({ allowPrivate, resolve });
+    this.http =
+      http ||
+      axios.create({
+        timeout: timeoutMs,
+        maxRedirects: 0,
+        maxContentLength: 64 * 1024,
+        lookup,
+        httpAgent: new nodeHttp.Agent({ keepAlive: false, lookup }),
+        httpsAgent: new nodeHttps.Agent({ keepAlive: false, lookup }),
+      });
   }
 
   async post(url, body) {

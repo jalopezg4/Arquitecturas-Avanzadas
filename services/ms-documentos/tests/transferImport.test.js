@@ -195,3 +195,23 @@ describe("Un escaneo importado no se puede autenticar (HU-04 solo firma PDF)", (
     expect((await Document.findById(img._id).lean()).estado).toBe("temporal");
   });
 });
+
+describe("RemoteFileFetcher: DNS rebinding de extremo a extremo (servidor HTTP real)", () => {
+  const HOST = "operador-falso.example.co";
+  // Resolvedor falso: un nombre publico que "resuelve" a loopback, como haria un atacante que controla su DNS.
+  const resolve = (hostname, options, callback) => (hostname === HOST ? callback(null, [{ address: "127.0.0.1", family: 4 }]) : callback(new Error("ENOTFOUND")));
+
+  test("con la politica relajada (solo local) el nombre llega: la descarga usa nuestro lookup", async () => {
+    const fetcher = new RemoteFileFetcher({ allowPrivate: true, resolve, timeoutMs: 2000, maxBytes: 4096 });
+    const url = `http://${HOST}:${new URL(base).port}/a.pdf`;
+    await expect(fetcher.fetch(url)).resolves.toMatchObject({ buffer: PDF1 });
+  });
+
+  test("con la politica activa se bloquea al conectar, aunque antes se haya conectado al mismo host (sin reutilizar sockets)", async () => {
+    const url = `http://${HOST}:${new URL(base).port}/a.pdf`;
+    await new RemoteFileFetcher({ allowPrivate: true, resolve, timeoutMs: 2000, maxBytes: 4096 }).fetch(url);
+
+    await expect(new RemoteFileFetcher({ allowPrivate: false, resolve, timeoutMs: 2000 }).fetch(url)).rejects.toThrow(/local o privada/);
+  });
+});
+
