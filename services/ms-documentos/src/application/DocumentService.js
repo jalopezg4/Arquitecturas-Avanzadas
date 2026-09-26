@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const logger = require("../tracing/logger");
 const { documentoCargadoPayload } = require("./events");
-const { ESTADOS } = require("../domain/Document");
+const { ESTADOS_DE_CARGA } = require("../domain/Document");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -152,7 +152,7 @@ class DocumentService {
 
   _validate({ ciudadanoId, file, metadata, estado, maxBytes }) {
     if (typeof ciudadanoId !== "string" || !ciudadanoId) throw new ValidationError("ciudadanoId es requerido");
-    if (!ESTADOS.includes(estado)) throw new ValidationError(`estado debe ser uno de ${ESTADOS.join(", ")}`);
+    if (!ESTADOS_DE_CARGA.includes(estado)) throw new ValidationError(`estado debe ser uno de ${ESTADOS_DE_CARGA.join(", ")}`);
 
     // Limite del caso de uso: la carga del ciudadano usa el general; la recepcion institucional (HU-10) el suyo,
     // mas alto. Siempre hay un limite: el archivo entero se procesa en memoria (multer.memoryStorage).

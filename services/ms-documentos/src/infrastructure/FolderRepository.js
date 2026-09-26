@@ -6,16 +6,26 @@ function normalizeDireccion(value) {
   return typeof value === "string" ? value.trim().toLowerCase() : null;
 }
 
+/** Cedula valida: entero positivo exacto (GovCarpeta la maneja como `number`). Cualquier otra cosa -> null. */
+function normalizeDocumento(value) {
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
 class FolderRepository {
   /**
    * Crea la carpeta si no existe. Idempotente y seguro ante llamadas simultaneas (el indice unico decide).
    * Si el evento trae la `direccionUnica` (HU-01), la guarda o la actualiza: es el modelo de lectura que HU-10
    * usa para resolver al destinatario. Sin ella, la carpeta se crea igual (los eventos anteriores no la traian).
+   * Igual con el `documento` (cedula, HU-04): se guarda si llega y es valido, nunca se borra si falta.
    */
-  async ensure(ciudadanoId, direccionUnica) {
+  async ensure(ciudadanoId, direccionUnica, documento) {
     const direccion = normalizeDireccion(direccionUnica);
+    const cedula = normalizeDocumento(documento);
     const update = { $setOnInsert: { noCertificados: 0 } };
-    if (direccion) update.$set = { direccionUnica: direccion };
+    const set = {};
+    if (direccion) set.direccionUnica = direccion;
+    if (cedula) set.documento = cedula;
+    if (Object.keys(set).length) update.$set = set;
     try {
       await Folder.updateOne({ ciudadanoId }, update, { upsert: true });
     } catch (err) {
@@ -25,7 +35,9 @@ class FolderRepository {
         // Esa direccion ya pertenece a OTRA carpeta. No deberia ocurrir (ms-identidad la garantiza unica), pero si
         // ocurre, el ciudadano debe tener su carpeta igual: se crea SIN direccion y no queda alcanzable por HU-10.
         logger.warn("carpeta.direccion_unica_en_conflicto", { note: "la direccion ya pertenece a otra carpeta; se crea sin ella" });
-        await Folder.updateOne({ ciudadanoId }, { $setOnInsert: { noCertificados: 0 } }, { upsert: true }).catch((e) => {
+        const sinDireccion = { $setOnInsert: { noCertificados: 0 } };
+        if (cedula) sinDireccion.$set = { documento: cedula };
+        await Folder.updateOne({ ciudadanoId }, sinDireccion, { upsert: true }).catch((e) => {
           if (!e || e.code !== 11000) throw e;
         });
         return;

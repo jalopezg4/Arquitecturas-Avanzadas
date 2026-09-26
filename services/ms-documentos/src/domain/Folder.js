@@ -16,6 +16,10 @@ const folderSchema = new mongoose.Schema(
     // Direccion unica del ciudadano (HU-01), copia local. Es por donde una entidad emisora dirige un documento
     // (HU-10), nunca por el id interno. `null` mientras no haya llegado el evento que la trae.
     direccionUnica: { type: String, default: null },
+    // Numero de documento (cedula) del ciudadano, copia local que llega en `ciudadano.registrado`. HU-04 lo necesita
+    // porque GovCarpeta identifica al ciudadano por el (`idCitizen`). `null` en carpetas creadas por una carga antes
+    // de recibir el evento: esas no pueden pedir autenticacion hasta que llegue.
+    documento: { type: Number, default: null },
   },
   { timestamps: true }
 );

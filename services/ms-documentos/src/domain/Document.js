@@ -1,13 +1,17 @@
 const mongoose = require("mongoose");
 
-const ESTADOS = ["temporal", "certificado"];
+// "en autenticacion" (HU-04): el ciudadano pidio certificarlo y GovCarpeta aun no responde. Sigue siendo NO
+// certificado (conserva su cupo de la cuota) y no se puede volver a pedir hasta que llegue el resultado.
+const ESTADOS = ["temporal", "en autenticacion", "certificado"];
+// Estados con los que un documento puede ENTRAR a la carpeta. "en autenticacion" solo se alcanza por transicion.
+const ESTADOS_DE_CARGA = ["temporal", "certificado"];
 // Quien puso el documento en la carpeta (HU-10). No es lo mismo que el DUENO: el dueno es siempre el ciudadano.
 const ORIGENES = ["ciudadano", "entidad"];
 
 /**
  * Metadatos de un documento de la carpeta (RF-19, RF-20). El archivo NO esta aqui: vive en el object storage y
- * solo se guarda su clave (`storageKey`). Un documento `temporal` cuenta para la cuota del ciudadano; uno
- * `certificado` (recibido de una entidad emisora o autenticado en GovCarpeta) no.
+ * solo se guarda su clave (`storageKey`). Un documento `temporal` o `en autenticacion` cuenta para la cuota del
+ * ciudadano; uno `certificado` (recibido de una entidad emisora o autenticado en GovCarpeta) no.
  */
 const documentSchema = new mongoose.Schema(
   {
@@ -36,6 +40,16 @@ const documentSchema = new mongoose.Schema(
     envioId: { type: String, default: null },
     // true cuando el broker confirmo el evento DocumentoCargado; false = requiere reconciliacion.
     eventoPublicado: { type: Boolean, default: false },
+    // HU-04: autenticacion en GovCarpeta. Cada solicitud incrementa `autenticacionIntento`; el resultado que llega de
+    // ms-autenticacion trae el intento al que responde y solo se aplica si coincide con el vigente (un resultado
+    // atrasado o repetido no pisa nada).
+    autenticacionIntento: { type: Number, default: 0, min: 0 },
+    autenticacionSolicitadaEn: { type: Date, default: null },
+    // false = el evento `documento.autenticacion_solicitada` del intento vigente no se confirmo y hay que reenviarlo.
+    // true por defecto: un documento al que nunca se le pidio autenticacion no tiene nada pendiente.
+    autenticacionEventoPublicado: { type: Boolean, default: true },
+    // Cuando GovCarpeta confirmo la autenticacion (RNF-08: es la evidencia que la API permite guardar).
+    fechaAutenticacion: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -50,4 +64,5 @@ documentSchema.index(
 
 module.exports = mongoose.model("Document", documentSchema);
 module.exports.ESTADOS = ESTADOS;
+module.exports.ESTADOS_DE_CARGA = ESTADOS_DE_CARGA;
 module.exports.ORIGENES = ORIGENES;

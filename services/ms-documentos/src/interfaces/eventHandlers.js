@@ -10,7 +10,8 @@ const MAX_DIRECCION = 200;
 
 /**
  * `ciudadano.registrado` (HU-01, paso 7): crea la carpeta del ciudadano recien registrado y guarda su direccion
- * unica como modelo de lectura local (HU-10: es por donde una entidad emisora dirige un documento).
+ * unica (HU-10: es por donde una entidad emisora dirige un documento) y su cedula (HU-04: identificacion ante
+ * GovCarpeta) como modelo de lectura local.
  *
  * Idempotente: `FolderRepository.ensure` no duplica ni pisa el contador de una carpeta existente (por ejemplo, si el
  * ciudadano ya cargo un documento antes de que llegue el evento, o si el evento se entrega dos veces).
@@ -30,7 +31,13 @@ function makeCitizenRegisteredHandler({ folderRepository }) {
     if (typeof bruta === "string" && bruta.length <= MAX_DIRECCION && DIRECCION_RE.test(bruta.trim())) direccion = bruta;
     else if (bruta !== undefined && bruta !== null) logger.warn("carpeta.direccion_unica_descartada", { note: "el evento trae una direccion con formato inesperado" });
 
-    await folderRepository.ensure(payload.ciudadanoId, direccion);
+    // HU-04: la cedula es la identificacion del ciudadano ante GovCarpeta. Mismo criterio que la direccion: si falta o
+    // es invalida la carpeta se crea igual (sin ella solo no se podra pedir autenticacion); nunca se escribe en el log.
+    let documento;
+    if (Number.isSafeInteger(payload.documento) && payload.documento > 0) documento = payload.documento;
+    else if (payload.documento !== undefined && payload.documento !== null) logger.warn("carpeta.documento_descartado", { note: "el evento trae un documento con formato inesperado" });
+
+    await folderRepository.ensure(payload.ciudadanoId, direccion, documento);
   };
 }
 

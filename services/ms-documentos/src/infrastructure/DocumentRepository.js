@@ -34,6 +34,49 @@ class DocumentRepository {
   }
 
   /**
+   * HU-04: `temporal` -> `en autenticacion`, en UNA escritura condicional (dos solicitudes simultaneas: solo una
+   * gana). El filtro incluye al dueno: un documento ajeno nunca cambia de estado aunque se conozca su id.
+   * Devuelve el documento actualizado, o `null` si no existe, no es de ese ciudadano o no esta `temporal`.
+   */
+  async startAuthentication(id, ciudadanoId, now) {
+    return Document.findOneAndUpdate(
+      { _id: id, ciudadanoId, estado: "temporal" },
+      { $set: { estado: "en autenticacion", autenticacionSolicitadaEn: now, autenticacionEventoPublicado: false }, $inc: { autenticacionIntento: 1 } },
+      { new: true }
+    ).lean();
+  }
+
+  /**
+   * HU-04: GovCarpeta confirmo -> `certificado`. Solo si el documento sigue `en autenticacion` y en ESE intento:
+   * un resultado repetido o de un intento anterior no hace nada (y quien llama no libera el cupo dos veces).
+   */
+  async completeAuthentication(id, intento, fechaAutenticacion) {
+    return Document.findOneAndUpdate(
+      { _id: id, estado: "en autenticacion", autenticacionIntento: intento },
+      { $set: { estado: "certificado", fechaAutenticacion } },
+      { new: true }
+    ).lean();
+  }
+
+  /** HU-04: la autenticacion no se pudo completar -> vuelve a `temporal` (mismo criterio condicional). */
+  async revertAuthentication(id, intento) {
+    return Document.findOneAndUpdate({ _id: id, estado: "en autenticacion", autenticacionIntento: intento }, { $set: { estado: "temporal" } }, { new: true }).lean();
+  }
+
+  /** Solicitudes de autenticacion cuyo evento no se confirmo, con al menos `olderThan` de antiguedad. */
+  async findUnpublishedAuthRequests({ olderThan, limit }) {
+    return Document.find({ estado: "en autenticacion", autenticacionEventoPublicado: false, autenticacionSolicitadaEn: { $lte: olderThan } })
+      .sort({ autenticacionSolicitadaEn: 1 })
+      .limit(limit)
+      .lean();
+  }
+
+  /** Marca publicado el evento del intento `intento` (si entretanto hubo otro intento, no toca su bandera). */
+  async markAuthRequestPublished(id, intento) {
+    await Document.updateOne({ _id: id, autenticacionIntento: intento }, { autenticacionEventoPublicado: true });
+  }
+
+  /**
    * HU-07.1: agregaciones de SOLO los documentos que `emisorInstitutionId` entrego (nunca los que un ciudadano
    * cargo por su cuenta: esos no llevan `emisorInstitutionId`). `from`/`to` ya vienen como `Date` (o `null`) --
    * la interpretacion de los parametros de la peticion es responsabilidad del servicio, no de este repositorio.
