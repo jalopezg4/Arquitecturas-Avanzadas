@@ -4,15 +4,17 @@ const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
 
 const EXCHANGE = "carpeta-ciudadana.events";
 
-// ms-documentos y ms-notificaciones consumen el evento `ciudadano.registrado`. Sin una cola ligada al topic exchange,
-// RabbitMQ descarta el mensaje al no haber nadie suscrito; por eso se pre-declaran aqui las colas que usan, durables y
-// ligadas a la routing key, para que los mensajes queden esperando aunque el consumidor no este corriendo. Declarar una
-// cola es idempotente.
+// HU-05c: ordenes y avisos de la saga de transferencia. Sin una cola ligada al topic exchange, RabbitMQ descarta el
+// mensaje al no haber nadie suscrito; por eso se pre-declaran aqui las colas de quienes los consumen, durables y
+// ligadas a su routing key, para que esperen aunque el consumidor no este corriendo. Declarar una cola es idempotente.
 const ANTICIPATED_BINDINGS = [
-  { queue: "ms-documentos.ciudadano-registrado", routingKey: "ciudadano.registrado" },
-  { queue: "ms-notificaciones.ciudadano-registrado", routingKey: "ciudadano.registrado" },
-  // HU-05c: ms-interoperabilidad guarda la copia local del ciudadano que necesita para transferirlo.
-  { queue: "ms-interoperabilidad.ciudadano-registrado", routingKey: "ciudadano.registrado" },
+  { queue: "ms-documentos.transferencia-exportar", routingKey: "transferencia.exportar_carpeta" },
+  { queue: "ms-documentos.transferencia-cancelada", routingKey: "transferencia.cancelada" },
+  { queue: "ms-documentos.ciudadano-transferido", routingKey: "ciudadano.transferido" },
+  { queue: "ms-identidad.ciudadano-transferido", routingKey: "ciudadano.transferido" },
+  { queue: "ms-documentos.transferencia-importar", routingKey: "transferencia.importar_documentos" },
+  { queue: "ms-documentos.transferencia-revertir", routingKey: "transferencia.revertir_importacion" },
+  { queue: "ms-identidad.transferencia-registrar", routingKey: "transferencia.registrar_ciudadano" },
 ];
 
 class EventPublisher {
@@ -72,7 +74,7 @@ class EventPublisher {
         {
           persistent: true,
           contentType: "application/json",
-          // Los consumidores (ms-documentos, ms-notificaciones) retoman este trace-id al procesar.
+          // El consumidor (ms-notificaciones) retoma este trace-id al procesar.
           headers: getTraceId() ? { [TRACE_ID_HEADER]: getTraceId() } : {},
         },
         (err) => (err ? reject(err) : resolve())

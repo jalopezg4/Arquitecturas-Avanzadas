@@ -17,6 +17,13 @@ const prod = (overrides = {}) => ({
   httpTimeoutMs: 10000,
   operatorId: "6aae9153b7655900026073f1",
   directory: { ttlMinutes: 60, maxStaleMinutes: 1440, minForcedRefreshSeconds: 30, allowPrivateUrls: false, requireHttpsUrls: false },
+  // HU-05c
+  operatorName: "MiFolio",
+  rabbitUri: cred("amqps", "svc", "Zq8mV2nX9pLr", "broker.example.net"),
+  jwtSecret: "k9Xv2mQ7pL4wZ8rT1nB6yH3jD5fG0sAe",
+  publicBaseUrl: "https://mifolio.example.co",
+  eventPublishTimeoutMs: 3000,
+  transfer: { confirmTimeoutMs: 300000, maxSendAttempts: 3, stepTimeoutMs: 120000, sweepIntervalMs: 30000, maxDocuments: 500, peerTimeoutMs: 15000 },
   ...overrides,
 });
 const withDirectory = (extra) => prod({ directory: { ...prod().directory, ...extra } });
@@ -128,5 +135,28 @@ describe("salud (HT-01)", () => {
     const res = await request(buildApp()).get("/health").set("x-trace-id", "traza-cliente-0001");
     expect(res.headers["x-trace-id"]).toBe("traza-cliente-0001");
     expect(res.headers["x-powered-by"]).toBeUndefined();
+  });
+});
+
+describe("HU-05c: configuracion de la transferencia", () => {
+  test("fuera de local exige JWT_SECRET fuerte, broker con TLS y direccion publica https", () => {
+    const problems = validateConfig(prod({ jwtSecret: "", rabbitUri: "amqp://localhost:5672", publicBaseUrl: "http://mifolio.example.co" })).join("\n");
+    expect(problems).toContain("JWT_SECRET");
+    expect(problems).toContain("RABBITMQ_URI");
+    expect(problems).toContain("PUBLIC_BASE_URL debe usar https://");
+  });
+
+  test.each([["con credenciales", "https://u:p@mifolio.example.co"], ["con consulta", "https://mifolio.example.co/?x=1"], ["no es URL", "mifolio"]])(
+    "PUBLIC_BASE_URL %s no es valida",
+    (_caso, publicBaseUrl) => {
+      expect(validateConfig(prod({ publicBaseUrl })).join()).toContain("PUBLIC_BASE_URL");
+    }
+  );
+
+  test("los plazos y topes de la transferencia deben ser enteros positivos", () => {
+    const problems = validateConfig(prod({ transfer: { ...prod().transfer, confirmTimeoutMs: 0, maxSendAttempts: -1, sweepIntervalMs: -5 } })).join();
+    expect(problems).toContain("TRANSFER_CONFIRM_TIMEOUT_MS");
+    expect(problems).toContain("TRANSFER_MAX_SEND_ATTEMPTS");
+    expect(problems).toContain("TRANSFER_SWEEP_INTERVAL_MS");
   });
 });
