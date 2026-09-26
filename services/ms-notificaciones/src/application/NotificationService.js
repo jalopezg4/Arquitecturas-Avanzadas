@@ -90,6 +90,59 @@ class NotificationService {
     });
   }
 
+  /** documento.autenticado (HU-04): avisa que GovCarpeta certifico el documento. Un aviso por intento (eventId). */
+  async onDocumentAuthenticated({ eventId, ciudadanoId, titulo, autenticadoEn }) {
+    const contact = await this.contacts.find(ciudadanoId);
+    if (!contact) throw new PermanentError("no hay contacto para el ciudadano (ciudadano.registrado no procesado)");
+
+    const title = clean(titulo, 120);
+    return this._deliver({
+      eventKey: `documento.autenticado:${eventId}`,
+      tipo: "documento_autenticado",
+      ciudadanoId,
+      to: contact.correo,
+      subject: `Tu documento "${title}" ya esta certificado`,
+      text: [
+        `Hola ${clean(contact.nombre, 120)},`,
+        "",
+        `Tu documento "${title}" fue autenticado ante el centralizador del Ministerio TIC y ya esta certificado en tu carpeta ciudadana.`,
+        ...(autenticadoEn ? [`Fecha de autenticacion: ${clean(autenticadoEn, 40)}`] : []),
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
+  /**
+   * documento.autenticacion_fallida (HU-04): avisa que la autenticacion no se pudo completar y que el documento sigue
+   * temporal. El `eventId` es por intento: si un documento falla dos veces, se avisa las dos (no es un duplicado).
+   */
+  async onDocumentAuthenticationFailed({ eventId, ciudadanoId, titulo, motivo }) {
+    const contact = await this.contacts.find(ciudadanoId);
+    if (!contact) throw new PermanentError("no hay contacto para el ciudadano (ciudadano.registrado no procesado)");
+
+    const title = clean(titulo, 120);
+    const porque =
+      motivo === "no_disponible"
+        ? "El centralizador del Ministerio TIC no respondio. Puedes intentarlo de nuevo mas tarde."
+        : "El centralizador del Ministerio TIC no pudo autenticarlo. Puedes intentarlo de nuevo o solicitar el documento oficial a la entidad que lo emite.";
+    return this._deliver({
+      eventKey: `documento.autenticacion_fallida:${eventId}`,
+      tipo: "documento_autenticacion_fallida",
+      ciudadanoId,
+      to: contact.correo,
+      subject: `No pudimos certificar tu documento "${title}"`,
+      text: [
+        `Hola ${clean(contact.nombre, 120)},`,
+        "",
+        `La autenticacion de tu documento "${title}" no se pudo completar. El documento sigue en tu carpeta como no certificado (temporal).`,
+        porque,
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
   /**
    * solicitud.creada (HU-06.3, RF-28): avisa al ciudadano que una institucion solicito documentacion suya.
    * El email usa el mecanismo existente (idempotente, se reintenta si falla). El SMS es best-effort y se intenta

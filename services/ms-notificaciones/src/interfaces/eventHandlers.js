@@ -31,6 +31,23 @@ function makeEventHandlers({ notificationService }) {
       await notificationService.onDocumentUploaded(payload);
     },
 
+    // HU-04: resultado de la autenticacion (lo publica ms-autenticacion). eventId por intento y resultado.
+    async documentoAutenticado(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido (sin el no hay idempotencia)");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      need(text(payload.titulo, 300), "titulo invalido");
+      await notificationService.onDocumentAuthenticated(payload);
+    },
+
+    async documentoAutenticacionFallida(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido (sin el no hay idempotencia)");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      need(text(payload.titulo, 300), "titulo invalido");
+      await notificationService.onDocumentAuthenticationFailed(payload);
+    },
+
     async solicitudCreada(payload) {
       need(payload && typeof payload === "object", "payload invalido");
       need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido");

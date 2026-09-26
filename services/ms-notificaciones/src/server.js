@@ -34,6 +34,9 @@ async function main() {
     new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.documento-cargado", routingKey: "documento.cargado", handler: handlers.documentoCargado }),
     // HU-06.3 (RF-28), Paso 3.3-B: ms-documentos ya predeclara esta cola (EventPublisher.js) desde el Paso 3.2.
     new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.solicitud-creada", routingKey: "solicitud.creada", handler: handlers.solicitudCreada }),
+    // HU-04: resultado de la autenticacion; ms-autenticacion predeclara estas colas.
+    new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.documento-autenticado", routingKey: "documento.autenticado", handler: handlers.documentoAutenticado }),
+    new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.documento-autenticacion-fallida", routingKey: "documento.autenticacion_fallida", handler: handlers.documentoAutenticacionFallida }),
   ];
   // Si RabbitMQ no esta disponible al arrancar, el servicio NO cae: el consumidor reconecta solo.
   for (const consumer of consumers) {
