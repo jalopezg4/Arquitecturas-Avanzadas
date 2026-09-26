@@ -383,6 +383,48 @@ describe("ms-documentos: PUT /api/v1/documents/:id/authenticate (HU-04)", () => 
   });
 });
 
+describe("ms-interoperabilidad: transferencia de operador (HU-05c)", () => {
+  let interop;
+  let gw;
+  beforeEach(async () => {
+    interop = await startUpstream();
+    gw = buildApp({ secrets, upstreams: { INTEROPERABILIDAD_URL: interop.url }, issuer: "ms-identidad", timeoutMs: 2000 });
+  });
+  afterEach(async () => {
+    await interop.close();
+  });
+
+  test("POST /api/v1/transfers y GET /api/v1/citizens/me/transfer exigen token de ciudadano y se reenvian", async () => {
+    await request(gw).post("/api/v1/transfers").send({ operadorDestinoId: "x" }).expect(401);
+    await request(gw).get("/api/v1/citizens/me/transfer").expect(401);
+    expect(interop.calls).toHaveLength(0);
+
+    const t = token();
+    await request(gw).post("/api/v1/transfers").set("Authorization", `Bearer ${t}`).send({ operadorDestinoId: "x" }).expect(201);
+    await request(gw).get("/api/v1/citizens/me/transfer").set("Authorization", `Bearer ${t}`).expect(201);
+    expect(interop.calls.map((c) => `${c.method} ${c.path}`)).toEqual(["POST /api/v1/transfers", "GET /api/v1/citizens/me/transfer"]);
+  });
+
+  test("las rutas ENTRE OPERADORES son publicas (sin token) y la confirmacion conserva su token en la consulta", async () => {
+    await request(gw).post("/api/transferCitizen").send({ id: 1 }).expect(201);
+    await request(gw).post("/api/transferCitizenConfirm?t=abcdefghijklmnop").send({ id: 1, req_status: 1 }).expect(201);
+
+    expect(interop.calls[0]).toMatchObject({ method: "POST", path: "/api/transferCitizen", body: { id: 1 } });
+    expect(interop.calls[1]).toMatchObject({ method: "POST", path: "/api/transferCitizenConfirm", query: { t: "abcdefghijklmnop" } });
+  });
+
+  test.each([
+    ["GET", "/api/transferCitizen"],
+    ["POST", "/api/transferCitizen/extra"],
+    ["POST", "/api/v1/transferCitizen"],
+    ["DELETE", "/api/v1/transfers"],
+  ])("%s %s -> 404 (lista blanca), no llega a ms-interoperabilidad", async (method, path) => {
+    const res = await request(gw)[method.toLowerCase()](path).set("Authorization", `Bearer ${token()}`).send({});
+    expect(res.status).toBe(404);
+    expect(interop.calls).toHaveLength(0);
+  });
+});
+
 describe("ms-comparticion: POST /api/v1/institutions (HU-06.1, publica)", () => {
   let comp;
   let gw;

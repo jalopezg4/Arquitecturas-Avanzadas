@@ -43,6 +43,14 @@ const ROUTES = [
   // ms-documentos -- HU-04: el ciudadano pide autenticar un documento propio en GovCarpeta (responde 202; el resultado
   // llega por evento). Token de CIUDADANO; el servicio comprueba que el documento sea suyo.
   { method: "PUT", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/authenticate$/, upstream: "DOCUMENTOS_URL" },
+  // ms-interoperabilidad -- HU-05c: el ciudadano inicia su transferencia a otro operador y consulta la que esta en curso.
+  { method: "POST", path: "/api/v1/transfers", upstream: "INTEROPERABILIDAD_URL" },
+  { method: "GET", path: "/api/v1/citizens/me/transfer", upstream: "INTEROPERABILIDAD_URL" },
+  // ms-interoperabilidad -- HU-05c: protocolo ENTRE OPERADORES (acordado por los equipos del curso; rutas fijas, sin
+  // /v1). Publicas: el protocolo no define autenticacion entre operadores. La confirmacion solo se acepta con el token
+  // aleatorio que viaja en NUESTRO confirmAPI (?t=...), que el gateway reenvia intacto; el servicio valida todo.
+  { method: "POST", path: "/api/transferCitizen", upstream: "INTEROPERABILIDAD_URL", public: true },
+  { method: "POST", path: "/api/transferCitizenConfirm", upstream: "INTEROPERABILIDAD_URL", public: true },
 ];
 
 function findRoute(method, path, routes = ROUTES) {

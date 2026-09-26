@@ -189,6 +189,7 @@ services:
       IDENTIDAD_URL: http://ms-identidad:3001
       DOCUMENTOS_URL: http://ms-documentos:3002
       COMPARTICION_URL: http://ms-comparticion:3005
+      INTEROPERABILIDAD_URL: http://ms-interoperabilidad:3004
       JWT_SECRET: ${JWT_SECRET:-}
       # ADR-07: aqui solo se VERIFICAN los tokens institucionales; debe ser la misma que usa ms-comparticion
       # para firmarlos y distinta de JWT_SECRET (el gateway no arranca si son iguales).
@@ -197,6 +198,7 @@ services:
       - ms-identidad
       - ms-documentos
       - ms-comparticion
+      - ms-interoperabilidad
 
 volumes:
   minio-data:
