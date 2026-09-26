@@ -20,7 +20,7 @@ const EventReconciler = require("./application/EventReconciler");
 const { DocumentAuthenticationService } = require("./application/DocumentAuthenticationService");
 const AuthenticationRequestReconciler = require("./application/AuthenticationRequestReconciler");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
-const { makeCitizenRegisteredHandler } = require("./interfaces/eventHandlers");
+const { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers } = require("./interfaces/eventHandlers");
 
 async function main() {
   await mongoose.connect(env.mongoUri);
@@ -98,6 +98,17 @@ async function main() {
     auditLogger,
     eventPublishTimeoutMs: env.eventPublishTimeoutMs,
   });
+  // HU-04: el resultado llega de ms-autenticacion (que predeclara estas colas). Reconectan solos, como el de arriba.
+  const authResult = makeAuthenticationResultHandlers({ documentAuthenticationService });
+  for (const consumer of [
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.documento-autenticado", routingKey: "documento.autenticado", handler: authResult.autenticado }),
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.documento-autenticacion-fallida", routingKey: "documento.autenticacion_fallida", handler: authResult.autenticacionFallida }),
+  ]) {
+    consumer.start().catch((err) => {
+      logger.error("consumidor.inicio_fallido", { queue: consumer.queue, err });
+      consumer._scheduleReconnect();
+    });
+  }
   if (env.reconcile.intervalMs > 0) {
     new AuthenticationRequestReconciler({ documentRepository, folderRepository, authenticationService: documentAuthenticationService, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
   }

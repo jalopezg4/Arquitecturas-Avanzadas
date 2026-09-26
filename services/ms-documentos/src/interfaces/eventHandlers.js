@@ -41,4 +41,31 @@ function makeCitizenRegisteredHandler({ folderRepository }) {
   };
 }
 
-module.exports = { makeCitizenRegisteredHandler };
+const OBJECT_ID_RE = /^[0-9a-f]{24}$/i;
+
+/** Campos comunes de los resultados de HU-04; un mensaje que no los cumple nunca se va a poder aplicar. */
+function parseAuthResult(payload) {
+  if (!payload || typeof payload !== "object") throw new PermanentError("el mensaje no es un objeto");
+  if (typeof payload.documentoId !== "string" || !OBJECT_ID_RE.test(payload.documentoId)) throw new PermanentError("documentoId invalido");
+  if (!Number.isSafeInteger(payload.intento) || payload.intento < 1) throw new PermanentError("intento invalido");
+  return payload;
+}
+
+/**
+ * HU-04: resultado de la autenticacion que publica ms-autenticacion. Idempotentes: el servicio aplica la transicion
+ * solo si el documento sigue `en autenticacion` en ese mismo intento, asi que una reentrega no hace nada.
+ */
+function makeAuthenticationResultHandlers({ documentAuthenticationService }) {
+  return {
+    async autenticado(payload) {
+      const { documentoId, intento, autenticadoEn } = parseAuthResult(payload);
+      await documentAuthenticationService.onAuthenticated({ documentoId, intento, autenticadoEn });
+    },
+    async autenticacionFallida(payload) {
+      const { documentoId, intento, motivo } = parseAuthResult(payload);
+      await documentAuthenticationService.onAuthenticationFailed({ documentoId, intento, motivo: typeof motivo === "string" ? motivo.slice(0, 40) : undefined });
+    },
+  };
+}
+
+module.exports = { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers };

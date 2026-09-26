@@ -101,6 +101,34 @@ class DocumentAuthenticationService {
     }
   }
 
+  /**
+   * `documento.autenticado` (desde ms-autenticacion): el documento pasa a `certificado` con la fecha de autenticacion
+   * y, como ya no es "no certificado", devuelve su cupo de la cuota (RNF-04). La transicion es condicional al intento
+   * vigente: un evento repetido o de un intento viejo no hace nada y el cupo nunca se libera dos veces.
+   */
+  async onAuthenticated({ documentoId, intento, autenticadoEn }) {
+    const fecha = autenticadoEn && !Number.isNaN(Date.parse(autenticadoEn)) ? new Date(autenticadoEn) : this.now();
+    const doc = await this.documentRepository.completeAuthentication(documentoId, intento, fecha);
+    if (!doc) {
+      logger.info("documento.autenticacion_resultado_ignorado", { documentoId, intento, note: "repetido o de un intento anterior" });
+      return { applied: false };
+    }
+    await this.folderRepository.releaseNonCertified(doc.ciudadanoId);
+    logger.info("documento.certificado", { documentoId, intento });
+    return { applied: true };
+  }
+
+  /** `documento.autenticacion_fallida`: vuelve a `temporal` (no queda colgado en "en autenticacion"); conserva su cupo. */
+  async onAuthenticationFailed({ documentoId, intento, motivo }) {
+    const doc = await this.documentRepository.revertAuthentication(documentoId, intento);
+    if (!doc) {
+      logger.info("documento.autenticacion_resultado_ignorado", { documentoId, intento, note: "repetido o de un intento anterior" });
+      return { applied: false };
+    }
+    logger.warn("documento.autenticacion_fallida", { documentoId, intento, motivo });
+    return { applied: true };
+  }
+
   async _audit(ciudadanoId, documentoId, resourceOwner, outcome, reason, metadata) {
     if (!this.auditLogger) return;
     try {
