@@ -14,10 +14,10 @@ describe("HU-06.3 (RF-28), Paso 3.3-B: tercer consumidor solicitud.creada en ser
     expect(src).toContain("handler: handlers.solicitudCreada");
   });
 
-  test("son exactamente 7 consumidores (ciudadano.registrado, documento.cargado, solicitud.creada, los 2 de HU-04, HU-06.2 y HU-06.4)", () => {
+  test("son exactamente 8 consumidores (ciudadano.registrado, documento.cargado, solicitud.creada, los 2 de HU-04, HU-06.2, HU-06.4 y la activacion de HU-05c)", () => {
     const src = server();
     const count = (src.match(/new EventConsumer\(/g) || []).length;
-    expect(count).toBe(7);
+    expect(count).toBe(8);
   });
 
   test("HU-04: registra los consumidores del resultado de la autenticacion", () => {

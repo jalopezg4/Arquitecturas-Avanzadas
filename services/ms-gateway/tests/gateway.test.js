@@ -39,6 +39,8 @@ describe("Rutas publicas (obtener token / registrarse): pasan sin token", () => 
     ["POST", "/api/v1/auth/login"],
     ["POST", "/api/v1/auth/refresh"],
     ["POST", "/api/v1/citizens"],
+    ["POST", "/api/v1/auth/activate"], // HU-05c: el ciudadano transferido aun no tiene contrasena ni token
+    ["POST", "/api/v1/auth/activate/resend"],
   ])("%s %s se reenvia sin exigir token", async (method, path) => {
     const res = await request(gateway).post(path).send({ documento: 1, password: "x" });
 

@@ -14,6 +14,8 @@ const { CitizenSagaService } = require("./application/CitizenSagaService");
 const { AuthService } = require("./application/AuthService");
 const PendingRegistrationReconciler = require("./application/PendingRegistrationReconciler");
 const { CitizenTransferService } = require("./application/CitizenTransferService");
+const { AccountActivationService } = require("./application/AccountActivationService");
+const Citizen = require("./domain/Citizen");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { makeTransferHandlers } = require("./interfaces/eventHandlers");
 
@@ -64,8 +66,15 @@ async function main() {
 
   // HU-05c: primeros consumidores de este servicio (antes solo publicaba). Las colas las predeclara
   // ms-interoperabilidad; reconectan solos y, si el broker no esta al arrancar, el servicio NO cae.
+  const activationService = new AccountActivationService({
+    citizenModel: Citizen,
+    eventPublisher,
+    auditLogger,
+    ttlMs: env.activationTtlHours * 3600 * 1000,
+    eventPublishTimeoutMs: env.eventPublishTimeoutMs,
+  });
   const transferHandlers = makeTransferHandlers({
-    citizenTransferService: new CitizenTransferService({ citizenRepository, refreshSessionRepository, govCarpetaClient, eventPublisher, auditLogger, eventPublishTimeoutMs: env.eventPublishTimeoutMs }),
+    citizenTransferService: new CitizenTransferService({ citizenRepository, refreshSessionRepository, govCarpetaClient, eventPublisher, auditLogger, accountActivationService: activationService, eventPublishTimeoutMs: env.eventPublishTimeoutMs }),
   });
   for (const consumer of [
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-identidad.ciudadano-transferido", routingKey: "ciudadano.transferido", handler: transferHandlers.ciudadanoTransferido }),
@@ -86,7 +95,7 @@ async function main() {
     refreshExpiresIn: env.jwtRefreshExpiresIn,
   });
 
-  const app = buildApp({ citizenSagaService, authService, secrets });
+  const app = buildApp({ citizenSagaService, authService, secrets, activationService });
   const server = createServer(app, env.tls);
   server.listen(env.port, () => {
     const transport = env.tls.certPath ? (env.tls.caPath ? "mTLS" : "TLS") : "http";

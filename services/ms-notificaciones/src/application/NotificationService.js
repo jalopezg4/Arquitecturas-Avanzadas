@@ -195,6 +195,33 @@ class NotificationService {
   }
 
   /**
+   * ciudadano.activacion_requerida (HU-05c): el ciudadano llego transferido sin contrasena; se le envia el codigo de un
+   * solo uso para fijarla. El codigo es una credencial: va SOLO en el cuerpo (nunca en el asunto, que se guarda en
+   * Mongo, ni en los logs). Un evento por codigo emitido.
+   */
+  async onActivationRequired({ eventId, ciudadanoId, nombre, correo, codigo, venceEn }) {
+    return this._deliver({
+      eventKey: `ciudadano.activacion_requerida:${eventId}`,
+      tipo: "activacion_cuenta",
+      ciudadanoId,
+      to: correo,
+      subject: `Activa tu cuenta en ${this.operatorName}`,
+      text: [
+        `Hola ${clean(nombre, 120)},`,
+        "",
+        `Tu carpeta ciudadana ya esta en ${this.operatorName}. Para entrar, crea tu contrasena con este codigo de un solo uso:`,
+        "",
+        codigo,
+        "",
+        `Vence el ${clean(venceEn, 40)}. Envialo junto con tu numero de documento y tu nueva contrasena a POST /api/v1/auth/activate.`,
+        "Si no pediste cambiarte de operador, ignora este correo.",
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
+  /**
    * solicitud.creada (HU-06.3, RF-28): avisa al ciudadano que una institucion solicito documentacion suya.
    * El email usa el mecanismo existente (idempotente, se reintenta si falla). El SMS es best-effort y se intenta
    * DESPUES, fuera de `_deliver()`: si falla, se loguea y NUNCA se relanza -- no debe reintentar el evento (el email

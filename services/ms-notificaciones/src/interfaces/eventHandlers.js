@@ -75,6 +75,18 @@ function makeEventHandlers({ notificationService }) {
       await notificationService.onOfficialRequestPending(payload);
     },
 
+    // HU-05c: codigo de activacion del ciudadano transferido (trae su correo: puede llegar antes que su contacto).
+    async activacionRequerida(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.eventId === "string" && /^[A-Za-z0-9_-]{1,80}$/.test(payload.eventId), "eventId invalido (sin el no hay idempotencia)");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      need(text(payload.nombre, 200), "nombre invalido");
+      need(typeof payload.correo === "string" && payload.correo.length <= 200 && SINGLE_EMAIL_RE.test(payload.correo), "correo invalido (un solo destinatario)");
+      need(typeof payload.codigo === "string" && /^[A-Za-z0-9_-]{20,100}$/.test(payload.codigo), "codigo invalido");
+      need(text(payload.venceEn, 40), "venceEn invalido");
+      await notificationService.onActivationRequired(payload);
+    },
+
     async solicitudCreada(payload) {
       need(payload && typeof payload === "object", "payload invalido");
       need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido");

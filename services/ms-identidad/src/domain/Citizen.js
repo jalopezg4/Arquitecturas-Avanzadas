@@ -16,6 +16,11 @@ const citizenSchema = new mongoose.Schema(
     // transferido desde otro operador (HU-05c): la contrasena no viaja entre operadores, asi que no puede iniciar
     // sesion hasta que exista un flujo para fijarla (AuthService rechaza un resumen que no sea Argon2id).
     passwordHash: { type: String, default: null },
+    // Activacion de cuenta del ciudadano transferido (sin contrasena): SOLO la huella SHA-256 del codigo de un solo uso,
+    // su vencimiento y cuando se envio el ultimo (limita los reenvios). Se limpian al activar.
+    activacionHash: { type: String, default: null },
+    activacionVenceEn: { type: Date, default: null },
+    activacionEnviadaEn: { type: Date, default: null },
     // HU-02: proteccion contra fuerza bruta. El contador y el bloqueo se actualizan de forma
     // atomica en CitizenRepository (nunca leer-modificar-guardar: dos intentos simultaneos se perderian).
     intentosFallidos: { type: Number, default: 0 },

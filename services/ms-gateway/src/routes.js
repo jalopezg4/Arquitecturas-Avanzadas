@@ -15,6 +15,9 @@ const ROUTES = [
   { method: "POST", path: "/api/v1/citizens", upstream: "IDENTIDAD_URL", public: true },
   { method: "POST", path: "/api/v1/auth/login", upstream: "IDENTIDAD_URL", public: true },
   { method: "POST", path: "/api/v1/auth/refresh", upstream: "IDENTIDAD_URL", public: true },
+  // HU-05c: el ciudadano transferido fija su contrasena con el codigo recibido por correo (aun no tiene token).
+  { method: "POST", path: "/api/v1/auth/activate", upstream: "IDENTIDAD_URL", public: true },
+  { method: "POST", path: "/api/v1/auth/activate/resend", upstream: "IDENTIDAD_URL", public: true },
   // ms-identidad -- protegidas
   { method: "GET", path: "/api/v1/auth/me", upstream: "IDENTIDAD_URL" },
   // ms-comparticion -- HU-06.1: registro de una entidad institucional. Publica (la entidad aun no tiene cuenta con nosotros);

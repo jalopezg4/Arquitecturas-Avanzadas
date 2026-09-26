@@ -136,3 +136,29 @@ describe("solicitud_oficial.pendiente (HU-06.4) -> aviso a la entidad emisora", 
   });
 });
 
+describe("ciudadano.activacion_requerida (HU-05c) -> codigo de activacion", () => {
+  const CODIGO = "Zq8mV2nX9pLr5tYc7bW1kD4hJ6fG3sAuQw0eRtYuIo1";
+  const evento = (extra = {}) => ({ eventId: `${ANA}-act-1790000000000`, ciudadanoId: ANA, nombre: "Ana Gomez", correo: "ana@example.com", codigo: CODIGO, venceEn: "2026-09-29T15:00:00.000Z", ...extra });
+
+  test("envia el codigo en el CUERPO (no en el asunto, que se guarda) y no lo deja en los logs; no requiere contacto previo", async () => {
+    const lines = [];
+    logger.setSink((l) => lines.push(l));
+
+    await handlers.activacionRequerida(evento());
+    await handlers.activacionRequerida(evento()); // repetido: un solo correo
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    const mail = sender.send.mock.calls[0][0];
+    expect(mail.to).toBe("ana@example.com");
+    expect(mail.text).toContain(CODIGO);
+    expect(mail.text).toContain("/api/v1/auth/activate");
+    expect(mail.subject).not.toContain(CODIGO);
+    expect(JSON.stringify(await Notification.findOne({ tipo: "activacion_cuenta" }).lean())).not.toContain(CODIGO);
+    expect(lines.join("\n")).not.toContain(CODIGO);
+  });
+
+  test.each([["codigo con forma invalida", { codigo: "corto" }], ["varios destinatarios", { correo: "a@b.co,c@d.co" }]])("%s -> cola de fallidos", async (_c, extra) => {
+    await expect(handlers.activacionRequerida(evento(extra))).rejects.toBeInstanceOf(PermanentError);
+  });
+});
+

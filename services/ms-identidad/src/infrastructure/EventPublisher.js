@@ -15,6 +15,8 @@ const ANTICIPATED_BINDINGS = [
   { queue: "ms-interoperabilidad.ciudadano-registrado", routingKey: "ciudadano.registrado" },
   // HU-05c (destino): respuesta al registro de un ciudadano que llega transferido.
   { queue: "ms-interoperabilidad.ciudadano-importado", routingKey: "transferencia.ciudadano_registrado" },
+  // Activacion de cuenta del ciudadano transferido: ms-notificaciones le envia el codigo.
+  { queue: "ms-notificaciones.activacion-requerida", routingKey: "ciudadano.activacion_requerida" },
 ];
 
 class EventPublisher {

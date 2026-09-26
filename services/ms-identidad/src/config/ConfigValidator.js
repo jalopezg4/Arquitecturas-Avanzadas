@@ -113,6 +113,11 @@ function validateConfig(cfg) {
     else if (value > rule.max) problems.push(`${rule.label} no puede superar ${rule.max}s (politica de expiracion, ADR-06)`);
   }
 
+  // HU-05c: vigencia del codigo de activacion del ciudadano transferido (una credencial: ni eterna ni inusable).
+  if (cfg.activationTtlHours !== undefined && (!Number.isInteger(cfg.activationTtlHours) || cfg.activationTtlHours < 1 || cfg.activationTtlHours > 168)) {
+    problems.push("ACTIVATION_TTL_HOURS debe ser un entero entre 1 y 168 (7 dias)");
+  }
+
   return problems;
 }
 

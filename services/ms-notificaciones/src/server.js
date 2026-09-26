@@ -41,6 +41,8 @@ async function main() {
     new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.paquete-envio-correo", routingKey: "paquete.envio_correo", handler: handlers.paqueteEnvioCorreo }),
     // HU-06.4: ms-documentos predeclara esta cola.
     new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.solicitud-oficial-pendiente", routingKey: "solicitud_oficial.pendiente", handler: handlers.solicitudOficialPendiente }),
+    // HU-05c: codigo de activacion del ciudadano transferido (ms-identidad predeclara la cola).
+    new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.activacion-requerida", routingKey: "ciudadano.activacion_requerida", handler: handlers.activacionRequerida }),
   ];
   // Si RabbitMQ no esta disponible al arrancar, el servicio NO cae: el consumidor reconecta solo.
   for (const consumer of consumers) {

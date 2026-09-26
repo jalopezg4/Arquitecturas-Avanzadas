@@ -26,7 +26,9 @@ function withTimeout(promise, ms) {
  * ciegas y un resultado ambiguo se resuelve preguntando a GovCarpeta (validateCitizen).
  */
 class CitizenTransferService {
-  constructor({ citizenRepository, refreshSessionRepository, govCarpetaClient, eventPublisher, auditLogger, eventPublishTimeoutMs = 3000, now = () => new Date() }) {
+  constructor({ citizenRepository, refreshSessionRepository, govCarpetaClient, eventPublisher, auditLogger, accountActivationService, eventPublishTimeoutMs = 3000, now = () => new Date() }) {
+    // Opcional: sin el, el ciudadano importado queda sin forma de fijar su contrasena.
+    this.activation = accountActivationService;
     this.citizens = citizenRepository;
     this.sessions = refreshSessionRepository;
     this.govCarpeta = govCarpetaClient;
@@ -112,6 +114,8 @@ class CitizenTransferService {
     const active = await this.citizens.activatePending(citizen._id);
     const current = active || (await this.citizens.findById(citizen._id));
     await this._publishRegistered(current);
+    // Recien activado y sin contrasena (la contrasena no viaja entre operadores): se le envia el codigo de activacion.
+    if (active && this.activation && !current.passwordHash) await this.activation.issue(current._id).catch(() => false);
     return { ok: true, direccionUnica: current.direccionUnica };
   }
 
