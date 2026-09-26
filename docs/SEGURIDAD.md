@@ -456,9 +456,8 @@ otro operador -POST /api/transferCitizen-> ms-interoperabilidad (202)
 
 ### Límites conocidos
 
-- **El ciudadano que llega no puede iniciar sesión**: la contraseña no viaja entre operadores y no existe un flujo
-  para fijarla (activación o recuperación de cuenta no está en ninguna HU). Queda activo, con su carpeta y su correo de
-  bienvenida; el login lo rechaza con el mismo `401` genérico.
+- **El ciudadano que llega activa su cuenta por correo** (ver 14.2): hasta entonces el login lo rechaza con el mismo
+  `401` genérico. Si el correo que envió el operador origen está mal, no puede activarla (no hay otro canal).
 - **RF-10 depende del origen**: si el otro operador no envía `direccionUnica` (extensión opcional), se le genera una
   nueva y queda constancia en el log.
 - **Compensación incompleta posible**: si el destino alcanzó a afiliar al ciudadano pero su confirmación nunca nos
@@ -470,6 +469,24 @@ otro operador -POST /api/transferCitizen-> ms-interoperabilidad (202)
   5 minutos. No se pueden revocar antes de vencer.
 - **Sin aviso al ciudadano que se va** del resultado de su transferencia (solo el que llega recibe la bienvenida).
 - No se probó contra otro operador real del curso: la suite de contrato es HT-05.
+
+### 14.2 Activación de cuenta del ciudadano transferido
+
+La contraseña no viaja entre operadores (ni debe: el origen solo guarda un resumen Argon2id). El ciudadano que llega
+queda activo, con su carpeta, pero sin contraseña.
+
+| Paso | Decisión |
+|---|---|
+| Código | Al importarlo, `ms-identidad` genera un código aleatorio de **256 bits**, de un solo uso, y guarda **solo su huella SHA-256** y su vencimiento (`ACTIVATION_TTL_HOURS`, 72 h por defecto, tope 7 días) |
+| Envío | `ciudadano.activacion_requerida` → `ms-notificaciones` lo envía al correo que trajo el operador origen. El código va solo en el cuerpo: nunca en el asunto (se guarda en Mongo) ni en los logs |
+| Activar | `POST /api/v1/auth/activate {documento, codigo, password}` (pública en el gateway): la contraseña se guarda con Argon2id y el código se **consume en la misma escritura condicional** (dos intentos simultáneos: uno gana). Cualquier fallo —documento inexistente, código errado, vencido o ya usado— es el mismo `401` genérico. Una cuenta que ya tiene contraseña no se puede "activar" (no sirve para cambiar una contraseña ajena) |
+| Reenviar | `POST /api/v1/auth/activate/resend {documento}`: código nuevo (invalida el anterior), máximo uno cada 5 minutos; responde lo mismo exista o no el documento (no permite averiguar quién está afiliado) |
+| Bitácora | `ciudadano.activacion_enviar`, `ciudadano.activar` (éxito y rechazo) |
+
+**Límites:** el correo es el único factor (el mismo supuesto que cualquier recuperación de cuenta por correo); si el
+origen envió un correo equivocado, el ciudadano no puede activar. No hay límite de intentos de activación (el código
+de 256 bits no es adivinable, pero el endpoint no tiene limitación de tasa, como el resto del sistema). No es un flujo
+general de "olvidé mi contraseña": solo aplica a cuentas sin contraseña.
 
 ### 14.1 Pruebas de contrato del protocolo (HT-05, RNF-11)
 

@@ -253,7 +253,7 @@ Como ciudadano quiero que mi cambio de operador se ejecute como una transacción
 - ✅ Solo se borra al ciudadano del origen (RF-08) tras confirmación explícita del destino
 - ✅ La dirección única **no cambia** tras la transferencia (RF-10)
 
-**Estado de HU-05c (Fase 3):** implementada en `ms-interoperabilidad` (saga), `ms-documentos` (solo lectura, exportar, borrar, importar) y `ms-identidad` (borrar al que se va, importar al que llega). Contrato, decisiones y límites en `docs/SEGURIDAD.md`, sección 14. Diferencias con el texto de arriba: `req_status` es `1`/`0` (protocolo acordado), el origen también desafilia en GovCarpeta **antes** de enviar (sin eso el destino no puede registrarlo) y se compensa re-afiliando; la confirmación exige un token que viaja en nuestro `confirmAPI`. 🟡 El ciudadano que llega no puede iniciar sesión (la contraseña no viaja y no hay flujo para fijarla).
+**Estado de HU-05c (Fase 3):** implementada en `ms-interoperabilidad` (saga), `ms-documentos` (solo lectura, exportar, borrar, importar) y `ms-identidad` (borrar al que se va, importar al que llega). Contrato, decisiones y límites en `docs/SEGURIDAD.md`, sección 14. Diferencias con el texto de arriba: `req_status` es `1`/`0` (protocolo acordado), el origen también desafilia en GovCarpeta **antes** de enviar (sin eso el destino no puede registrarlo) y se compensa re-afiliando; la confirmación exige un token que viaja en nuestro `confirmAPI`. Como la contraseña no viaja, el ciudadano que llega **activa su cuenta** con un código de un solo uso que recibe por correo (`POST /api/v1/auth/activate`; `docs/SEGURIDAD.md`, sección 14.2).
 
 **Tests Unitarios a implementar:**
 ```

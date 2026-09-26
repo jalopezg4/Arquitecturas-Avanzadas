@@ -101,6 +101,9 @@ curl -X POST http://localhost:3000/api/v1/citizens/<ciudadanoId>/documents   -H 
 # Con MinIO en localhost el sandbox real NO puede abrir la URL del documento: la autenticacion termina en fallo.
 curl -X PUT http://localhost:3000/api/v1/documents/<documentoId>/authenticate -H "Authorization: Bearer <accessToken>"
 
+# Ciudadano que llego TRANSFERIDO desde otro operador (HU-05c): fija su contrasena con el codigo que recibio por correo
+curl -X POST http://localhost:3000/api/v1/auth/activate -H "Content-Type: application/json" -d '{"documento":"1000000001","codigo":"<codigo del correo>","password":"Clave-segura-123"}'
+
 # Descargar un documento propio (HU-09): devuelve una URL temporal de 1 hora
 curl http://localhost:3000/api/v1/documents/<documentoId>/download -H "Authorization: Bearer <accessToken>"
 
