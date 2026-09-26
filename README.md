@@ -25,7 +25,7 @@ Microservicios (ADR-01 del expediente), cada uno dueño exclusivo de su base de 
 |---|---|---|---|
 | `services/ms-gateway` | 3000 | Único punto de entrada: valida el token y enruta por lista blanca | HU-02 |
 | `services/ms-identidad` | 3001 | Registro, login, sesiones, registro del operador | HU-01, HU-02, HU-11 |
-| `services/ms-documentos` | 3002 | Carga y consulta de documentos; recepción de documentos enviados por entidades emisoras; solicitud de autenticación y su resultado | HU-03, HU-04, HU-08, HU-10 (HU-09 pendiente) |
+| `services/ms-documentos` | 3002 | Carga, consulta y descarga de documentos; recepción de documentos enviados por entidades emisoras; solicitud de autenticación y su resultado; carpeta en transferencia | HU-03, HU-04, HU-05c, HU-08, HU-09, HU-10 |
 | `services/ms-notificaciones` | 3003 | Correos por eventos (confirmación de carga, bienvenida, resultado de la autenticación) | HU-03, HU-01, HU-04 |
 | `services/ms-interoperabilidad` | 3004 | Directorio de operadores, publicación del endpoint y transferencia de ciudadanos entre operadores (origen y destino) | HU-05a, HU-05b, HU-05c |
 | `services/ms-comparticion` | 3005 | Registro **y autenticación** de entidades institucionales | HU-06.1, ADR-07 (HU-06.2 a 06.4 pendientes) |
@@ -100,6 +100,9 @@ curl -X POST http://localhost:3000/api/v1/citizens/<ciudadanoId>/documents   -H 
 # Pedir la autenticacion de un documento temporal en GovCarpeta (HU-04): responde 202 y el resultado llega por correo.
 # Con MinIO en localhost el sandbox real NO puede abrir la URL del documento: la autenticacion termina en fallo.
 curl -X PUT http://localhost:3000/api/v1/documents/<documentoId>/authenticate -H "Authorization: Bearer <accessToken>"
+
+# Descargar un documento propio (HU-09): devuelve una URL temporal de 1 hora
+curl http://localhost:3000/api/v1/documents/<documentoId>/download -H "Authorization: Bearer <accessToken>"
 
 # Consultar la carpeta, paginada (HU-08)
 curl "http://localhost:3000/api/v1/citizens/<ciudadanoId>/documents?page=1&pageSize=10"   -H "Authorization: Bearer <accessToken>"

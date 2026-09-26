@@ -375,6 +375,8 @@ Como ciudadano quiero descargar un documento de mi carpeta, para usarlo fuera de
 - ✅ Respuesta 404 si el documento no existe; 403 si no es el dueño
 - ✅ Queda registro en bitácora de auditoría (RF-39 propuesto / RNF-07)
 
+**Estado (Fase 3):** implementada (`docs/SEGURIDAD.md`, sección 7). Ruta final `GET /api/v1/documents/{id}/download`; la respuesta trae además `expiraEn`, `titulo` y `mimeType`, con `Cache-Control: no-store`.
+
 **Tests Unitarios a implementar:**
 ```
 ms-documentos: DocumentService.download() genera URL prefirmada de 1 hora

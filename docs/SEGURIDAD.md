@@ -48,7 +48,7 @@ Crear un segundo usuario con los mismos permisos, desplegar con sus credenciales
 
 ## 4. URLs prefirmadas (ADR-06)
 
-Política de expiración configurable y validada al arrancar: `PRESIGNED_URL_AUTH_TTL_SECONDS` (autenticación en GovCarpeta, tope 900 s) y `PRESIGNED_URL_DOWNLOAD_TTL_SECONDS` (descarga del ciudadano, tope 3600 s). Un valor por encima del tope impide arrancar. Todavía no existe almacenamiento de objetos: HU-03/HU-04/HU-09 deben leer estos valores, y el bucket debe configurar su propia política.
+Política de expiración configurable y validada al arrancar: `PRESIGNED_URL_AUTH_TTL_SECONDS` (autenticación en GovCarpeta, tope 900 s) y `PRESIGNED_URL_DOWNLOAD_TTL_SECONDS` (descarga del ciudadano, tope 3600 s). Un valor por encima del tope impide arrancar. Hoy los usan `ms-autenticacion` (HU-04, 15 min exactos para GovCarpeta) y `ms-documentos` (HU-03/HU-09 descarga del ciudadano, HU-05c URLs de transferencia; 1 h). El bucket debe configurar además su propia política.
 
 ## 5. Sesiones: login, tokens y bloqueo (HU-02)
 
@@ -110,6 +110,8 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 **Consulta (HU-08).** `GET /api/v1/citizens/:id/documents` sigue el mismo orden que la carga: token válido revalidado en el servicio → el `sub` debe ser `:id` (`403` y registro en la bitácora si no) → recién entonces se consulta. Además del control de la ruta, la consulta a Mongo **filtra por el ciudadano del token** (defensa en profundidad: aunque se rompiera el control de la ruta, no saldrían documentos ajenos; ambas protecciones tienen pruebas que fallan si se quitan). `page` y `pageSize` se validan de forma estricta (entero positivo de hasta 9 dígitos; nada de `1e3`, decimales, arreglos ni objetos como `page[$gt]=`, que no llegan a Mongo) y `pageSize` se limita a 100. La respuesta **no expone** la clave del storage, la huella ni el `ciudadanoId`; la descarga con URL prefirmada es HU-09.
 
 **Configuración de producción** (validada al arrancar): `S3_ENDPOINT` con `https://`, credenciales de storage obligatorias y que no sean las de tutorial (`minioadmin`...), bucket válido, `JWT_SECRET` fuerte y **el mismo que usa `ms-identidad`**.
+
+**Descarga (HU-09).** `GET /api/v1/documents/:id/download` responde `200 {documentoId, titulo, mimeType, downloadUrl, expiraEn}` con `Cache-Control: no-store` (la URL es una credencial temporal). Orden: token de ciudadano revalidado aquí → el documento existe (`404`, también para un id mal formado) → es del ciudadano del token (`403`, sin firmar nada, y bitácora `documento.descargar` / `no_es_dueno`) → recién entonces se firma. La URL es prefirmada, de lectura y vence en `PRESIGNED_URL_DOWNLOAD_TTL_SECONDS` (1 hora como máximo, ADR-06): el mismo mecanismo que HU-04 con vigencia propia. **Cada descarga exitosa queda en la bitácora** (RF-39): quién, qué documento y cuándo; lo que la bitácora no puede saber es cuántas veces se usa la URL dentro de su hora de vigencia (el storage la sirve sin pasar por el servicio). Funciona también con la carpeta en transferencia (es de solo lectura).
 
 ### 7.1 Recepción de un documento enviado por una entidad emisora (HU-10, RF-11)
 

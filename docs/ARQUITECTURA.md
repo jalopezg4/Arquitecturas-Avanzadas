@@ -12,7 +12,7 @@ Microservicios, cada uno propietario exclusivo de su base de datos. Comunicació
 |---|---|---|
 | `ms-gateway` | Enrutamiento, TLS, validación JWT (de ciudadano y de entidad) | HU-02 (validación de token; ver `docs/SEGURIDAD.md`, sección 6) |
 | `ms-identidad` | Registro, login y portabilidad **del ciudadano** | HU-01, HU-02, HU-11 |
-| `ms-documentos` | Carga, consulta, descarga, custodia y **recepción desde entidades emisoras** | HU-03, HU-08, HU-10 (HU-09 pendiente) |
+| `ms-documentos` | Carga, consulta, descarga, custodia y **recepción desde entidades emisoras** | HU-03, HU-04 (estado), HU-05c (carpeta en transferencia), HU-08, HU-09, HU-10 |
 | `ms-autenticacion` | Autenticación documental con GovCarpeta: consume la solicitud, firma una URL de lectura de 15 min y publica el resultado (ver `docs/SEGURIDAD.md`, sección 13) | HU-04 |
 | `ms-interoperabilidad` | Transferencias entre operadores: orquesta la saga (origen y destino) con ms-documentos y ms-identidad por eventos | HU-05a (directorio de operadores; ver `docs/SEGURIDAD.md`, sección 9), HU-05b, HU-05c (sección 14) |
 | `ms-notificaciones` | Correo y SMS | consumidor transversal (HU-03 confirmación de carga, HU-01 bienvenida, HU-04 resultado de la autenticación, HU-06.3 solicitud) |
