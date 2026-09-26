@@ -156,8 +156,13 @@ services:
       MONGO_URI: mongodb://mongo:27017/ms-comparticion
       REGISTRATION_TOKEN: ${REGISTRATION_TOKEN:-}
       ENTITY_JWT_SECRET: ${ENTITY_JWT_SECRET:-}
+      # HU-06.2 (paquetes documentales): aqui solo se VERIFICAN los tokens de ciudadano (misma llave que ms-identidad) y
+      # se publica paquete.creado para ms-documentos.
+      JWT_SECRET: ${JWT_SECRET:-}
+      RABBITMQ_URI: amqp://rabbitmq:5672
     depends_on:
       - mongo
+      - rabbitmq
 
   # Servicios Premium y analitica de metadatos (HU-07). HU-07.1 (analitica, REST sincrono hacia ms-documentos),
   # HU-07.2 (casos PQRS) y HU-07.3 (solicitud documental, implementacion PARCIAL: solo registro local, sin
