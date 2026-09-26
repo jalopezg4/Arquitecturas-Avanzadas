@@ -36,7 +36,8 @@ function makeOfficialRequestHandler({ institutionService, eventPublisher, timeou
     const found = await institutionService.resolveByNit(payload.nit);
     let timer;
     await Promise.race([
-      eventPublisher.publish(RESUELTA, { solicitudOficialId: payload.solicitudOficialId, institutionId: found ? found.institutionId : null, nombre: found ? found.nombre : null }),
+      // correoContacto: para avisarle a la entidad que tiene una solicitud nueva en su bandeja.
+      eventPublisher.publish(RESUELTA, { solicitudOficialId: payload.solicitudOficialId, institutionId: found ? found.institutionId : null, nombre: found ? found.nombre : null, correoContacto: found ? found.correoContacto : null }),
       new Promise((_, reject) => {
         timer = setTimeout(() => reject(new Error("sin confirmacion del broker")), timeoutMs);
       }),

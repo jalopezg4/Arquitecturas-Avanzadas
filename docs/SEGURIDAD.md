@@ -563,6 +563,7 @@ entidad -POST /api/v1/documents/inbound (HU-10) + solicitudOficialId-> certifica
 | Quién puede pedir | El dueño, sobre un documento `temporal` suyo (`403` ajeno con bitácora, `404` inexistente, `400` si no es temporal o el NIT no pasa el dígito de verificación). Una sola solicitud abierta por temporal (`409`); tampoco con la carpeta en transferencia |
 | Resolver la entidad | La hace `ms-comparticion`, dueña de las entidades, por evento. **El token institucional no se modificó**: no lleva el NIT (decisión de ADR-07, cubierta por una prueba) |
 | Bandeja | Solo entidades **verificadas** (`403`) y solo sus solicitudes `pendiente`. Incluye la dirección única del ciudadano, que es lo que HU-10 necesita para entregar |
+| Aviso a la entidad | Al resolverse, `ms-comparticion` informa su correo de contacto y la entidad recibe un correo (`solicitud_oficial.pendiente` → ms-notificaciones) con el documento pedido y cómo atenderlo; sin enlaces. Un solo destinatario, un correo por solicitud, reenviado por el reconciliador si el broker no confirma |
 | Atender | La entrega de HU-10 con `solicitudOficialId` se valida **antes** de guardar nada: la solicitud debe estar pendiente, ser de esa entidad y del mismo ciudadano destinatario (`409` si no). Reintentar el mismo envío responde `200` y cierra la solicitud si había quedado a medias |
 | Reemplazo | El temporal se **borra** (archivo y metadatos) y se libera su cupo (RNF-04), solo si sigue siendo temporal y del ciudadano. Queda en la bitácora como `documento.reemplazar_temporal` (entidad, delegada) |
 
@@ -570,6 +571,5 @@ entidad -POST /api/v1/documents/inbound (HU-10) + solicitudOficialId-> certifica
 
 - Una entidad **no afiliada a este operador** no recibe la solicitud (queda `sin_entidad` y el ciudadano lo ve): no
   hay canal para avisarle (la solicitud a entidades de otros operadores no está en el protocolo acordado).
-- La entidad **no recibe un aviso** de solicitud nueva (correo/SMS): debe consultar su bandeja.
 - El ciudadano no puede cancelar una solicitud abierta.
 - El reemplazo **borra** el temporal: si el ciudadano quería conservar ambos, no hay opción.

@@ -144,7 +144,12 @@ function makeOfficialRequestResolvedHandler({ officialRequestService }) {
     if (typeof payload.solicitudOficialId !== "string" || !OBJECT_ID_RE.test(payload.solicitudOficialId)) throw new PermanentError("solicitudOficialId invalido");
     const institutionId = payload.institutionId === null || payload.institutionId === undefined ? null : payload.institutionId;
     if (institutionId !== null && (typeof institutionId !== "string" || !ID_RE.test(institutionId))) throw new PermanentError("institutionId invalido");
-    await officialRequestService.onResolved({ solicitudOficialId: payload.solicitudOficialId, institutionId, nombre: typeof payload.nombre === "string" ? payload.nombre.slice(0, 200) : null });
+    await officialRequestService.onResolved({
+      solicitudOficialId: payload.solicitudOficialId,
+      institutionId,
+      nombre: typeof payload.nombre === "string" ? payload.nombre.slice(0, 200) : null,
+      correoContacto: typeof payload.correoContacto === "string" ? payload.correoContacto : null,
+    });
   };
 }
 

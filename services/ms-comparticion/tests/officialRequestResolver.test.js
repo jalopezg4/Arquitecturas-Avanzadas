@@ -41,12 +41,12 @@ test("NIT de una entidad registrada (aunque no este verificada) -> responde su i
 
   await handler({ solicitudOficialId: SOL, nit: "890901389" });
 
-  expect(publisher.publish).toHaveBeenCalledWith("solicitud_oficial.resuelta", { solicitudOficialId: SOL, institutionId, nombre: "Universidad EAFIT" });
+  expect(publisher.publish).toHaveBeenCalledWith("solicitud_oficial.resuelta", { solicitudOficialId: SOL, institutionId, nombre: "Universidad EAFIT", correoContacto: "registro@eafit.edu.co" });
 });
 
 test("NIT no registrado -> institutionId null", async () => {
   await handler({ solicitudOficialId: SOL, nit: "890901389" });
-  expect(publisher.publish).toHaveBeenCalledWith("solicitud_oficial.resuelta", { solicitudOficialId: SOL, institutionId: null, nombre: null });
+  expect(publisher.publish).toHaveBeenCalledWith("solicitud_oficial.resuelta", { solicitudOficialId: SOL, institutionId: null, nombre: null, correoContacto: null });
 });
 
 test("si el broker no confirma la respuesta, falla para que el mensaje se reintente", async () => {

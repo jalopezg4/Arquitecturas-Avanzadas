@@ -24,6 +24,9 @@ class SolicitudOficialNoAtendibleError extends Error {
 }
 
 const CREADA = "solicitud_oficial.creada";
+const PENDIENTE = "solicitud_oficial.pendiente";
+// Un solo destinatario (sin comas ni punto y coma): el transporte trataria "a@x.co,b@y.co" como dos.
+const SINGLE_EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 const MAX_DESCRIPCION = 500;
 
 function withTimeout(promise, ms) {
@@ -117,11 +120,47 @@ class OfficialRequestService {
     return OfficialRequest.find({ estado: "resolviendo", eventoPublicado: false, createdAt: { $lte: olderThan } }).sort({ createdAt: 1 }).limit(limit).lean();
   }
 
-  async onResolved({ solicitudOficialId, institutionId, nombre }) {
-    const set = institutionId ? { estado: "pendiente", institutionId, nombreEntidad: nombre || null } : { estado: "sin_entidad", abierta: false };
+  async onResolved({ solicitudOficialId, institutionId, nombre, correoContacto }) {
+    const correo = typeof correoContacto === "string" && correoContacto.length <= 200 && SINGLE_EMAIL_RE.test(correoContacto) ? correoContacto : null;
+    const set = institutionId
+      ? { estado: "pendiente", institutionId, nombreEntidad: nombre || null, correoEntidad: correo, avisoPublicado: !correo }
+      : { estado: "sin_entidad", abierta: false };
     const updated = await OfficialRequest.findOneAndUpdate({ _id: solicitudOficialId, estado: "resolviendo" }, { $set: set }, { new: true }).lean();
-    if (updated) logger.info("solicitud_oficial.resuelta", { solicitudOficialId, estado: updated.estado });
-    return { applied: Boolean(updated) };
+    if (!updated) return { applied: false };
+    logger.info("solicitud_oficial.resuelta", { solicitudOficialId, estado: updated.estado });
+    if (updated.estado === "pendiente" && updated.correoEntidad) await this.notifyEntity(updated).catch(() => {});
+    return { applied: true };
+  }
+
+  /**
+   * Aviso por correo a la entidad: tiene una solicitud nueva en su bandeja. `eventId` = solicitud, asi un reenvio es el
+   * mismo correo. Si el broker no confirma queda `avisoPublicado:false` y lo reenvia el reconciliador.
+   */
+  async notifyEntity(r) {
+    const folder = await this.folderRepository.get(r.ciudadanoId);
+    try {
+      await withTimeout(
+        this.eventPublisher.publish(PENDIENTE, {
+          eventId: String(r._id),
+          solicitudOficialId: String(r._id),
+          ciudadanoId: r.ciudadanoId,
+          correo: r.correoEntidad,
+          nombreEntidad: r.nombreEntidad || null,
+          tituloDocumento: r.tituloDocumento,
+          descripcion: r.descripcion || null,
+          remitenteDireccionUnica: (folder && folder.direccionUnica) || null,
+        }),
+        this.eventPublishTimeoutMs
+      );
+      await OfficialRequest.updateOne({ _id: r._id }, { avisoPublicado: true });
+    } catch (err) {
+      logger.error("solicitud_oficial.aviso_no_publicado", { solicitudOficialId: String(r._id), note: "lo reenvia el reconciliador", err });
+      throw err;
+    }
+  }
+
+  async findPendingNotices({ olderThan, limit }) {
+    return OfficialRequest.find({ estado: "pendiente", avisoPublicado: false, updatedAt: { $lte: olderThan } }).sort({ updatedAt: 1 }).limit(limit).lean();
   }
 
   async listMine(ciudadanoId) {
@@ -185,4 +224,4 @@ class OfficialRequestService {
   }
 }
 
-module.exports = { OfficialRequestService, SolicitudOficialInvalidaError, SolicitudOficialDuplicadaError, SolicitudOficialNoAtendibleError, CREADA };
+module.exports = { OfficialRequestService, SolicitudOficialInvalidaError, SolicitudOficialDuplicadaError, SolicitudOficialNoAtendibleError, CREADA, PENDIENTE };

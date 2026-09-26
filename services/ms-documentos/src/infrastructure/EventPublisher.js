@@ -24,6 +24,7 @@ const ANTICIPATED_BINDINGS = [
   { queue: "ms-notificaciones.paquete-envio-correo", routingKey: "paquete.envio_correo" },
   // HU-06.4: resolver el NIT de la entidad emisora (lo hace ms-comparticion, duena de las entidades).
   { queue: "ms-comparticion.solicitud-oficial-creada", routingKey: "solicitud_oficial.creada" },
+  { queue: "ms-notificaciones.solicitud-oficial-pendiente", routingKey: "solicitud_oficial.pendiente" },
 ];
 
 class EventPublisher {

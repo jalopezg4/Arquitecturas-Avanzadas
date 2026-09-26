@@ -65,6 +65,16 @@ function makeEventHandlers({ notificationService }) {
       await notificationService.onPackageEmail(payload);
     },
 
+    // HU-06.4 (RF-31): aviso a la ENTIDAD emisora de una solicitud del documento oficial.
+    async solicitudOficialPendiente(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido (sin el no hay idempotencia)");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      need(typeof payload.correo === "string" && payload.correo.length <= 200 && SINGLE_EMAIL_RE.test(payload.correo), "correo invalido (un solo destinatario)");
+      need(text(payload.tituloDocumento, 300), "tituloDocumento invalido");
+      await notificationService.onOfficialRequestPending(payload);
+    },
+
     async solicitudCreada(payload) {
       need(payload && typeof payload === "object", "payload invalido");
       need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido");

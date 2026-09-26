@@ -171,6 +171,30 @@ class NotificationService {
   }
 
   /**
+   * solicitud_oficial.pendiente (HU-06.4, RF-31): avisa a la ENTIDAD emisora (destinatario externo, no un ciudadano) que
+   * un ciudadano le pidio el documento oficial. No lleva enlaces: la entidad lo ve y lo entrega desde su bandeja.
+   */
+  async onOfficialRequestPending({ eventId, ciudadanoId, correo, nombreEntidad, tituloDocumento, descripcion, remitenteDireccionUnica }) {
+    return this._deliver({
+      eventKey: `solicitud_oficial.pendiente:${eventId}`,
+      tipo: "solicitud_documento_oficial",
+      ciudadanoId,
+      to: correo,
+      subject: "Un ciudadano solicita un documento oficial a tu entidad",
+      text: [
+        `Hola${nombreEntidad ? ` ${clean(nombreEntidad, 120)}` : ""},`,
+        "",
+        `A traves de ${this.operatorName}, un ciudadano${remitenteDireccionUnica ? ` (${clean(remitenteDireccionUnica, 120)})` : ""} solicita el documento oficial de: ${clean(tituloDocumento, 120)}.`,
+        ...(descripcion ? [`Detalle: ${clean(descripcion, 500)}`] : []),
+        "",
+        "Consulta la solicitud en la bandeja de tu entidad (GET /api/v1/official-requests, con el token institucional; la entidad debe estar verificada) y entrega el documento indicando la solicitud.",
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
+  /**
    * solicitud.creada (HU-06.3, RF-28): avisa al ciudadano que una institucion solicito documentacion suya.
    * El email usa el mecanismo existente (idempotente, se reintenta si falla). El SMS es best-effort y se intenta
    * DESPUES, fuera de `_deliver()`: si falla, se loguea y NUNCA se relanza -- no debe reintentar el evento (el email

@@ -20,6 +20,10 @@ const officialRequestSchema = new mongoose.Schema(
     nit: { type: String, required: true }, // normalizado: solo digitos, sin digito de verificacion
     institutionId: { type: String, default: null, index: true },
     nombreEntidad: { type: String, default: null },
+    // Correo de contacto de la entidad (lo informa ms-comparticion al resolver) para avisarle de la solicitud nueva.
+    correoEntidad: { type: String, default: null },
+    // false = el aviso a la entidad (`solicitud_oficial.pendiente`) aun no se confirmo; lo reenvia el reconciliador.
+    avisoPublicado: { type: Boolean, default: true },
     descripcion: { type: String, default: null },
     estado: { type: String, enum: ESTADOS, default: "resolviendo", required: true },
     // true mientras este resolviendo o pendiente (se apaga al pasar a sin_entidad o atendida).

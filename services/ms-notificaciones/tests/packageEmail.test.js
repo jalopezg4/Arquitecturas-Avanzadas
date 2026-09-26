@@ -114,3 +114,25 @@ describe("Mensajes que no se pueden procesar -> PermanentError", () => {
     expect(sender.send).not.toHaveBeenCalled();
   });
 });
+
+describe("solicitud_oficial.pendiente (HU-06.4) -> aviso a la entidad emisora", () => {
+  const aviso = (extra = {}) => ({ eventId: P1, solicitudOficialId: P1, ciudadanoId: ANA, correo: "registro@eafit.edu.co", nombreEntidad: "Universidad EAFIT", tituloDocumento: "Acta de grado", descripcion: "La original", remitenteDireccionUnica: "1-ab@carpetacolombia.co", ...extra });
+
+  test("envia UN correo a la entidad con el documento pedido y como atenderlo; repetido no se reenvia", async () => {
+    await handlers.solicitudOficialPendiente(aviso());
+    await handlers.solicitudOficialPendiente(aviso());
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    const mail = sender.send.mock.calls[0][0];
+    expect(mail.to).toBe("registro@eafit.edu.co");
+    expect(mail.subject).not.toMatch(/Acta|eafit/);
+    expect(mail.text).toContain("Hola Universidad EAFIT");
+    expect(mail.text).toContain("Acta de grado");
+    expect(mail.text).toContain("/api/v1/official-requests");
+  });
+
+  test.each([["varios destinatarios", { correo: "a@b.co,c@d.co" }], ["sin titulo", { tituloDocumento: "" }]])("%s -> cola de fallidos", async (_c, extra) => {
+    await expect(handlers.solicitudOficialPendiente(aviso(extra))).rejects.toBeInstanceOf(PermanentError);
+  });
+});
+

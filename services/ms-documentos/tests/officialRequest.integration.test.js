@@ -229,3 +229,66 @@ describe("Consistencia", () => {
     await expect(resolved({ solicitudOficialId: "x" })).rejects.toBeInstanceOf(PermanentError);
   });
 });
+
+describe("Aviso a la entidad de una solicitud nueva", () => {
+  const avisos = () => publisher.publish.mock.calls.filter(([k]) => k === "solicitud_oficial.pendiente").map(([, p]) => p);
+
+  test("al resolverse a una entidad con correo de contacto, se pide el aviso (sin enlaces ni datos del storage)", async () => {
+    const docId = await temporalDeAna();
+    const { solicitudOficialId } = (await pedir(docId).expect(202)).body;
+
+    await resolved({ solicitudOficialId, institutionId: EAFIT, nombre: "Universidad EAFIT", correoContacto: "registro@eafit.edu.co" });
+
+    expect(avisos()).toEqual([
+      {
+        eventId: solicitudOficialId,
+        solicitudOficialId,
+        ciudadanoId: ANA,
+        correo: "registro@eafit.edu.co",
+        nombreEntidad: "Universidad EAFIT",
+        tituloDocumento: "Acta de grado (copia)",
+        descripcion: "Necesito el acta oficial",
+        remitenteDireccionUnica: DIR_ANA,
+      },
+    ]);
+    expect((await OfficialRequest.findById(solicitudOficialId).lean()).avisoPublicado).toBe(true);
+  });
+
+  test("una resolucion repetida no manda otro aviso; sin entidad no hay aviso", async () => {
+    const d1 = await temporalDeAna();
+    const d2 = await temporalDeAna();
+    const a = (await pedir(d1).expect(202)).body.solicitudOficialId;
+    const b = (await pedir(d2).expect(202)).body.solicitudOficialId;
+
+    await resolved({ solicitudOficialId: a, institutionId: EAFIT, correoContacto: "registro@eafit.edu.co" });
+    await resolved({ solicitudOficialId: a, institutionId: EAFIT, correoContacto: "registro@eafit.edu.co" });
+    await resolved({ solicitudOficialId: b, institutionId: null });
+
+    expect(avisos()).toHaveLength(1);
+  });
+
+  test("un correo de contacto con varios destinatarios se descarta (no se avisa, la solicitud queda igual)", async () => {
+    const docId = await temporalDeAna();
+    const { solicitudOficialId } = (await pedir(docId).expect(202)).body;
+
+    await resolved({ solicitudOficialId, institutionId: EAFIT, correoContacto: "a@b.co,c@d.co" });
+
+    expect(avisos()).toHaveLength(0);
+    expect((await OfficialRequest.findById(solicitudOficialId).lean()).estado).toBe("pendiente");
+  });
+
+  test("si el broker no confirma el aviso, el reconciliador lo reenvia", async () => {
+    const docId = await temporalDeAna();
+    const { solicitudOficialId } = (await pedir(docId).expect(202)).body;
+    publisher.publish.mockImplementationOnce(async () => {
+      throw new Error("broker caido");
+    });
+
+    await resolved({ solicitudOficialId, institutionId: EAFIT, correoContacto: "registro@eafit.edu.co" });
+    expect((await OfficialRequest.findById(solicitudOficialId).lean()).avisoPublicado).toBe(false);
+
+    await new OfficialRequestReconciler({ officialRequestService: official, minAgeMs: 0 }).reconcileOnce();
+    expect((await OfficialRequest.findById(solicitudOficialId).lean()).avisoPublicado).toBe(true);
+  });
+});
+

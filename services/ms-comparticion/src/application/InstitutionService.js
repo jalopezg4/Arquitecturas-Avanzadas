@@ -311,7 +311,7 @@ class InstitutionService {
   async resolveByNit(nit) {
     const parsed = parseNit(nit);
     const institution = parsed.ok ? await this.institutionRepository.findByNit(parsed.nit) : null;
-    return institution ? { institutionId: String(institution._id), nombre: institution.nombre } : null;
+    return institution ? { institutionId: String(institution._id), nombre: institution.nombre, correoContacto: institution.correoContacto } : null;
   }
 
   /** HU-06.2: la entidad sigue verificada AHORA (se lee de la base propia, sin esperar a que venza su token). */

@@ -28,6 +28,15 @@ class OfficialRequestReconciler {
         failed++;
       }
     }
+    // Avisos a la entidad que el broker no confirmo.
+    for (const r of await this.service.findPendingNotices({ olderThan, limit: this.batchSize })) {
+      try {
+        await this.service.notifyEntity(r);
+        republished++;
+      } catch {
+        failed++;
+      }
+    }
     if (republished || failed) logger.info("solicitud_oficial.reconciliacion", { reenviados: republished, fallidos: failed });
     return { republished, failed };
   }
