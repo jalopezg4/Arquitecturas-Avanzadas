@@ -340,3 +340,59 @@ Explícitamente, en esta versión:
 - **No existe todavía ningún protocolo de transferencia, envío interinstitucional, ni consentimiento del ciudadano.** `DocumentRequestService` no hace ninguna llamada HTTP saliente ni publica ningún evento RabbitMQ: es exclusivamente un registro local.
 
 **Consecuencia práctica.** `POST/GET /api/v1/premium/document-requests` están funcionalmente completos como *registro* (con el mismo aislamiento institucional que HU-07.1/07.2: la institución sale siempre del token, nunca del cuerpo, y una solicitud ajena responde `404`, no `403`, mismo criterio que `PqrsCase`). Lo que HU-07.3 describe como historia completa — "solicitar documentos a clientes sin importar en qué operador estén afiliados" — **no está implementado ni parcialmente simulado**: no hay ningún camino, ni siquiera de prueba, que llegue a otro operador o a un ciudadano real. Se documenta aquí para que quede explícito en la entrega, y no se confunda un registro local con una solicitud multioperador funcional.
+
+## 13. Autenticación de documentos en GovCarpeta (`ms-autenticacion`, HU-04)
+
+El ciudadano pide certificar un documento propio; el operador se lo pide al centralizador sin que el ciudadano espere
+(RNF-10) y sin entregarle nunca el archivo (RNF-13, RNF-14).
+
+```
+ciudadano --PUT /api/v1/documents/:id/authenticate--> ms-documentos   (202; temporal -> en autenticacion)
+ms-documentos --documento.autenticacion_solicitada--> ms-autenticacion
+ms-autenticacion: URL prefirmada 15 min -> PUT /apis/authenticateDocument (hasta 3 intentos)
+ms-autenticacion --documento.autenticado | documento.autenticacion_fallida--> ms-documentos, ms-notificaciones
+ms-documentos: en autenticacion -> certificado (+ fechaAutenticacion, libera cupo) | temporal
+```
+
+**Solicitud (`ms-documentos`).** Orden de las barreras: token de ciudadano revalidado aquí → el documento existe
+(`404`, también para un id mal formado) → es del ciudadano del token (`403` y bitácora `documento.autenticar` /
+`no_es_dueno`; `requireOwner` no sirve porque `:id` es el documento, no la carpeta) → la carpeta tiene la cédula
+(`409`, sin tocar el estado) → `temporal` → `en autenticacion` en **una escritura condicional** (`400` si no estaba
+`temporal`; dos solicitudes simultáneas: una `202` y otra `400`). La respuesta no expone la clave del storage ni la
+cédula.
+
+| Aspecto | Decisión |
+|---|---|
+| Cédula (`idCitizen`) | Copia local en la carpeta, desde `ciudadano.registrado` (ya la traía). No va en el token ni se pide al ciudadano. Una carpeta creada por una carga antes del evento no la tiene: responde `409` y se puede reintentar cuando llegue |
+| Intentos | Cada solicitud incrementa `autenticacionIntento`. El `eventId` es `<documentoId>-auth-<n>`: un reenvío del mismo intento es el mismo evento; pedir de nuevo tras un fallo no se confunde con un duplicado |
+| Resultado | Se aplica solo si el documento sigue `en autenticacion` **en ese intento**: un resultado repetido o atrasado no hace nada, y el cupo se libera una sola vez |
+| Cuota | `en autenticacion` sigue siendo no certificado y conserva su cupo; al certificarse se libera (RNF-04); si falla, lo conserva |
+| Broker caído al pedir | La solicitud no falla (ADR-04): queda `autenticacionEventoPublicado:false` y la reenvía `AuthenticationRequestReconciler` |
+| `ms-autenticacion` caído | La cola `ms-autenticacion.autenticacion-solicitada` la predeclara `ms-documentos`: las solicitudes esperan y se procesan al volver (matriz de degradación) |
+
+**Procesamiento (`ms-autenticacion`).**
+
+| Aspecto | Decisión |
+|---|---|
+| URL prefirmada | De **lectura**, vigencia **exacta** de `PRESIGNED_URL_AUTH_TTL_SECONDS` (900 s por defecto; el arranque rechaza más de 900). Se firma para `S3_PUBLIC_ENDPOINT` (el host que GovCarpeta abre). Solo se firman claves `ciudadanos/<ciudadanoId>/<uuid>.pdf` **del mismo ciudadano del evento**: aunque alguien publicara en el bus, no obtiene una URL de otro objeto |
+| Llamada | `{idCitizen: number, UrlDocument, documentTitle}` (U mayúscula), nunca el binario; respuesta tratada como texto plano; `x-trace-id` propagado |
+| Reintentos | `500` o sin respuesta → hasta **3** intentos con espera creciente (1 s, 2 s). `204`/`501`/otros → definitivo, sin reintentar. Solo `200` certifica |
+| Resultado | `documento.autenticado` o `documento.autenticacion_fallida` (`motivo`: `rechazado` \| `no_disponible`). Si GovCarpeta no respondió tras los 3 intentos, **además** el mensaje original va a `ms-autenticacion.autenticacion-solicitada.fallidos` (evidencia de la caída del centralizador); un rechazo definitivo es un resultado procesado y se confirma normal |
+| Idempotencia | `AuthenticationAttempt` con índice único por `eventId` y reclamo atómico: una reentrega no vuelve a llamar a GovCarpeta (8 entregas simultáneas → 1 llamada); si el resultado no se alcanzó a publicar, se republica **el mismo**. Un fallo propio antes de llamar (p. ej. no se pudo firmar) libera el reclamo para que la reentrega lo retome; un reclamo abandonado se retoma tras 5 min |
+| Bitácora | `documento.autenticar_govcarpeta`, `actorType: "sistema"`, `resourceOwner` = ciudadano, `delegated: true` (actúa porque el ciudadano lo pidió), con el número de llamadas |
+| Datos personales | Ni la cédula, ni el título, ni la URL firmada (es una credencial temporal) aparecen en logs, en la base de este servicio ni en el evento de resultado |
+| Configuración | Mismas reglas que el resto fuera de local (TLS en Mongo/RabbitMQ, `https` en S3, en el host público y en GovCarpeta, sin credenciales de tutorial). `GOVCARPETA_MAX_ATTEMPTS` no puede superar 3 |
+
+**Límites conocidos.**
+
+- **No se probó contra el sandbox real.** GovCarpeta tiene que *descargar* el documento por la URL; con MinIO en
+  `localhost` no llega. Hace falta un storage público (S3 u otro) para una prueba real; el `PUT` real no se ha ejecutado.
+- **Evidencia limitada (RNF-08):** GovCarpeta solo responde un texto, no un artefacto criptográfico verificable. Se
+  guarda el estado y la `fechaAutenticacion` (supuesto ya declarado en el expediente, 9.4).
+- **Credenciales de storage:** `ms-autenticacion` usa las mismas del bucket de `ms-documentos`; en despliegue deberían
+  ser de solo lectura.
+- **Cupo al certificar:** pasar a `certificado` y liberar el cupo son dos escrituras; si el proceso muere entre ambas,
+  el ciudadano queda con un cupo ocupado de más (nunca de menos).
+- **Sin límite de solicitudes:** un ciudadano puede reintentar un documento rechazado cuantas veces quiera (cada una es
+  una llamada al centralizador); no hay limitación de tasa en el sistema.
+- **La URL entregada no se puede revocar** antes de sus 15 minutos (propiedad de las URLs prefirmadas).

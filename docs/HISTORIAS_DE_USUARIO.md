@@ -178,6 +178,8 @@ Como ciudadano quiero autenticar un documento que ya tengo en mi carpeta, para q
 - ✅ Solo pasa a `certificado` cuando GovCarpeta confirma explícitamente
 - ✅ Notificación asíncrona del resultado (éxito o fallo) al ciudadano
 
+**Estado (Fase 3):** implementada. `PUT /api/v1/documents/{id}/authenticate` en `ms-documentos` y el nuevo `ms-autenticacion`; decisiones y límites en `docs/SEGURIDAD.md`, sección 13. 🟡 Probada con GovCarpeta simulado: el `PUT` real exige una URL de storage alcanzable desde internet. La solicitud vive en `DocumentAuthenticationService` (no en `DocumentService`) y los reintentos en `GovCarpetaClient` de `ms-autenticacion`; si se agotan, además del resultado `documento.autenticacion_fallida` el mensaje va a la cola de fallidos.
+
 **Tests Unitarios a implementar:**
 ```
 ms-documentos: DocumentService.requestAuthentication() rechaza si el documento no está en temporal

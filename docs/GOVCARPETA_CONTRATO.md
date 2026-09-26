@@ -47,6 +47,8 @@ Body (todos requeridos):
 - El campo es `UrlDocument` con **U mayúscula**, no `urlDocument`.
 - Respuesta `200`: **string plano** (ej. "El documento: Diploma Grado del ciudadano 1234567890 ha sido autenticado exitosamente"), no JSON estructurado.
 - Otras respuestas: `204`, `500`, `501`.
+- **Cómo las interpreta `ms-autenticacion` (HU-04):** solo `200` cuenta como autenticado (la HU exige confirmación explícita). `500` y la falta de respuesta son transitorios (hasta 3 intentos con espera creciente). `204`, `501` y cualquier otro código son **definitivos**: el Swagger no documenta qué significa `204` aquí, y tratarlo como éxito certificaría un documento sin confirmación.
+- ⚠️ **GovCarpeta descarga el documento desde la URL**: tiene que ser alcanzable desde internet. Con MinIO en `localhost` (desarrollo local) el sandbox real no llega; el `PUT` real no se ha ejecutado todavía.
 
 ## POST /apis/registerOperator
 
