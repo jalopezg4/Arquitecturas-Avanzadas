@@ -9,4 +9,20 @@ class CarpetaEnTransferenciaError extends Error {
   }
 }
 
-module.exports = { CarpetaEnTransferenciaError };
+/** El documento no existe (o su id no tiene forma valida): para quien pregunta es lo mismo. -> 404 */
+class DocumentoNoEncontradoError extends Error {
+  constructor() {
+    super("documento no encontrado");
+    this.name = "DocumentoNoEncontradoError";
+  }
+}
+
+/** El documento es de otro ciudadano (queda en la bitacora como `no_es_dueno`). -> 403 */
+class DocumentoAjenoError extends Error {
+  constructor(message = "solo el dueno del documento puede acceder a el") {
+    super(message);
+    this.name = "DocumentoAjenoError";
+  }
+}
+
+module.exports = { CarpetaEnTransferenciaError, DocumentoNoEncontradoError, DocumentoAjenoError };

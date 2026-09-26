@@ -45,6 +45,9 @@ const { requireOwner } = require("./documentController");
  * Token de CIUDADANO. Aqui `:id` es el DOCUMENTO, no la carpeta: requireOwner no sirve (compara `:id` con el
  * ciudadano), asi que el dueno lo comprueba el servicio contra el documento. Sin cuerpo.
  *
+ * Descarga de un documento propio (HU-09)
+ * GET /documents/:id/download -> 200 {downloadUrl, expiraEn, ...}; URL prefirmada de 1 hora como maximo.
+ *
  * `express.json()`: primera vez que este servicio recibe cuerpo JSON (las demas rutas son multipart), por eso los
  * errores de parseo se traducen en el errorHandler de documentController.js.
  */
@@ -74,6 +77,8 @@ function documentRoutes({ controller, secrets, entitySecrets, issuer, entityIssu
   router.patch("/citizens/me/document-requests/:id/decision", authCitizen, jsonBody, controller.decideDocumentRequest);
 
   router.put("/documents/:id/authenticate", authCitizen, controller.requestAuthentication);
+  // HU-09: descarga. Igual que la autenticacion, `:id` es el documento: el dueno lo comprueba el servicio.
+  router.get("/documents/:id/download", authCitizen, controller.download);
 
   return router;
 }

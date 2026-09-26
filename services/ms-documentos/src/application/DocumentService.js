@@ -1,7 +1,9 @@
 const crypto = require("crypto");
 const logger = require("../tracing/logger");
 const { documentoCargadoPayload } = require("./events");
+const mongoose = require("mongoose");
 const { ESTADOS_DE_CARGA } = require("../domain/Document");
+const { DocumentoNoEncontradoError, DocumentoAjenoError } = require("../domain/errors");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -265,6 +267,34 @@ class DocumentService {
       currentPage,
       pageSize: size,
       totalPages: Math.ceil(total / size),
+    };
+  }
+
+  /**
+   * HU-09 (RF-23): URL prefirmada para que el ciudadano descargue un documento PROPIO. Mismo mecanismo que HU-04
+   * (ADR-06) con vigencia propia: `downloadTtlSeconds` (1 hora como maximo, validado al arrancar).
+   *
+   * Orden: id con forma valida y documento existente (404) -> es del ciudadano del token (403 y bitacora
+   * `no_es_dueno`) -> recien entonces se firma. Cada descarga queda en la bitacora (RF-39 / RNF-07). Es de solo
+   * lectura: funciona tambien con la carpeta en transferencia.
+   */
+  async download({ ciudadanoId, documentoId }) {
+    if (typeof documentoId !== "string" || !mongoose.isValidObjectId(documentoId)) throw new DocumentoNoEncontradoError();
+    const doc = await this.documentRepository.findById(documentoId);
+    if (!doc) throw new DocumentoNoEncontradoError();
+    const actor = { id: ciudadanoId, tipo: "ciudadano", delegated: false, action: "documento.descargar" };
+    if (doc.ciudadanoId !== ciudadanoId) {
+      await this._audit(doc.ciudadanoId, "rechazo", "no_es_dueno", undefined, documentoId, actor);
+      throw new DocumentoAjenoError("solo el dueno del documento puede descargarlo");
+    }
+    const downloadUrl = await this.storage.presignedGetUrl(doc.storageKey, this.downloadTtlSeconds);
+    await this._audit(ciudadanoId, "exito", undefined, undefined, documentoId, actor);
+    return {
+      documentoId,
+      titulo: doc.titulo,
+      mimeType: doc.mimeType,
+      downloadUrl,
+      expiraEn: new Date(this.now().getTime() + this.downloadTtlSeconds * 1000).toISOString(),
     };
   }
 

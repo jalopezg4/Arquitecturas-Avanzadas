@@ -43,6 +43,8 @@ const ROUTES = [
   // ms-documentos -- HU-04: el ciudadano pide autenticar un documento propio en GovCarpeta (responde 202; el resultado
   // llega por evento). Token de CIUDADANO; el servicio comprueba que el documento sea suyo.
   { method: "PUT", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/authenticate$/, upstream: "DOCUMENTOS_URL" },
+  // ms-documentos -- HU-09: URL de descarga (1 h) de un documento propio. Token de CIUDADANO; el servicio comprueba el dueno.
+  { method: "GET", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/download$/, upstream: "DOCUMENTOS_URL" },
   // ms-interoperabilidad -- HU-05c: el ciudadano inicia su transferencia a otro operador y consulta la que esta en curso.
   { method: "POST", path: "/api/v1/transfers", upstream: "INTEROPERABILIDAD_URL" },
   { method: "GET", path: "/api/v1/citizens/me/transfer", upstream: "INTEROPERABILIDAD_URL" },

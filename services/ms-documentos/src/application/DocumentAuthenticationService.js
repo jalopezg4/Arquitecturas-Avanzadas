@@ -1,20 +1,8 @@
 const mongoose = require("mongoose");
 const logger = require("../tracing/logger");
 const { autenticacionSolicitadaPayload } = require("./events");
-const { CarpetaEnTransferenciaError } = require("../domain/errors");
+const { CarpetaEnTransferenciaError, DocumentoNoEncontradoError, DocumentoAjenoError } = require("../domain/errors");
 
-class DocumentoNoEncontradoError extends Error {
-  constructor() {
-    super("documento no encontrado");
-    this.name = "DocumentoNoEncontradoError";
-  }
-}
-class DocumentoAjenoError extends Error {
-  constructor() {
-    super("solo el dueno del documento puede solicitar su autenticacion");
-    this.name = "DocumentoAjenoError";
-  }
-}
 class DocumentoNoDisponibleError extends Error {
   constructor() {
     super("el documento no esta disponible para autenticacion");
@@ -69,7 +57,7 @@ class DocumentAuthenticationService {
     if (!actual) throw new DocumentoNoEncontradoError();
     if (actual.ciudadanoId !== ciudadanoId) {
       await this._audit(ciudadanoId, documentoId, actual.ciudadanoId, "rechazo", "no_es_dueno");
-      throw new DocumentoAjenoError();
+      throw new DocumentoAjenoError("solo el dueno del documento puede solicitar su autenticacion");
     }
 
     // Solo PDF: un escaneo importado de otro operador (HU-05c) no se puede autenticar aqui.

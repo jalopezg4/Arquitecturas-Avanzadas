@@ -383,6 +383,34 @@ describe("ms-documentos: PUT /api/v1/documents/:id/authenticate (HU-04)", () => 
   });
 });
 
+describe("ms-documentos: GET /api/v1/documents/:id/download (HU-09)", () => {
+  let docs;
+  let gw;
+  beforeEach(async () => {
+    docs = await startUpstream();
+    gw = buildApp({ secrets, upstreams: { DOCUMENTOS_URL: docs.url }, issuer: "ms-identidad", timeoutMs: 2000 });
+  });
+  afterEach(async () => {
+    await docs.close();
+  });
+
+  test("exige token de ciudadano y se reenvia con el Authorization intacto", async () => {
+    await request(gw).get("/api/v1/documents/6ab68fddb64d2aa730b415bb/download").expect(401);
+    expect(docs.calls).toHaveLength(0);
+
+    const t = token();
+    await request(gw).get("/api/v1/documents/6ab68fddb64d2aa730b415bb/download").set("Authorization", `Bearer ${t}`).expect(201);
+    expect(docs.calls[0]).toMatchObject({ method: "GET", path: "/api/v1/documents/6ab68fddb64d2aa730b415bb/download" });
+    expect(docs.calls[0].headers.authorization).toBe(`Bearer ${t}`);
+  });
+
+  test.each([["POST", "/api/v1/documents/abc/download"], ["GET", "/api/v1/documents/a b/download"], ["GET", "/api/v1/documents/abc/download/x"]])("%s %s -> 404", async (method, path) => {
+    const res = await request(gw)[method.toLowerCase()](path).set("Authorization", `Bearer ${token()}`);
+    expect(res.status).toBe(404);
+    expect(docs.calls).toHaveLength(0);
+  });
+});
+
 describe("ms-interoperabilidad: transferencia de operador (HU-05c)", () => {
   let interop;
   let gw;

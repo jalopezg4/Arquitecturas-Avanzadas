@@ -2,8 +2,8 @@ const logger = require("../tracing/logger");
 const { ValidationError, UnsupportedMediaTypeError, PayloadTooLargeError, QuotaExceededError, StorageUnavailableError } = require("../application/DocumentService");
 const { DestinatarioNoEncontradoError, EnvioConflictError } = require("../application/InboundDocumentService");
 const { SolicitudNotFoundError, SolicitudYaDecididaError } = require("../application/SolicitudService");
-const { CarpetaEnTransferenciaError } = require("../domain/errors");
-const { DocumentoNoEncontradoError, DocumentoAjenoError, DocumentoNoDisponibleError, CedulaNoRegistradaError } = require("../application/DocumentAuthenticationService");
+const { CarpetaEnTransferenciaError, DocumentoNoEncontradoError, DocumentoAjenoError } = require("../domain/errors");
+const { DocumentoNoDisponibleError, CedulaNoRegistradaError } = require("../application/DocumentAuthenticationService");
 
 /**
  * El dueno de la carpeta es quien lleva el token: /citizens/:id/documents solo acepta que :id sea el sub del
@@ -35,6 +35,19 @@ function makeDocumentController(documentService, inboundDocumentService, documen
      * HU-04: pedir la autenticacion de un documento propio. Responde 202 en cuanto la solicitud queda registrada y
      * publicada (o pendiente de reenvio): nunca espera a GovCarpeta (RNF-10).
      */
+    /**
+     * HU-09: URL de descarga de un documento propio. `no-store`: la URL es una credencial temporal y no debe quedar en
+     * caches intermedios.
+     */
+    async download(req, res, next) {
+      try {
+        const result = await documentService.download({ ciudadanoId: req.auth.ciudadanoId, documentoId: req.params.id });
+        res.set("Cache-Control", "no-store");
+        return res.status(200).json(result);
+      } catch (err) {
+        return next(err);
+      }
+    },
     async requestAuthentication(req, res, next) {
       try {
         if (!documentAuthenticationService) return res.status(503).json({ error: "servicio no disponible" });
