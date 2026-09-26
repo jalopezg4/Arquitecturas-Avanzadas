@@ -4,18 +4,15 @@ const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
 
 const EXCHANGE = "carpeta-ciudadana.events";
 
-// Los eventos que publica este servicio son para ms-notificaciones (y, desde HU-04, para ms-autenticacion). Sin una
-// cola ligada al topic exchange, RabbitMQ descarta el mensaje al no haber nadie suscrito; por eso se pre-declaran aqui
-// las colas que usara, durables y ligadas a su routing key, para que los mensajes queden esperando aunque el
-// consumidor no este corriendo. Declarar una cola es idempotente.
+// HU-04: el resultado de la autenticacion lo consumen ms-documentos (dueno del estado del documento) y
+// ms-notificaciones (aviso al ciudadano). Sin una cola ligada al topic exchange, RabbitMQ descarta el mensaje al no
+// haber nadie suscrito; por eso se pre-declaran aqui, durables y ligadas a su routing key, para que el resultado
+// espere aunque el consumidor no este corriendo. Declarar una cola es idempotente (y los consumidores la declaran igual).
 const ANTICIPATED_BINDINGS = [
-  { queue: "ms-notificaciones.documento-cargado", routingKey: "documento.cargado" },
-  // HU-06.3 (PASO 3.2): ms-notificaciones todavia no consume esta cola (fuera de este paso); se predeclara igual,
-  // mismo criterio que arriba, para que los eventos no se pierdan en cuanto ese consumidor exista.
-  { queue: "ms-notificaciones.solicitud-creada", routingKey: "solicitud.creada" },
-  // HU-04: la solicitud de autenticacion la consume ms-autenticacion; si esta caido, espera en su cola (matriz de
-  // degradacion: "las solicitudes quedan en cola y se procesan al restablecerse").
-  { queue: "ms-autenticacion.autenticacion-solicitada", routingKey: "documento.autenticacion_solicitada" },
+  { queue: "ms-documentos.documento-autenticado", routingKey: "documento.autenticado" },
+  { queue: "ms-documentos.documento-autenticacion-fallida", routingKey: "documento.autenticacion_fallida" },
+  { queue: "ms-notificaciones.documento-autenticado", routingKey: "documento.autenticado" },
+  { queue: "ms-notificaciones.documento-autenticacion-fallida", routingKey: "documento.autenticacion_fallida" },
 ];
 
 class EventPublisher {

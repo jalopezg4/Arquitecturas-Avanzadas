@@ -77,6 +77,27 @@ services:
       - rabbitmq
       - minio
 
+  # Autenticacion de documentos con GovCarpeta (HU-04). Consume documento.autenticacion_solicitada, firma una URL de
+  # lectura de 15 min y llama PUT /apis/authenticateDocument; el resultado vuelve por evento. OJO: GovCarpeta tiene que
+  # poder ABRIR esa URL; con MinIO en localhost (S3_PUBLIC_ENDPOINT) el sandbox real no llega y la autenticacion falla.
+  ms-autenticacion:
+    build: ./services/ms-autenticacion
+    ports:
+      - "3007:3007"
+    environment:
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017/ms-autenticacion
+      RABBITMQ_URI: amqp://rabbitmq:5672
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}  # secret-scan:allow -- credencial de desarrollo local; fuera de local el servicio rechaza minioadmin
+      GOVCARPETA_BASE_URL: ${GOVCARPETA_BASE_URL:-https://govcarpeta-apis-4905ff3c005b.herokuapp.com}
+    depends_on:
+      - mongo
+      - rabbitmq
+      - minio
+
   # Avisos por correo (HU-03 confirmacion de carga; HU-01 bienvenida). Por defecto EMAIL_TRANSPORT=console: NO envia nada,
   # solo deja constancia del aviso en Mongo. Para enviar de verdad: EMAIL_TRANSPORT=smtp y SMTP_HOST/PORT/USER/PASS
   # (fuera de este compose el servicio exige smtp y credenciales que no sean las de un tutorial).
