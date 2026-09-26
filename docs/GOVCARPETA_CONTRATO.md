@@ -106,4 +106,4 @@ Respuesta `200` (lista). **El sandbox real NO coincide con el Swagger** (verific
 
 ## Lo que GovCarpeta NO expone
 
-`transferCitizen` y `transferCitizenConfirm` los implementa **cada operador** (peer-to-peer). GovCarpeta solo guarda las URLs (`endPoint`/`endPointConfirm`) y las expone en el directorio (`getOperators`).
+`transferCitizen` y `transferCitizenConfirm` los implementa **cada operador** (peer-to-peer). GovCarpeta solo guarda las URLs (`endPoint`/`endPointConfirm`) y las expone en el directorio (`getOperators`). El contrato acordado entre los equipos y cómo lo implementa HU-05c está en `docs/SEGURIDAD.md`, sección 14. Detalle que sale del Swagger: como `registerCitizen` responde `501` si el ciudadano ya está afiliado, el **origen debe desafiliarlo antes** de enviarlo, y es el **destino** quien lo registra con su propio operador.

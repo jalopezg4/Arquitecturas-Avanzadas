@@ -14,7 +14,7 @@ Microservicios, cada uno propietario exclusivo de su base de datos. Comunicació
 | `ms-identidad` | Registro, login y portabilidad **del ciudadano** | HU-01, HU-02, HU-11 |
 | `ms-documentos` | Carga, consulta, descarga, custodia y **recepción desde entidades emisoras** | HU-03, HU-08, HU-10 (HU-09 pendiente) |
 | `ms-autenticacion` | Autenticación documental con GovCarpeta: consume la solicitud, firma una URL de lectura de 15 min y publica el resultado (ver `docs/SEGURIDAD.md`, sección 13) | HU-04 |
-| `ms-interoperabilidad` | Transferencias entre operadores | HU-05a (directorio de operadores; ver `docs/SEGURIDAD.md`, sección 9), HU-05b, HU-05c |
+| `ms-interoperabilidad` | Transferencias entre operadores: orquesta la saga (origen y destino) con ms-documentos y ms-identidad por eventos | HU-05a (directorio de operadores; ver `docs/SEGURIDAD.md`, sección 9), HU-05b, HU-05c (sección 14) |
 | `ms-notificaciones` | Correo y SMS | consumidor transversal (HU-03 confirmación de carga, HU-01 bienvenida, HU-04 resultado de la autenticación, HU-06.3 solicitud) |
 | `ms-comparticion` | Compartición autorizada, entidades institucionales y **autenticación de entidades** | HU-06.1 (registro de entidades; ver `docs/SEGURIDAD.md`, sección 10), ADR-07 (autenticación institucional; sección 12), HU-06.2 a 06.4 |
 | `ms-analitica` | Servicios Premium y analítica de metadatos, protegidos con token institucional (ADR-07). HU-07.1 y HU-07.2 implementadas; HU-07.3 implementada **parcialmente** (solo registro local de la solicitud) — la identificación del operador destino, la transferencia, el consentimiento y la entrega documental multioperador quedan fuera de alcance hasta HU-05c/HU-06.3 | HU-07.1, HU-07.2, HU-07.3 (parcial) |

@@ -396,3 +396,75 @@ cédula.
 - **Sin límite de solicitudes:** un ciudadano puede reintentar un documento rechazado cuantas veces quiera (cada una es
   una llamada al centralizador); no hay limitación de tasa en el sistema.
 - **La URL entregada no se puede revocar** antes de sus 15 minutos (propiedad de las URLs prefirmadas).
+
+## 14. Transferencia de ciudadanos entre operadores (`ms-interoperabilidad`, HU-05c)
+
+Protocolo acordado entre los equipos del curso (dos fases con confirmación). GovCarpeta solo interviene para
+desafiliar/afiliar y para el directorio; los documentos viajan **directo entre operadores** (RNF-13, RNF-14).
+
+| Endpoint (lo expone cada operador) | Cuerpo |
+|---|---|
+| `POST /api/transferCitizen` | `{id, citizenName, citizenEmail, urlDocuments: {URL1: [url], ...}, confirmAPI}` |
+| `POST /api/transferCitizenConfirm` | `{id, req_status}` con `req_status` `1` (éxito) o `0` (fracaso) |
+
+**Extensiones opcionales que enviamos** (un receptor que no las conozca las ignora; al recibir, se toleran ausentes):
+`direccionUnica` (RF-10), `citizenAddress` (GovCarpeta exige una dirección para afiliar) y `metadata` por clave de
+`urlDocuments` (`titulo`, `entidadAvaladora`, `fecha`, `estado`, `sha256`). Nota: el Gherkin del issue #53 dice
+`req_status: "completado"`; el protocolo acordado entre equipos es `1`/`0` y es el que se implementa.
+
+### Origen (el ciudadano se va)
+
+```
+ciudadano -POST /api/v1/transfers {operadorDestinoId}-> ms-interoperabilidad (202)
+  -> transferencia.exportar_carpeta -> ms-documentos: carpeta en SOLO LECTURA + URL prefirmada y metadatos por documento
+  -> unregisterCitizen (GovCarpeta, una vez) -> POST transferCitizen al destino -> esperar confirmacion
+  <- transferCitizenConfirm 1 -> ciudadano.transferido -> ms-documentos borra objetos/documentos/carpeta; ms-identidad
+                                  revoca sesiones y borra al ciudadano (RF-08)
+  <- 0, 5 min sin respuesta x3 envios, o rechazo definitivo -> compensar: registerCitizen (si ya se habia desafiliado)
+                                  + transferencia.cancelada (desbloquea la carpeta)
+```
+
+| Aspecto | Decisión |
+|---|---|
+| Destino | Se resuelve con el directorio en modo **estricto** (HU-05a): nunca una copia vieja, nunca nuestro propio operador |
+| Solo lectura | Mientras dura, la carpeta no admite cargas (HU-03), entregas institucionales (HU-10), autenticaciones (HU-04) ni solicitudes (HU-06.3): `409`. La consulta sigue funcionando. La reserva de cupo lo revalida de forma atómica |
+| Datos del ciudadano | Copia local en `ms-interoperabilidad` desde `ciudadano.registrado` (que ahora lleva también `direccion`): no hay llamadas síncronas entre servicios (ADR-01) |
+| **Confirmación** | El protocolo no autentica al operador que llama: cualquiera que conozca una cédula podría confirmar y hacernos **borrar** al ciudadano. Por eso nuestro `confirmAPI` lleva un **token aleatorio por transferencia** (`?t=...`); una confirmación sin él (o con otro) responde `404` y no borra nada. Compatible con el protocolo: el destino llama la URL tal cual la recibió |
+| Borrado | Solo tras `req_status: 1`, y primero se publica `ciudadano.transferido` (si el broker no confirma se responde error y el destino reintenta). Repetir la confirmación responde igual sin volver a borrar |
+| Plazos | `TransferSweeper` (cada 30 s) reenvía a los 5 min sin confirmación, hasta 3 envíos; repite órdenes internas sin respuesta; termina compensaciones que quedaron a medias (`fallando`) |
+| Estado en `ms-identidad` | Se **borra** el registro (no se deja `transferido`): el protocolo pide borrar y así, si el ciudadano regresa, se puede importar de nuevo con la misma dirección única (índice único) |
+
+### Destino (el ciudadano llega)
+
+```
+otro operador -POST /api/transferCitizen-> ms-interoperabilidad (202)
+  -> transferencia.importar_documentos -> ms-documentos descarga, valida y guarda en NUESTRO storage (todo o nada)
+  -> transferencia.registrar_ciudadano -> ms-identidad crea al ciudadano (misma direccion unica), registerCitizen con
+                                           NUESTRO operador, publica ciudadano.registrado (carpeta + bienvenida)
+  -> POST confirmAPI del origen {id, req_status: 1}      (si algo falla: revertir lo importado y req_status: 0)
+```
+
+| Aspecto | Decisión |
+|---|---|
+| URLs de un tercero | `confirmAPI` y cada URL de documento pasan la política de HU-05a (http/https, sin credenciales, sin hosts o IPs locales/privadas, sin `file:`); además la **IP resuelta** se valida al conectar (DNS rebinding, pendiente desde HU-05a), sin redirecciones, con plazo y tamaño máximo |
+| Documentos | Se aceptan PDF, PNG y JPEG por su **firma real**; si el origen declara `sha256`, debe coincidir. Todo o nada: si uno falla, se deshace lo importado y se confirma `0` (el origen no borra nada). Un 5xx del origen se reintenta. Idempotente por (transferencia, clave) |
+| Estado del documento | El que declare el origen en `metadata` (`certificado`/`temporal`); sin metadato, `temporal`. Los temporales ocupan cupo aunque superen el máximo (no se pierde nada al llegar). Un escaneo (imagen) no se puede autenticar después (HU-04 solo firma PDF) |
+| Reintentos del origen | Un pedido idéntico devuelve la misma transferencia; otro pedido para la misma cédula en curso, o una cédula que ya es nuestra: `409` |
+| Registro | Igual de cuidadoso que HU-01: `pendiente` antes de GovCarpeta, sin reintento ciego de `registerCitizen`, un resultado ambiguo se resuelve con `validateCitizen` |
+
+### Límites conocidos
+
+- **El ciudadano que llega no puede iniciar sesión**: la contraseña no viaja entre operadores y no existe un flujo
+  para fijarla (activación o recuperación de cuenta no está en ninguna HU). Queda activo, con su carpeta y su correo de
+  bienvenida; el login lo rechaza con el mismo `401` genérico.
+- **RF-10 depende del origen**: si el otro operador no envía `direccionUnica` (extensión opcional), se le genera una
+  nueva y queda constancia en el log.
+- **Compensación incompleta posible**: si el destino alcanzó a afiliar al ciudadano pero su confirmación nunca nos
+  llegó, al compensar `registerCitizen` responde `501`; la transferencia queda `fallida` con el motivo
+  `reafiliacion_fallida_501` para revisión manual. GovCarpeta no permite distinguir el caso automáticamente.
+- **Estado de los documentos**: un documento `en autenticacion` viaja como `temporal`; el `certificado` que declara el
+  otro operador se acepta sin re-verificar (GovCarpeta no ofrece un artefacto verificable, ver 9.4 del expediente).
+- **URLs exportadas**: vigencia de 1 h (tope de `PRESIGNED_URL_DOWNLOAD_TTL_SECONDS`); alcanza para los 3 envíos de
+  5 minutos. No se pueden revocar antes de vencer.
+- **Sin aviso al ciudadano que se va** del resultado de su transferencia (solo el que llega recibe la bienvenida).
+- No se probó contra otro operador real del curso: la suite de contrato es HT-05.
