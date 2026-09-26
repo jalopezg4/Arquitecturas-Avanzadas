@@ -13,6 +13,8 @@ const citizenSchema = new mongoose.Schema(
     nombre: { type: String, required: true },
     correo: { type: String, required: true },
     direccionUnica: { type: String, default: null },
+    // Direccion fisica: GovCarpeta la exige para volver a afiliarlo si una transferencia falla (compensacion).
+    direccion: { type: String, default: null },
   },
   { timestamps: true }
 );

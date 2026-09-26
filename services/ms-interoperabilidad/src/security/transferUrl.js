@@ -91,4 +91,15 @@ function assertSafeTransferUrl(raw, { allowPrivate = false, requireHttps = false
   return url.href;
 }
 
-module.exports = { assertSafeTransferUrl, UnsafeTransferUrlError };
+/**
+ * HU-05c: comprueba una IP YA RESUELTA (IPv4 o IPv6). La validacion de arriba es sobre el TEXTO de la URL: un nombre
+ * publico que resuelve a una IP privada (DNS rebinding) solo se detecta aqui, al conectar.
+ */
+function isPrivateAddress(ip) {
+  if (typeof ip !== "string" || !ip) return true;
+  const v4 = ipv4Parts(ip);
+  if (v4) return v4.some((n) => n > 255) || isPrivateIpv4(v4);
+  return isPrivateIpv6(ip);
+}
+
+module.exports = { assertSafeTransferUrl, UnsafeTransferUrlError, isPrivateAddress };

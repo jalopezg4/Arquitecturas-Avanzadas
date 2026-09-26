@@ -20,8 +20,26 @@ function makeCitizenRegisteredHandler({ citizenRepository }) {
     need(text(payload.nombre, 200), "nombre invalido o ausente");
     need(typeof payload.correo === "string" && payload.correo.length <= 200 && EMAIL_RE.test(payload.correo), "correo invalido o ausente");
     const direccionUnica = typeof payload.direccionUnica === "string" && payload.direccionUnica.length <= 200 && EMAIL_RE.test(payload.direccionUnica) ? payload.direccionUnica : null;
-    await citizenRepository.upsert({ ciudadanoId: payload.ciudadanoId, documento: payload.documento, nombre: payload.nombre.trim(), correo: payload.correo.trim(), direccionUnica });
+    const direccion = text(payload.direccion, 300) ? payload.direccion.trim() : null;
+    await citizenRepository.upsert({ ciudadanoId: payload.ciudadanoId, documento: payload.documento, nombre: payload.nombre.trim(), correo: payload.correo.trim(), direccionUnica, direccion });
   };
 }
 
-module.exports = { makeCitizenRegisteredHandler, need, ID_RE, EMAIL_RE };
+/**
+ * `transferencia.carpeta_exportada` (HU-05c, lo publica ms-documentos): la carpeta ya esta bloqueada y trae una URL
+ * prefirmada por documento. Un mensaje mal formado no se puede aplicar: cola de fallidos (el barrido desiste luego).
+ */
+function makeFolderExportedHandler({ sagaService, maxDocuments = 500 }) {
+  return async function onFolderExported(payload) {
+    need(payload && typeof payload === "object", "payload invalido");
+    need(typeof payload.transferenciaId === "string" && ID_RE.test(payload.transferenciaId), "transferenciaId invalido");
+    need(typeof payload.ok === "boolean", "ok invalido");
+    if (payload.ok) {
+      need(Array.isArray(payload.documentos) && payload.documentos.length <= maxDocuments, "documentos invalidos");
+      for (const d of payload.documentos) need(d && typeof d.url === "string" && d.url.length <= 4096, "documento sin url");
+    }
+    await sagaService.onFolderExported(payload);
+  };
+}
+
+module.exports = { makeCitizenRegisteredHandler, makeFolderExportedHandler, need, ID_RE, EMAIL_RE };

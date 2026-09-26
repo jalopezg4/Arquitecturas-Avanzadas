@@ -47,16 +47,20 @@ const transferSchema = new mongoose.Schema(
     nombre: { type: String, default: null },
     correo: { type: String, default: null },
     direccionUnica: { type: String, default: null },
+    direccion: { type: String, default: null }, // direccion fisica: registerCitizen la exige
     documentos: { type: [documentoSchema], default: [] },
 
     // SALIENTE
     operadorDestinoId: { type: String, default: null },
     operadorDestinoNombre: { type: String, default: null },
     destinoUrl: { type: String, default: null },
-    // Huella del token de un solo uso que viaja en NUESTRO confirmAPI (?t=...): sin el, cualquiera que conozca una
-    // cedula podria confirmar una transferencia ajena y hacernos borrar al ciudadano. Nunca se guarda el token.
-    confirmTokenHash: { type: String, default: null },
+    // Token aleatorio que viaja en NUESTRO confirmAPI (?t=...): sin el, cualquiera que conozca una cedula podria
+    // confirmar una transferencia ajena y hacernos borrar al ciudadano. Se guarda porque cada reenvio usa la misma URL;
+    // nunca se registra en logs ni sale de este servicio salvo hacia el destino.
+    confirmToken: { type: String, default: null },
     desafiliadoEnGovCarpeta: { type: Boolean, default: false },
+    // Compensacion: el ciudadano ya se volvio a afiliar a NOSOTROS en GovCarpeta.
+    reafiliado: { type: Boolean, default: false },
     enviosRealizados: { type: Number, default: 0 },
 
     // ENTRANTE
@@ -66,6 +70,8 @@ const transferSchema = new mongoose.Schema(
 
     // Control de la saga
     motivo: { type: String, default: null },
+    // true mientras se esta deshaciendo (compensacion en curso): el barrido la retoma si algo fallo a mitad.
+    fallando: { type: Boolean, default: false },
     // Cuando hay que volver a mirar esta transferencia (reenvio, plazo vencido). La revisa TransferSweeper.
     revisarEn: { type: Date, default: null },
     finalizadaEn: { type: Date, default: null },

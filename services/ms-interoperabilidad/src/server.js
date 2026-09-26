@@ -11,7 +11,16 @@ const { GovCarpetaDirectoryClient } = require("./infrastructure/GovCarpetaDirect
 const CitizenRepository = require("./infrastructure/CitizenRepository");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { OperatorDirectoryService } = require("./application/OperatorDirectoryService");
-const { makeCitizenRegisteredHandler } = require("./interfaces/eventHandlers");
+const { makeCitizenRegisteredHandler, makeFolderExportedHandler } = require("./interfaces/eventHandlers");
+const { TransferRepository } = require("./infrastructure/TransferRepository");
+const GovCarpetaCitizenClient = require("./infrastructure/GovCarpetaCitizenClient");
+const { PeerOperatorClient } = require("./infrastructure/PeerOperatorClient");
+const EventPublisher = require("./infrastructure/EventPublisher");
+const AuditLogger = require("./infrastructure/AuditLogger");
+const AuditRepository = require("./infrastructure/AuditRepository");
+const SecretsManager = require("./security/SecretsManager");
+const { TransferSagaService } = require("./application/TransferSagaService");
+const TransferSweeper = require("./application/TransferSweeper");
 
 /** Arranca un consumidor que reconecta solo: si RabbitMQ no esta al arrancar, el servicio NO cae. */
 function startConsumer(consumer) {
@@ -46,13 +55,46 @@ async function main() {
   // directorio se pedira cuando haga falta (con la politica de refresco).
   directory.refresh().catch((err) => logger.warn("directorio.precalentamiento_fallido", { err }));
 
-  // HU-05c: copia local del ciudadano (cedula, nombre, correo, direccion unica) para poder transferirlo.
+  // HU-05c: transferencia de ciudadanos entre operadores.
+  const secrets = new SecretsManager({ active: env.jwtSecret, previous: env.jwtSecretPrevious });
   const citizenRepository = new CitizenRepository();
+  const transferRepository = new TransferRepository();
+  const eventPublisher = new EventPublisher(env.rabbitUri);
+  const govCarpetaClient = new GovCarpetaCitizenClient({ baseUrl: env.govCarpetaBaseUrl, operatorId: env.operatorId, operatorName: env.operatorName, timeoutMs: env.httpTimeoutMs });
+  const peerClient = new PeerOperatorClient({ timeoutMs: env.transfer.peerTimeoutMs, allowPrivate: env.directory.allowPrivateUrls, requireHttps: env.directory.requireHttpsUrls });
+  const auditLogger = new AuditLogger({ auditRepository: new AuditRepository() });
+  const sagaService = new TransferSagaService({
+    transferRepository,
+    citizenRepository,
+    directory,
+    govCarpetaClient,
+    peerClient,
+    eventPublisher,
+    auditLogger,
+    publicBaseUrl: env.publicBaseUrl,
+    confirmTimeoutMs: env.transfer.confirmTimeoutMs,
+    maxSendAttempts: env.transfer.maxSendAttempts,
+    stepTimeoutMs: env.transfer.stepTimeoutMs,
+    eventPublishTimeoutMs: env.eventPublishTimeoutMs,
+  });
+
+  // Colas que predeclaran los publicadores (ms-identidad, ms-documentos): aqui se declaran IGUAL (solo durables).
   const consumers = [
     startConsumer(new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-interoperabilidad.ciudadano-registrado", routingKey: "ciudadano.registrado", handler: makeCitizenRegisteredHandler({ citizenRepository }) })),
+    startConsumer(new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-interoperabilidad.carpeta-exportada", routingKey: "transferencia.carpeta_exportada", handler: makeFolderExportedHandler({ sagaService, maxDocuments: env.transfer.maxDocuments }) })),
   ];
 
-  const app = buildApp({ isReady: () => mongoose.connection.readyState === 1 && consumers.every((c) => Boolean(c.channel)) });
+  // Plazos y reintentos de la saga: sin esto, un mensaje perdido o un reinicio dejarian una transferencia colgada.
+  if (env.transfer.sweepIntervalMs > 0) {
+    new TransferSweeper({ transferRepository, reviewers: { saliente: sagaService } }).start(env.transfer.sweepIntervalMs);
+  }
+
+  const app = buildApp({
+    isReady: () => mongoose.connection.readyState === 1 && consumers.every((c) => Boolean(c.channel)),
+    sagaService,
+    secrets,
+    issuer: env.jwtIssuer,
+  });
   app.listen(env.port, () => logger.info("ms-interoperabilidad escuchando", { port: env.port }));
 }
 
