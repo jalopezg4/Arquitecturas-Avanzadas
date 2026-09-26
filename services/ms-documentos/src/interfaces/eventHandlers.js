@@ -90,4 +90,24 @@ function makeTransferHandlers({ transferFolderService }) {
   };
 }
 
-module.exports = { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers };
+/** HU-05c (destino): importar los documentos del ciudadano que llega, o revertir la importacion. */
+function makeTransferImportHandlers({ transferImportService, maxDocuments = 500 }) {
+  return {
+    async importar(payload) {
+      const { transferenciaId, ciudadanoId } = parseTransferOrder(payload);
+      if (!OBJECT_ID_RE.test(ciudadanoId)) throw new PermanentError("ciudadanoId invalido");
+      if (!Array.isArray(payload.documentos) || payload.documentos.length > maxDocuments) throw new PermanentError("documentos invalidos");
+      for (const d of payload.documentos) {
+        if (!d || typeof d.clave !== "string" || !ID_RE.test(d.clave) || typeof d.url !== "string" || d.url.length > 4096) throw new PermanentError("documento invalido");
+      }
+      const documento = Number.isSafeInteger(payload.documento) && payload.documento > 0 ? payload.documento : undefined;
+      const direccionUnica = typeof payload.direccionUnica === "string" && payload.direccionUnica.length <= MAX_DIRECCION && DIRECCION_RE.test(payload.direccionUnica) ? payload.direccionUnica : undefined;
+      await transferImportService.import({ transferenciaId, ciudadanoId, documento, direccionUnica, documentos: payload.documentos });
+    },
+    async revertir(payload) {
+      await transferImportService.revert(parseTransferOrder(payload));
+    },
+  };
+}
+
+module.exports = { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers };

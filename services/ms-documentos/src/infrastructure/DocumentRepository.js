@@ -29,6 +29,11 @@ class DocumentRepository {
     return Document.find({ ciudadanoId }).sort({ createdAt: 1 }).limit(limit).lean();
   }
 
+  /** HU-05c (destino): lo importado por una transferencia (para idempotencia o para revertirla). */
+  async findByTransfer(transferenciaOrigenId) {
+    return Document.find({ transferenciaOrigenId }).lean();
+  }
+
   async deleteByIds(ids) {
     if (!ids.length) return 0;
     return (await Document.deleteMany({ _id: { $in: ids } })).deletedCount;

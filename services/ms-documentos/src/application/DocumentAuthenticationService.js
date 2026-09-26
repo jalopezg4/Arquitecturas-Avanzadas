@@ -72,6 +72,12 @@ class DocumentAuthenticationService {
       throw new DocumentoAjenoError();
     }
 
+    // Solo PDF: un escaneo importado de otro operador (HU-05c) no se puede autenticar aqui.
+    if (actual.mimeType && actual.mimeType !== "application/pdf") {
+      await this._audit(ciudadanoId, documentoId, ciudadanoId, "rechazo", "tipo_no_autenticable");
+      throw new DocumentoNoDisponibleError();
+    }
+
     const folder = await this.folderRepository.get(ciudadanoId);
     if (folder && folder.transferenciaId) throw new CarpetaEnTransferenciaError();
     if (!folder || !folder.documento) {

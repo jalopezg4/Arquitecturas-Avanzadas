@@ -20,7 +20,9 @@ const EventReconciler = require("./application/EventReconciler");
 const { DocumentAuthenticationService } = require("./application/DocumentAuthenticationService");
 const AuthenticationRequestReconciler = require("./application/AuthenticationRequestReconciler");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
-const { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers } = require("./interfaces/eventHandlers");
+const { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers } = require("./interfaces/eventHandlers");
+const { TransferImportService } = require("./application/TransferImportService");
+const { RemoteFileFetcher } = require("./infrastructure/RemoteFileFetcher");
 const { TransferFolderService } = require("./application/TransferFolderService");
 
 async function main() {
@@ -115,10 +117,23 @@ async function main() {
   const transferHandlers = makeTransferHandlers({
     transferFolderService: new TransferFolderService({ folderRepository, documentRepository, storage, eventPublisher, urlTtlSeconds: env.presignedDownloadTtlSeconds, eventPublishTimeoutMs: env.eventPublishTimeoutMs }),
   });
+  const importHandlers = makeTransferImportHandlers({
+    transferImportService: new TransferImportService({
+      documentRepository,
+      folderRepository,
+      storage,
+      fetcher: new RemoteFileFetcher({ timeoutMs: env.transferImport.timeoutMs, maxBytes: env.transferImport.maxBytes, allowPrivate: env.transferImport.allowPrivateUrls }),
+      eventPublisher,
+      eventPublishTimeoutMs: env.eventPublishTimeoutMs,
+    }),
+  });
   for (const consumer of [
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.transferencia-exportar", routingKey: "transferencia.exportar_carpeta", handler: transferHandlers.exportar }),
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.ciudadano-transferido", routingKey: "ciudadano.transferido", handler: transferHandlers.transferido }),
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.transferencia-cancelada", routingKey: "transferencia.cancelada", handler: transferHandlers.cancelada }),
+    // HU-05c (destino): importar los documentos de un ciudadano que llega. prefetch 1: cada orden descarga archivos.
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.transferencia-importar", routingKey: "transferencia.importar_documentos", handler: importHandlers.importar, prefetch: 1 }),
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.transferencia-revertir", routingKey: "transferencia.revertir_importacion", handler: importHandlers.revertir }),
   ]) {
     consumer.start().catch((err) => {
       logger.error("consumidor.inicio_fallido", { queue: consumer.queue, err });

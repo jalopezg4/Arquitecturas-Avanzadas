@@ -118,6 +118,13 @@ function validateConfig(cfg) {
   if (!isPositiveInt(ttl)) problems.push("PRESIGNED_URL_DOWNLOAD_TTL_SECONDS debe ser un entero positivo");
   else if (ttl > MAX_DOWNLOAD_TTL_SECONDS) problems.push(`PRESIGNED_URL_DOWNLOAD_TTL_SECONDS no puede superar ${MAX_DOWNLOAD_TTL_SECONDS}s (politica de expiracion, ADR-06)`);
 
+  const ti = cfg.transferImport;
+  if (ti) {
+    if (!cfg.isLocal && ti.allowPrivateUrls) problems.push("ALLOW_PRIVATE_OPERATOR_URLS=true no se permite fuera de development/test (SSRF)");
+    if (!isPositiveInt(ti.timeoutMs)) problems.push("TRANSFER_DOWNLOAD_TIMEOUT_MS debe ser un entero positivo");
+    if (!isPositiveInt(ti.maxBytes) || ti.maxBytes > MAX_UPLOAD_LIMIT_BYTES) problems.push(`TRANSFER_DOWNLOAD_MAX_BYTES debe ser un entero positivo de hasta ${MAX_UPLOAD_LIMIT_BYTES} (50 MB)`);
+  }
+
   const tls = cfg.tls || {};
   if (Boolean(tls.certPath) !== Boolean(tls.keyPath)) problems.push("TLS_CERT_PATH y TLS_KEY_PATH deben definirse juntos");
   if (tls.caPath && !(tls.certPath && tls.keyPath)) problems.push("TLS_CA_PATH (mTLS) requiere TLS_CERT_PATH y TLS_KEY_PATH");

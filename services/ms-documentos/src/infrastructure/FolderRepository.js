@@ -107,6 +107,16 @@ class FolderRepository {
     await Folder.findOneAndUpdate({ ciudadanoId, noCertificados: { $gt: 0 } }, { $inc: { noCertificados: -1 } });
   }
 
+  /** HU-05c (destino): los temporales importados ocupan cupo, aunque superen el maximo (no se pierden al llegar). */
+  async addNonCertified(ciudadanoId, n) {
+    if (n > 0) await Folder.updateOne({ ciudadanoId }, { $inc: { noCertificados: n } });
+  }
+
+  /** HU-05c (destino): revertir una importacion. Solo borra la carpeta si ya no tiene documentos. */
+  async deleteIfEmpty(ciudadanoId, remaining) {
+    if (remaining === 0) await Folder.deleteOne({ ciudadanoId });
+  }
+
   async get(ciudadanoId) {
     return Folder.findOne({ ciudadanoId }).lean();
   }

@@ -6,7 +6,8 @@ const ESTADOS = ["temporal", "en autenticacion", "certificado"];
 // Estados con los que un documento puede ENTRAR a la carpeta. "en autenticacion" solo se alcanza por transicion.
 const ESTADOS_DE_CARGA = ["temporal", "certificado"];
 // Quien puso el documento en la carpeta (HU-10). No es lo mismo que el DUENO: el dueno es siempre el ciudadano.
-const ORIGENES = ["ciudadano", "entidad"];
+// "transferencia" (HU-05c): llego desde otro operador junto con el ciudadano.
+const ORIGENES = ["ciudadano", "entidad", "transferencia"];
 
 /**
  * Metadatos de un documento de la carpeta (RF-19, RF-20). El archivo NO esta aqui: vive en el object storage y
@@ -50,6 +51,10 @@ const documentSchema = new mongoose.Schema(
     autenticacionEventoPublicado: { type: Boolean, default: true },
     // Cuando GovCarpeta confirmo la autenticacion (RNF-08: es la evidencia que la API permite guardar).
     fechaAutenticacion: { type: Date, default: null },
+    // HU-05c: documento importado de otro operador. (transferencia, clave en urlDocuments) identifica la importacion:
+    // una reentrega de la orden no lo importa dos veces.
+    transferenciaOrigenId: { type: String, default: null },
+    claveTransferencia: { type: String, default: null },
   },
   { timestamps: true }
 );
@@ -60,6 +65,11 @@ const documentSchema = new mongoose.Schema(
 documentSchema.index(
   { emisorInstitutionId: 1, envioId: 1 },
   { unique: true, partialFilterExpression: { emisorInstitutionId: { $type: "string" }, envioId: { $type: "string" } } }
+);
+
+documentSchema.index(
+  { transferenciaOrigenId: 1, claveTransferencia: 1 },
+  { unique: true, partialFilterExpression: { transferenciaOrigenId: { $type: "string" }, claveTransferencia: { $type: "string" } } }
 );
 
 module.exports = mongoose.model("Document", documentSchema);

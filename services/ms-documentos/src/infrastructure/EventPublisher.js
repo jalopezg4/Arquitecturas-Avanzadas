@@ -18,6 +18,7 @@ const ANTICIPATED_BINDINGS = [
   { queue: "ms-autenticacion.autenticacion-solicitada", routingKey: "documento.autenticacion_solicitada" },
   // HU-05c: respuestas a la saga de transferencia, las consume ms-interoperabilidad.
   { queue: "ms-interoperabilidad.carpeta-exportada", routingKey: "transferencia.carpeta_exportada" },
+  { queue: "ms-interoperabilidad.documentos-importados", routingKey: "transferencia.documentos_importados" },
 ];
 
 class EventPublisher {

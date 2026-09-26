@@ -70,6 +70,14 @@ const config = {
     intervalMs: toInt(process.env.RECONCILE_INTERVAL_MS, 60000),
     minAgeMs: toInt(process.env.RECONCILE_MIN_AGE_MS, 60000),
   },
+  // HU-05c: descarga de los documentos de un ciudadano que llega transferido (URLs de OTRO operador).
+  transferImport: {
+    timeoutMs: toInt(process.env.TRANSFER_DOWNLOAD_TIMEOUT_MS, 30000),
+    // Mismo tope duro que la recepcion institucional: el archivo pasa entero por memoria.
+    maxBytes: toInt(process.env.TRANSFER_DOWNLOAD_MAX_BYTES, 50 * 1024 * 1024),
+    // Solo en local (p. ej. otro operador de prueba en localhost). Fuera de local el arranque lo prohibe (SSRF).
+    allowPrivateUrls: toBool(process.env.ALLOW_PRIVATE_OPERATOR_URLS),
+  },
   tls: {
     certPath: process.env.TLS_CERT_PATH || "",
     keyPath: process.env.TLS_KEY_PATH || "",
