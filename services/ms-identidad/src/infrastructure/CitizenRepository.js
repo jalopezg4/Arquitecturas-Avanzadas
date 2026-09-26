@@ -70,6 +70,15 @@ class CitizenRepository {
     return Citizen.find({ estado: "activo", eventoPublicado: false, updatedAt: { $lte: olderThan } }).sort({ updatedAt: 1 }).limit(limit);
   }
 
+  /**
+   * HU-05c (origen): el destino confirmo la transferencia -> se BORRA al ciudadano de este operador (RF-08 y el
+   * protocolo acordado: "borrar la info de BD y bucket"). Solo si sigue activo; repetirlo no hace nada. Borrarlo (y no
+   * solo marcarlo) permite que, si algun dia regresa, se importe de nuevo con la misma direccion unica (RF-10).
+   */
+  async deleteTransferred(id) {
+    return Citizen.deleteOne({ _id: id, estado: "activo" });
+  }
+
   async markEventPublished(id) {
     await Citizen.updateOne({ _id: id }, { eventoPublicado: true });
   }

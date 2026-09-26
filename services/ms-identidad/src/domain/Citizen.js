@@ -12,7 +12,10 @@ const citizenSchema = new mongoose.Schema(
     // lo exige para registrarse. `null` mientras no se informe; viaja en `ciudadano.registrado` para que
     // ms-notificaciones pueda enviar SMS ademas de correo cuando exista.
     telefono: { type: String, default: null },
-    passwordHash: { type: String, required: true },
+    // Obligatorio al registrarse (HU-01, lo exige CitizenSagaService). `null` SOLO para un ciudadano que llego
+    // transferido desde otro operador (HU-05c): la contrasena no viaja entre operadores, asi que no puede iniciar
+    // sesion hasta que exista un flujo para fijarla (AuthService rechaza un resumen que no sea Argon2id).
+    passwordHash: { type: String, default: null },
     // HU-02: proteccion contra fuerza bruta. El contador y el bloqueo se actualizan de forma
     // atomica en CitizenRepository (nunca leer-modificar-guardar: dos intentos simultaneos se perderian).
     intentosFallidos: { type: Number, default: 0 },

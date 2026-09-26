@@ -13,6 +13,8 @@ const ANTICIPATED_BINDINGS = [
   { queue: "ms-notificaciones.ciudadano-registrado", routingKey: "ciudadano.registrado" },
   // HU-05c: ms-interoperabilidad guarda la copia local del ciudadano que necesita para transferirlo.
   { queue: "ms-interoperabilidad.ciudadano-registrado", routingKey: "ciudadano.registrado" },
+  // HU-05c (destino): respuesta al registro de un ciudadano que llega transferido.
+  { queue: "ms-interoperabilidad.ciudadano-importado", routingKey: "transferencia.ciudadano_registrado" },
 ];
 
 class EventPublisher {
