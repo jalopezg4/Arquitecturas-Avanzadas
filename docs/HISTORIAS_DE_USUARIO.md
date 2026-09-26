@@ -306,6 +306,8 @@ Como entidad receptora quiero solicitar documentos específicos de un ciudadano;
 ### HU-06.4 — Solicitud de documento definitivo a la entidad emisora (RF-31)
 Como ciudadano que cargó un documento temporal (HU-03, escenario RF-30) quiero solicitar a la entidad emisora el documento oficial definitivo, para reemplazar el temporal cuando esté disponible. — 5 pts
 
+- **Estado (Fase 3):** implementada en `ms-documentos` (`POST /api/v1/documents/{id}/request-official`, bandeja de la entidad y reemplazo al entregar por HU-10 con `solicitudOficialId`), con `ms-comparticion` resolviendo el NIT. Diferencia con los tests del issue: el servicio vive en `ms-documentos` (`OfficialRequestService`), no en `ms-comparticion`, porque es quien custodia el documento temporal y recibe el definitivo. Detalle en `docs/SEGURIDAD.md`, sección 16.
+
 ---
 
 ## HU-07: Servicios Premium y analítica de metadatos

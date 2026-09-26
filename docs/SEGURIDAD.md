@@ -115,7 +115,7 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 
 ### 7.1 Recepción de un documento enviado por una entidad emisora (HU-10, RF-11)
 
-`POST /api/v1/documents/inbound` (multipart: `archivo` + `destinatario`, `envioId`, `titulo`, `entidadAvaladora`, `fecha`) responde `201 {documentoId, duplicado:false}`.
+`POST /api/v1/documents/inbound` (multipart: `archivo` + `destinatario`, `envioId`, `titulo`, `entidadAvaladora`, `fecha`; opcional `solicitudOficialId`, HU-06.4, sección 16) responde `201 {documentoId, duplicado:false}`.
 
 **Orden de las barreras**, el mismo principio que HU-03 pero con la cadena institucional (ADR-07): 1) token **institucional** válido, revalidado aquí además del gateway → `401` → 2) la entidad está **verificada** por el operador → `403` → 3) recién entonces se lee el archivo → 4) se resuelve el destinatario → 5) validación y almacenamiento.
 
@@ -505,3 +505,32 @@ entidad -GET /api/v1/packages/:p/documents/:d/download-> ms-documentos (URL de 1
 - **Sin límite de envíos** por ciudadano ni por destinatario (no hay limitación de tasa en el sistema).
 - El paquete se entrega a una entidad de **este** operador; la entrega a una entidad afiliada a **otro** operador
   (carpeta institucional ajena) no está en el protocolo acordado y cae al correo.
+
+## 16. Solicitud del documento oficial (`ms-documentos` + `ms-comparticion`, HU-06.4)
+
+El ciudadano que tiene un documento **temporal** (sin firma) le pide a la entidad emisora el documento oficial
+(RF-31). Cuando la entidad lo entrega, el definitivo **reemplaza** al temporal.
+
+```
+ciudadano -POST /api/v1/documents/:id/request-official {nit, descripcion?}-> ms-documentos (202, "resolviendo")
+  -> solicitud_oficial.creada -> ms-comparticion: a que institucion corresponde el NIT?
+  <- solicitud_oficial.resuelta -> "pendiente" (institucion) | "sin_entidad" (no afiliada aqui)
+entidad verificada -GET /api/v1/official-requests-> sus pendientes, con la direccion unica del ciudadano
+entidad -POST /api/v1/documents/inbound (HU-10) + solicitudOficialId-> certificado; solicitud "atendida"; temporal reemplazado
+```
+
+| Aspecto | Decisión |
+|---|---|
+| Quién puede pedir | El dueño, sobre un documento `temporal` suyo (`403` ajeno con bitácora, `404` inexistente, `400` si no es temporal o el NIT no pasa el dígito de verificación). Una sola solicitud abierta por temporal (`409`); tampoco con la carpeta en transferencia |
+| Resolver la entidad | La hace `ms-comparticion`, dueña de las entidades, por evento. **El token institucional no se modificó**: no lleva el NIT (decisión de ADR-07, cubierta por una prueba) |
+| Bandeja | Solo entidades **verificadas** (`403`) y solo sus solicitudes `pendiente`. Incluye la dirección única del ciudadano, que es lo que HU-10 necesita para entregar |
+| Atender | La entrega de HU-10 con `solicitudOficialId` se valida **antes** de guardar nada: la solicitud debe estar pendiente, ser de esa entidad y del mismo ciudadano destinatario (`409` si no). Reintentar el mismo envío responde `200` y cierra la solicitud si había quedado a medias |
+| Reemplazo | El temporal se **borra** (archivo y metadatos) y se libera su cupo (RNF-04), solo si sigue siendo temporal y del ciudadano. Queda en la bitácora como `documento.reemplazar_temporal` (entidad, delegada) |
+
+**Límites conocidos.**
+
+- Una entidad **no afiliada a este operador** no recibe la solicitud (queda `sin_entidad` y el ciudadano lo ve): no
+  hay canal para avisarle (la solicitud a entidades de otros operadores no está en el protocolo acordado).
+- La entidad **no recibe un aviso** de solicitud nueva (correo/SMS): debe consultar su bandeja.
+- El ciudadano no puede cancelar una solicitud abierta.
+- El reemplazo **borra** el temporal: si el ciudadano quería conservar ambos, no hay opción.
