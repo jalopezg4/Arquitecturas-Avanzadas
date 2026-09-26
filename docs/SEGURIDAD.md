@@ -306,7 +306,7 @@ Es **403 y no 401** a propósito: la credencial es válida y se reconoció a la 
 - **No hay revocación del token institucional**: un token robado vale hasta 15 minutos, igual que el del ciudadano.
 - **No hay limitación de tasa** en el endpoint de login (el bloqueo es por entidad, no por origen), como en todo el resto del sistema.
 - **La primera ruta protegida de entidad es `ms-analitica` (HU-07.2, ver 12.2)**; HU-10 y HU-06.3 traerán las siguientes. `requireVerifiedEntity` está escrito y probado en `ms-documentos`, pero **no lo monta ninguna ruta todavía**.
-- **`hasInstitutionalFolder()` no mira `verificada`** y se dejó así a propósito: es una decisión de HU-06.2 (otro integrante) si una entidad sin verificar "tiene carpeta" para recibir un paquete o debe caer al envío por correo (RF-26).
+- **`hasInstitutionalFolder()` no mira `verificada`** y se dejó así a propósito. **Resuelto en HU-06.2** (sección 15): para recibir un paquete en su carpeta, la entidad además debe estar verificada; si no, cae al correo (RF-26).
 
 ## 12.2 Casos PQRS y autorización Premium (`ms-analitica`, HU-07.2)
 
@@ -470,3 +470,38 @@ otro operador -POST /api/transferCitizen-> ms-interoperabilidad (202)
   5 minutos. No se pueden revocar antes de vencer.
 - **Sin aviso al ciudadano que se va** del resultado de su transferencia (solo el que llega recibe la bienvenida).
 - No se probó contra otro operador real del curso: la suite de contrato es HT-05.
+
+## 15. Paquetes documentales (`ms-comparticion` + `ms-documentos`, HU-06.2)
+
+El ciudadano elige documentos de su carpeta y los envía juntos a una entidad (RF-24). El paquete guarda solo
+**referencias** a los documentos: no se copia ningún archivo.
+
+```
+ciudadano -POST /api/v1/packages {documentoIds, destinatario: {nit?, correo?, nombre?}}-> ms-comparticion (202)
+  -> paquete.creado -> ms-documentos: TODOS los documentos existen y son del ciudadano? (si no, se rechaza entero)
+       canal carpeta_institucional -> permiso de lectura (PackageGrant) para la entidad (RF-25)
+       canal correo                -> URL temporal por documento -> paquete.envio_correo -> ms-notificaciones (RF-26)
+  <- paquete.procesado -> ms-comparticion: entregado (con metadatos) | rechazado
+entidad -GET /api/v1/institutions/me/packages-> ms-comparticion        (sus paquetes entregados)
+entidad -GET /api/v1/packages/:p/documents/:d/download-> ms-documentos (URL de 15 min)
+```
+
+| Aspecto | Decisión |
+|---|---|
+| **Canal** | Carpeta institucional **solo si la entidad está registrada, VERIFICADA (ADR-07) y con carpeta activa**: una entidad autodeclarada no recibe documentos de ciudadanos en su carpeta. En otro caso, correo: al de contacto de la entidad registrada, o al que indique el ciudadano si no está afiliada (sin correo: `400`). Así se cierra la decisión pendiente que dejó ADR-07 sobre `hasInstitutionalFolder()` (esa función sigue sin mirar `verificada`; la regla vive en `InstitutionService.resolveDeliveryTarget()`) |
+| Tope | `MAX_DOCUMENTOS_PAQUETE` (20 por defecto, 1 a 100); ids repetidos se unifican |
+| Propiedad | La comprueba `ms-documentos`, dueño de los documentos: un documento inexistente o ajeno rechaza el paquete **entero**, con el mismo motivo en ambos casos (no se revela qué tiene otro ciudadano) |
+| Acceso de la entidad | Token institucional **y** entidad verificada (`403`) en ambas rutas. La lista se lee de la base de `ms-comparticion`, así que revocar la verificación surte efecto de inmediato; la descarga lee el claim `ver` (ventana de hasta 15 min, igual que HU-10). Solo se descarga lo que el permiso enumera y si el documento **sigue siendo** del ciudadano (`404` en todo otro caso). URL de 15 min, `no-store`, bitácora `documento.descargar` delegada |
+| Correo | Un solo destinatario (se rechazan `,` y `;`, que el transporte trataría como varios). Los enlaces (1 h) van solo en el cuerpo: nunca en el asunto (se guarda en Mongo) ni en los logs. Un paquete = un correo aunque el evento se reentregue |
+| Consistencia | `paquete.creado` con reconciliador si el broker no confirma; el resultado se aplica una sola vez; el permiso es único por paquete |
+| Bitácora | `paquete.crear` (ciudadano), `documento.compartir` y `paquete.entregar` (sistema, delegados), `documento.descargar` (entidad, delegada) |
+
+**Límites conocidos.**
+
+- **No hay revocación**: una vez entregado, el ciudadano no puede retirar el paquete (no está en la HU). El acceso se
+  corta solo si el documento deja de ser suyo (p. ej. se transfiere a otro operador).
+- **Enlaces del correo**: vencen en 1 hora (tope de ADR-06); si la entidad lo abre después, el ciudadano debe enviarlo
+  de nuevo. Quien reciba el correo reenviado también puede usarlos mientras vivan.
+- **Sin límite de envíos** por ciudadano ni por destinatario (no hay limitación de tasa en el sistema).
+- El paquete se entrega a una entidad de **este** operador; la entrega a una entidad afiliada a **otro** operador
+  (carpeta institucional ajena) no está en el protocolo acordado y cae al correo.

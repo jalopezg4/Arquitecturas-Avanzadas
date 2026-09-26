@@ -28,7 +28,7 @@ Microservicios (ADR-01 del expediente), cada uno dueño exclusivo de su base de 
 | `services/ms-documentos` | 3002 | Carga, consulta y descarga de documentos; recepción de documentos enviados por entidades emisoras; solicitud de autenticación y su resultado; carpeta en transferencia | HU-03, HU-04, HU-05c, HU-08, HU-09, HU-10 |
 | `services/ms-notificaciones` | 3003 | Correos por eventos (confirmación de carga, bienvenida, resultado de la autenticación) | HU-03, HU-01, HU-04 |
 | `services/ms-interoperabilidad` | 3004 | Directorio de operadores, publicación del endpoint y transferencia de ciudadanos entre operadores (origen y destino) | HU-05a, HU-05b, HU-05c |
-| `services/ms-comparticion` | 3005 | Registro **y autenticación** de entidades institucionales | HU-06.1, ADR-07 (HU-06.2 a 06.4 pendientes) |
+| `services/ms-comparticion` | 3005 | Registro **y autenticación** de entidades institucionales; paquetes documentales | HU-06.1, HU-06.2, ADR-07 |
 | `services/ms-analitica` | 3006 | Analítica de metadatos y casos PQRS, protegidos con token institucional (ADR-07) | HU-07.1, HU-07.2, HU-07.3 (parcial: solo registro local, multioperador completo pendiente de HU-05c/HU-06.3) |
 | `services/ms-autenticacion` | 3007 | Autenticación de documentos con GovCarpeta: URL prefirmada de 15 min, `authenticateDocument` con reintentos, resultado por evento | HU-04 |
 

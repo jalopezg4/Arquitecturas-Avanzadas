@@ -296,6 +296,8 @@ Como ciudadano quiero seleccionar varios documentos de mi carpeta y enviarlos ju
 - ✅ Si la entidad tiene carpeta institucional (HU-06.1), la entrega es interna al ecosistema
 - ✅ Si no, se genera un envío por correo con enlace de descarga temporal
 
+- **Estado (Fase 3):** implementada — paquete en `ms-comparticion` (`POST /api/v1/packages`), acceso y envío en `ms-documentos`, correo en `ms-notificaciones`. Tope: `MAX_DOCUMENTOS_PAQUETE` (20). Solo entidades **verificadas** reciben en su carpeta. Detalle en `docs/SEGURIDAD.md`, sección 15.
+
 ### HU-06.3 — Solicitud de documentos por una entidad + autorización del ciudadano (RF-27, RF-28, RF-29)
 Como entidad receptora quiero solicitar documentos específicos de un ciudadano; como ciudadano quiero recibir la notificación (correo y SMS, RF-28) y autorizar explícitamente el envío antes de que se comparta nada. — 8 pts
 - ✅ Nada se comparte hasta que el ciudadano autoriza explícitamente (RF-29) — este es el punto de consentimiento explícito exigido por el caso de estudio

@@ -189,7 +189,7 @@ declara ninguna ruta `actor: "entidad"` (la capacidad está probada con una tabl
 
 **Pendiente del equipo, no de esta ADR:**
 
-- `hasInstitutionalFolder()` (HU-06.2, otro integrante) **no mira `verificada` y se dejó así a propósito**. Con esta
+- **Resuelto en HU-06.2 (Fase 3):** una entidad sin verificar NO recibe paquetes en su carpeta institucional: cae al envío por correo (RF-26). La regla vive en `InstitutionService.resolveDeliveryTarget()`; ver `SEGURIDAD.md`, sección 15. Texto original: `hasInstitutionalFolder()` (HU-06.2, otro integrante) **no mira `verificada` y se dejó así a propósito**. Con esta
   ADR una entidad puede tener carpeta activa y no estar verificada; hay que decidir si, para entregar un paquete
   documental, eso cuenta como "tiene carpeta" (entrega interna) o debe caer al envío por correo (RF-26).
 - `REGISTRATION_TOKEN` sigue siendo **opcional**: su comportamiento no se cambió. Debería exigirse en cualquier
