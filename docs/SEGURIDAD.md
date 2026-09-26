@@ -471,6 +471,45 @@ otro operador -POST /api/transferCitizen-> ms-interoperabilidad (202)
 - **Sin aviso al ciudadano que se va** del resultado de su transferencia (solo el que llega recibe la bienvenida).
 - No se probó contra otro operador real del curso: la suite de contrato es HT-05.
 
+### 14.1 Pruebas de contrato del protocolo (HT-05, RNF-11)
+
+El contrato vive como validadores en `services/ms-interoperabilidad/src/contract/protocol.js`: la suite, el operador de
+referencia y las pruebas de nuestra implementación usan exactamente las mismas reglas.
+
+`ContractTestSuite` se corre contra la URL base de **cualquier** operador. Hace de origen: sirve dos PDF de prueba,
+envía un `transferCitizen` válido y espera la confirmación en un `confirmAPI` propio.
+
+| Caso | Tipo |
+|---|---|
+| `transferCitizen` acepta un pedido válido (2xx) | obligatorio |
+| confirma en el `confirmAPI` recibido, dentro del plazo | obligatorio |
+| usa exactamente esa URL (con su consulta: ahí va nuestro token) | obligatorio |
+| la confirmación cumple `{id: number, req_status: 1\|0}` y el `id` es el del ciudadano | obligatorio |
+| un pedido válido se completa con `req_status: 1` | obligatorio |
+| descarga los documentos directamente de nosotros | obligatorio |
+| rechaza un `transferCitizen` mal formado (4xx) | recomendado |
+| expone `transferCitizenConfirm` (no 404/405 ni 5xx) | recomendado |
+
+Un operador **cumple** si pasa el 100% de los obligatorios (RNF-11); los recomendados se reportan como aviso.
+
+```bash
+cd services/ms-interoperabilidad
+npm run test:contract -- --reference                                   # demostracion contra el operador de referencia
+npm run test:contract -- --target=https://otro.example.co --callback=https://mi-tunel.example.co --port=4010
+```
+
+Contra otro equipo, `--callback` debe ser una URL **pública** que llegue al `--port` local (p. ej. un túnel): el otro
+operador descarga los documentos de prueba y confirma ahí. Salida: `0` cumple, `1` no cumple, `2` uso inválido.
+
+**En CI** (`npm test`) la suite corre contra el operador de referencia (debe cumplir el 100%), contra operadores que
+**no** cumplen (`req_status: "completado"` —el formato viejo del issue #53—, `id` como texto, sin confirmar, 500) para
+probar que se detectan con el caso y el motivo, y contra **nuestra propia implementación** de destino (HU-05c, con
+ms-documentos y ms-identidad simulados). También se valida que el `transferCitizen` que enviamos como origen cumple.
+
+**Límites:** no se ha corrido contra un operador real de otro equipo (requiere coordinarlo y exponer `--callback`); un
+operador real podría registrar en GovCarpeta al ciudadano de prueba, por lo que conviene acordar la prueba con el
+otro equipo antes de lanzarla.
+
 ## 15. Paquetes documentales (`ms-comparticion` + `ms-documentos`, HU-06.2)
 
 El ciudadano elige documentos de su carpeta y los envía juntos a una entidad (RF-24). El paquete guarda solo

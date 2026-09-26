@@ -492,6 +492,7 @@ Sin esto, RNF-07 no es *auditable* — es la pieza que falta para poder demostra
 ### HT-05: Suite de pruebas de contrato de interoperabilidad
 **Cubre:** RNF-11 (100% de casos válidos con un operador de referencia) · **Puntos:** 5
 Pruebas de contrato automatizadas contra el protocolo `confirmAPI`/`transferCitizenConfirm` acordado con los otros equipos del curso — necesarias antes de integrar con un operador real de otro grupo.
+**Estado (Fase 3):** implementada en `ms-interoperabilidad` (`ContractTestSuite`, operador de referencia y `npm run test:contract`); ver `docs/SEGURIDAD.md`, sección 14.1. Pendiente: correrla contra un operador real de otro equipo.
 
 ### HT-06: Trazabilidad distribuida entre microservicios
 **Cubre:** impacto tecnológico declarado en ADR-01 ("se requiere trazabilidad distribuida para depurar una petición que atraviesa varios servicios") · **Puntos:** 5
