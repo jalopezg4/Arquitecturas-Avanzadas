@@ -4,6 +4,7 @@ const { DestinatarioNoEncontradoError, EnvioConflictError } = require("../applic
 const { SolicitudNotFoundError, SolicitudYaDecididaError } = require("../application/SolicitudService");
 const { CarpetaEnTransferenciaError, DocumentoNoEncontradoError, DocumentoAjenoError } = require("../domain/errors");
 const { DocumentoNoDisponibleError, CedulaNoRegistradaError } = require("../application/DocumentAuthenticationService");
+const { SolicitudOficialInvalidaError, SolicitudOficialDuplicadaError, SolicitudOficialNoAtendibleError } = require("../application/OfficialRequestService");
 
 /**
  * El dueno de la carpeta es quien lleva el token: /citizens/:id/documents solo acepta que :id sea el sub del
@@ -29,8 +30,35 @@ function requireOwner(auditLogger, action = "documento.cargar") {
   };
 }
 
-function makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService, solicitudService, documentAuthenticationService, packageDeliveryService) {
+function makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService, solicitudService, documentAuthenticationService, packageDeliveryService, officialRequestService) {
+  const needOfficial = (res) => (officialRequestService ? null : res.status(503).json({ error: "servicio no disponible" }));
   return {
+    /** HU-06.4: pedir a la entidad emisora el documento oficial de un temporal propio. 202: la entidad se resuelve despues. */
+    async requestOfficial(req, res, next) {
+      try {
+        if (needOfficial(res)) return undefined;
+        return res.status(202).json(await officialRequestService.create({ ciudadanoId: req.auth.ciudadanoId, documentoId: req.params.id, body: req.body }));
+      } catch (err) {
+        return next(err);
+      }
+    },
+    async listMyOfficialRequests(req, res, next) {
+      try {
+        if (needOfficial(res)) return undefined;
+        return res.status(200).json(await officialRequestService.listMine(req.auth.ciudadanoId));
+      } catch (err) {
+        return next(err);
+      }
+    },
+    /** HU-06.4: bandeja de la entidad (verificada): solicitudes pendientes dirigidas a ella. */
+    async listEntityOfficialRequests(req, res, next) {
+      try {
+        if (needOfficial(res)) return undefined;
+        return res.status(200).json(await officialRequestService.listForEntity(req.auth.institutionId));
+      } catch (err) {
+        return next(err);
+      }
+    },
     /** HU-06.2: descarga de un documento de un paquete entregado a la entidad (URL de 15 minutos, no-store). */
     async entityDownload(req, res, next) {
       try {
@@ -108,6 +136,7 @@ function makeDocumentController(documentService, inboundDocumentService, documen
           emisor: { id: req.auth.institutionId, verificada: req.auth.verificada },
           file: req.file,
           metadata: { titulo: body.titulo, entidadAvaladora: body.entidadAvaladora, fecha: body.fecha },
+          solicitudOficialId: body.solicitudOficialId,
         });
         return res.status(result.duplicado ? 200 : 201).json({ documentoId: result.documentoId, duplicado: result.duplicado });
       } catch (err) {
@@ -222,6 +251,9 @@ function errorHandler(err, _req, res, _next) {
   // HU-04: documento inexistente -> 404; ajeno -> 403 (ya quedo en la bitacora); no temporal -> 400 (lo pide la HU);
   // carpeta sin cedula todavia -> 409 (no es culpa del cliente, pero reintentar mas tarde si lo resuelve).
   // HU-05c: la carpeta esta en transferencia (solo lectura). 409: el estado del recurso impide la operacion.
+  // HU-06.4
+  if (err instanceof SolicitudOficialInvalidaError) return res.status(400).json({ error: err.message });
+  if (err instanceof SolicitudOficialDuplicadaError || err instanceof SolicitudOficialNoAtendibleError) return res.status(409).json({ error: err.message });
   if (err instanceof CarpetaEnTransferenciaError) return res.status(409).json({ error: err.message });
   if (err instanceof DocumentoNoEncontradoError) return res.status(404).json({ error: err.message });
   if (err instanceof DocumentoAjenoError) return res.status(403).json({ error: err.message });

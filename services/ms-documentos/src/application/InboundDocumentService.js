@@ -55,11 +55,13 @@ class EnvioConflictError extends Error {
  * otro contenido u otro destinatario -> conflicto explicito, nunca se devuelve en silencio el documento anterior.
  */
 class InboundDocumentService {
-  constructor({ documentService, documentRepository, folderRepository, maxInboundBytes }) {
+  constructor({ documentService, documentRepository, folderRepository, maxInboundBytes, officialRequestService }) {
     this.documentService = documentService;
     this.documentRepository = documentRepository;
     this.folderRepository = folderRepository;
     this.maxInboundBytes = maxInboundBytes;
+    // HU-06.4 (opcional): la entrega puede atender una solicitud del documento oficial y reemplazar el temporal.
+    this.officialRequestService = officialRequestService;
   }
 
   /** Decide que hacer ante un `envioId` que ya existe: mismo envio (idempotente) o conflicto. */
@@ -77,12 +79,13 @@ class InboundDocumentService {
    * @param {{id: string, verificada: boolean}} input.emisor  entidad autenticada; sale del token, no del cuerpo
    * @param {{buffer: Buffer, mimetype: string}} input.file
    * @param {{titulo: string, entidadAvaladora: string, fecha: string}} input.metadata
+   * @param {string} [input.solicitudOficialId]  HU-06.4: la solicitud del documento oficial que esta entrega atiende
    * @returns {Promise<{documentoId: string, ciudadanoId: string, duplicado: boolean}>}
    * @throws {DestinatarioNoEncontradoError} la direccion no corresponde a ningun ciudadano
    * @throws {EnvioConflictError} el envioId ya se uso para otro envio
    * @throws {ValidationError|UnsupportedMediaTypeError|PayloadTooLargeError|StorageUnavailableError} igual que HU-03
    */
-  async receive({ destinatario, envioId, emisor, file, metadata } = {}) {
+  async receive({ destinatario, envioId, emisor, file, metadata, solicitudOficialId } = {}) {
     if (!emisor || typeof emisor.id !== "string" || !emisor.id) throw new ValidationError("emisor es requerido");
     if (typeof envioId !== "string" || !ENVIO_ID_RE.test(envioId)) {
       throw new ValidationError("envioId es requerido (8 a 100 caracteres: letras, numeros, . : _ -)");
@@ -98,6 +101,15 @@ class InboundDocumentService {
       throw new DestinatarioNoEncontradoError();
     }
 
+    // HU-06.4: si dice atender una solicitud del documento oficial, se comprueba ANTES de guardar nada (409 si no aplica).
+    const atiende = solicitudOficialId !== undefined && solicitudOficialId !== null && solicitudOficialId !== "";
+    if (atiende) {
+      if (!this.officialRequestService) throw new ValidationError("esta instancia no atiende solicitudes del documento oficial");
+      const existingEnvio = await this.documentRepository.findByEnvio(emisor.id, envioId);
+      // Un reintento del mismo envio ya atendio la solicitud: no se vuelve a exigir que siga pendiente.
+      if (!existingEnvio) await this.officialRequestService.assertAttendable({ solicitudOficialId, institutionId: emisor.id, ciudadanoId: carpeta.ciudadanoId });
+    }
+
     // Huella del contenido: decide si un `envioId` repetido es el mismo envio o uno distinto. Si el archivo no es
     // utilizable, no se calcula nada: la validacion de `upload()` dara el error que corresponde.
     const sha256 = file && Buffer.isBuffer(file.buffer) ? crypto.createHash("sha256").update(file.buffer).digest("hex") : null;
@@ -105,7 +117,12 @@ class InboundDocumentService {
     if (sha256) {
       const existing = await this.documentRepository.findByEnvio(emisor.id, envioId);
       // Camino rapido: un reintento no vuelve a subir el archivo al storage.
-      if (existing) return this._resolveExisting(existing, { ciudadanoId: carpeta.ciudadanoId, sha256 });
+      if (existing) {
+        const again = this._resolveExisting(existing, { ciudadanoId: carpeta.ciudadanoId, sha256 });
+        // HU-06.4: si el primer intento se corto antes de cerrar la solicitud, el reintento la cierra (idempotente).
+        if (atiende) await this.officialRequestService.complete({ solicitudOficialId, documentoDefinitivoId: again.documentoId, institutionId: emisor.id });
+        return again;
+      }
     }
 
     let result;
@@ -128,6 +145,7 @@ class InboundDocumentService {
       return this._resolveExisting(existing, { ciudadanoId: carpeta.ciudadanoId, sha256 });
     }
 
+    if (atiende) await this.officialRequestService.complete({ solicitudOficialId, documentoDefinitivoId: result.documentoId, institutionId: emisor.id });
     logger.info("documento.recibido", { emisorInstitutionId: emisor.id }); // sin titulo ni direccion del ciudadano
     // La URL prefirmada NO se devuelve: la entidad entrego el documento, no gana acceso de lectura a una carpeta ajena.
     return { documentoId: result.documentoId, ciudadanoId: carpeta.ciudadanoId, duplicado: false };

@@ -137,4 +137,15 @@ function makePackageCreatedHandler({ packageDeliveryService, maxDocumentos = 100
   };
 }
 
-module.exports = { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers, makePackageCreatedHandler };
+/** HU-06.4: `solicitud_oficial.resuelta` (de ms-comparticion): a que entidad corresponde el NIT (o a ninguna). */
+function makeOfficialRequestResolvedHandler({ officialRequestService }) {
+  return async function onResolved(payload) {
+    if (!payload || typeof payload !== "object") throw new PermanentError("el mensaje no es un objeto");
+    if (typeof payload.solicitudOficialId !== "string" || !OBJECT_ID_RE.test(payload.solicitudOficialId)) throw new PermanentError("solicitudOficialId invalido");
+    const institutionId = payload.institutionId === null || payload.institutionId === undefined ? null : payload.institutionId;
+    if (institutionId !== null && (typeof institutionId !== "string" || !ID_RE.test(institutionId))) throw new PermanentError("institutionId invalido");
+    await officialRequestService.onResolved({ solicitudOficialId: payload.solicitudOficialId, institutionId, nombre: typeof payload.nombre === "string" ? payload.nombre.slice(0, 200) : null });
+  };
+}
+
+module.exports = { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers, makePackageCreatedHandler, makeOfficialRequestResolvedHandler };

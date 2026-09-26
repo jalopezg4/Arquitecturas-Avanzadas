@@ -79,6 +79,11 @@ function documentRoutes({ controller, secrets, entitySecrets, issuer, entityIssu
   router.put("/documents/:id/authenticate", authCitizen, controller.requestAuthentication);
   // HU-09: descarga. Igual que la autenticacion, `:id` es el documento: el dueno lo comprueba el servicio.
   router.get("/documents/:id/download", authCitizen, controller.download);
+  // HU-06.4: documento oficial. El ciudadano lo pide sobre un temporal suyo; la entidad (verificada) ve su bandeja y
+  // lo entrega por POST /documents/inbound indicando `solicitudOficialId`.
+  router.post("/documents/:id/request-official", authCitizen, jsonBody, controller.requestOfficial);
+  router.get("/citizens/me/official-requests", authCitizen, controller.listMyOfficialRequests);
+  router.get("/official-requests", authEntity, requireVerifiedEntity(auditLogger, "solicitud_oficial.listar"), controller.listEntityOfficialRequests);
   // HU-06.2 (RF-25): la ENTIDAD descarga un documento de un paquete entregado en su carpeta institucional. Token
   // institucional + entidad VERIFICADA (403 si no); el permiso concreto lo comprueba el servicio (404 si no hay).
   router.get("/packages/:paqueteId/documents/:documentoId/download", authEntity, requireVerifiedEntity(auditLogger, "documento.descargar"), controller.entityDownload);

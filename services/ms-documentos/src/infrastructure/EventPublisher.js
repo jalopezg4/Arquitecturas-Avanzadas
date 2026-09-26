@@ -22,6 +22,8 @@ const ANTICIPATED_BINDINGS = [
   // HU-06.2: resultado del paquete (ms-comparticion) y envio por correo (ms-notificaciones).
   { queue: "ms-comparticion.paquete-procesado", routingKey: "paquete.procesado" },
   { queue: "ms-notificaciones.paquete-envio-correo", routingKey: "paquete.envio_correo" },
+  // HU-06.4: resolver el NIT de la entidad emisora (lo hace ms-comparticion, duena de las entidades).
+  { queue: "ms-comparticion.solicitud-oficial-creada", routingKey: "solicitud_oficial.creada" },
 ];
 
 class EventPublisher {

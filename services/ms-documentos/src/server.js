@@ -20,7 +20,10 @@ const EventReconciler = require("./application/EventReconciler");
 const { DocumentAuthenticationService } = require("./application/DocumentAuthenticationService");
 const AuthenticationRequestReconciler = require("./application/AuthenticationRequestReconciler");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
-const { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers, makePackageCreatedHandler } = require("./interfaces/eventHandlers");
+const { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers, makePackageCreatedHandler, makeOfficialRequestResolvedHandler } = require("./interfaces/eventHandlers");
+const { OfficialRequestService } = require("./application/OfficialRequestService");
+const OfficialRequestReconciler = require("./application/OfficialRequestReconciler");
+const OfficialRequest = require("./domain/OfficialRequest");
 const { PackageDeliveryService } = require("./application/PackageDeliveryService");
 const PackageGrant = require("./domain/PackageGrant");
 const { TransferImportService } = require("./application/TransferImportService");
@@ -29,7 +32,7 @@ const { TransferFolderService } = require("./application/TransferFolderService")
 
 async function main() {
   await mongoose.connect(env.mongoUri);
-  await PackageGrant.init(); // indice unico por paquete antes de consumir (HU-06.2)
+  await Promise.all([PackageGrant.init(), OfficialRequest.init()]); // indices unicos antes de consumir (HU-06.2, HU-06.4)
 
   const secrets = new SecretsManager({ active: env.jwtSecret, previous: env.jwtSecretPrevious });
   logger.info("jwt.llavero", secrets.status()); // solo ids de llave, nunca el secreto
@@ -78,7 +81,10 @@ async function main() {
     new EventReconciler({ documentRepository, eventPublisher, minAgeMs: env.reconcile.minAgeMs, publishTimeoutMs: env.eventPublishTimeoutMs }).start(env.reconcile.intervalMs);
   }
 
+  // HU-06.4: solicitud del documento oficial (la atiende una entrega de HU-10).
+  const officialRequestService = new OfficialRequestService({ documentRepository, folderRepository, storage, eventPublisher, auditLogger, eventPublishTimeoutMs: env.eventPublishTimeoutMs });
   const inboundDocumentService = new InboundDocumentService({
+    officialRequestService,
     documentService,
     documentRepository,
     folderRepository,
@@ -150,6 +156,8 @@ async function main() {
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.transferencia-revertir", routingKey: "transferencia.revertir_importacion", handler: importHandlers.revertir }),
     // HU-06.2: la cola la predeclara ms-comparticion.
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.paquete-creado", routingKey: "paquete.creado", handler: makePackageCreatedHandler({ packageDeliveryService }) }),
+    // HU-06.4: la cola la predeclara ms-comparticion.
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.solicitud-oficial-resuelta", routingKey: "solicitud_oficial.resuelta", handler: makeOfficialRequestResolvedHandler({ officialRequestService }) }),
   ]) {
     consumer.start().catch((err) => {
       logger.error("consumidor.inicio_fallido", { queue: consumer.queue, err });
@@ -157,6 +165,7 @@ async function main() {
     });
   }
   if (env.reconcile.intervalMs > 0) {
+    new OfficialRequestReconciler({ officialRequestService, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
     new AuthenticationRequestReconciler({ documentRepository, folderRepository, authenticationService: documentAuthenticationService, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
   }
 
@@ -167,6 +176,7 @@ async function main() {
     solicitudService,
     documentAuthenticationService,
     packageDeliveryService,
+    officialRequestService,
     secrets,
     entitySecrets,
     issuer: env.jwtIssuer,
