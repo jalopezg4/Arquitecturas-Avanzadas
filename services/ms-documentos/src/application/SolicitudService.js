@@ -1,3 +1,4 @@
+const { CarpetaEnTransferenciaError } = require("../domain/errors");
 const logger = require("../tracing/logger");
 const { ValidationError } = require("./DocumentService");
 const { DestinatarioNoEncontradoError, DIRECCION_RE, MAX_DIRECCION } = require("./InboundDocumentService");
@@ -136,6 +137,8 @@ class SolicitudService {
 
     const carpeta = await this.folderRepository.findByDireccionUnica(direccionNormalizada);
     if (!carpeta) throw new DestinatarioNoEncontradoError();
+    // HU-05c: un ciudadano que se esta yendo a otro operador ya no recibe solicitudes aqui.
+    if (carpeta.transferenciaId) throw new CarpetaEnTransferenciaError();
 
     const created = await this.solicitudRepository.create({
       institutionId,

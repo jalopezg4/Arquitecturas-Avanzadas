@@ -193,6 +193,9 @@ class DocumentService {
   async upload({ ciudadanoId, file, metadata, estado = "temporal", extra, actor, maxBytes }) {
     // Datos invalidos no se auditan como intento (no hay nada que reconstruir); el resto de fallos si.
     const clean = this._validate({ ciudadanoId, file, metadata, estado, maxBytes });
+    // HU-05c: una carpeta en transferencia no admite documentos nuevos (tampoco los certificados de HU-10, que no
+    // pasan por la reserva de cupo). La reserva vuelve a comprobarlo de forma atomica.
+    await this.folderRepository.assertWritable(ciudadanoId);
 
     const consumesQuota = estado === "temporal";
     let reserved = false;

@@ -20,6 +20,9 @@ const folderSchema = new mongoose.Schema(
     // porque GovCarpeta identifica al ciudadano por el (`idCitizen`). `null` en carpetas creadas por una carga antes
     // de recibir el evento: esas no pueden pedir autenticacion hasta que llegue.
     documento: { type: Number, default: null },
+    // HU-05c: id de la transferencia que tiene la carpeta en SOLO LECTURA (null = se puede escribir). Mientras este
+    // puesto no se carga, no se recibe ni se pide autenticar nada: lo nuevo no viajaria al operador destino.
+    transferenciaId: { type: String, default: null },
   },
   { timestamps: true }
 );

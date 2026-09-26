@@ -2,6 +2,7 @@ const logger = require("../tracing/logger");
 const { ValidationError, UnsupportedMediaTypeError, PayloadTooLargeError, QuotaExceededError, StorageUnavailableError } = require("../application/DocumentService");
 const { DestinatarioNoEncontradoError, EnvioConflictError } = require("../application/InboundDocumentService");
 const { SolicitudNotFoundError, SolicitudYaDecididaError } = require("../application/SolicitudService");
+const { CarpetaEnTransferenciaError } = require("../domain/errors");
 const { DocumentoNoEncontradoError, DocumentoAjenoError, DocumentoNoDisponibleError, CedulaNoRegistradaError } = require("../application/DocumentAuthenticationService");
 
 /**
@@ -196,6 +197,8 @@ function errorHandler(err, _req, res, _next) {
   if (err instanceof SolicitudYaDecididaError) return res.status(409).json({ error: err.message });
   // HU-04: documento inexistente -> 404; ajeno -> 403 (ya quedo en la bitacora); no temporal -> 400 (lo pide la HU);
   // carpeta sin cedula todavia -> 409 (no es culpa del cliente, pero reintentar mas tarde si lo resuelve).
+  // HU-05c: la carpeta esta en transferencia (solo lectura). 409: el estado del recurso impide la operacion.
+  if (err instanceof CarpetaEnTransferenciaError) return res.status(409).json({ error: err.message });
   if (err instanceof DocumentoNoEncontradoError) return res.status(404).json({ error: err.message });
   if (err instanceof DocumentoAjenoError) return res.status(403).json({ error: err.message });
   if (err instanceof DocumentoNoDisponibleError) return res.status(400).json({ error: err.message });

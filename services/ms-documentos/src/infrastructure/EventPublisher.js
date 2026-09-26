@@ -16,6 +16,8 @@ const ANTICIPATED_BINDINGS = [
   // HU-04: la solicitud de autenticacion la consume ms-autenticacion; si esta caido, espera en su cola (matriz de
   // degradacion: "las solicitudes quedan en cola y se procesan al restablecerse").
   { queue: "ms-autenticacion.autenticacion-solicitada", routingKey: "documento.autenticacion_solicitada" },
+  // HU-05c: respuestas a la saga de transferencia, las consume ms-interoperabilidad.
+  { queue: "ms-interoperabilidad.carpeta-exportada", routingKey: "transferencia.carpeta_exportada" },
 ];
 
 class EventPublisher {

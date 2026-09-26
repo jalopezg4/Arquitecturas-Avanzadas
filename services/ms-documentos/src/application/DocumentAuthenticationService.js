@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const logger = require("../tracing/logger");
 const { autenticacionSolicitadaPayload } = require("./events");
+const { CarpetaEnTransferenciaError } = require("../domain/errors");
 
 class DocumentoNoEncontradoError extends Error {
   constructor() {
@@ -72,6 +73,7 @@ class DocumentAuthenticationService {
     }
 
     const folder = await this.folderRepository.get(ciudadanoId);
+    if (folder && folder.transferenciaId) throw new CarpetaEnTransferenciaError();
     if (!folder || !folder.documento) {
       await this._audit(ciudadanoId, documentoId, ciudadanoId, "rechazo", "sin_cedula");
       throw new CedulaNoRegistradaError();

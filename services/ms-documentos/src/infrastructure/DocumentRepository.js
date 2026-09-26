@@ -24,6 +24,16 @@ class DocumentRepository {
     return { items, total };
   }
 
+  /** HU-05c: TODOS los documentos de un ciudadano (para exportarlos o borrarlos), con un tope de seguridad. */
+  async listAllByOwner(ciudadanoId, limit = 1000) {
+    return Document.find({ ciudadanoId }).sort({ createdAt: 1 }).limit(limit).lean();
+  }
+
+  async deleteByIds(ids) {
+    if (!ids.length) return 0;
+    return (await Document.deleteMany({ _id: { $in: ids } })).deletedCount;
+  }
+
   /** Documentos cuyo evento `documento.cargado` no se pudo publicar, con al menos `olderThan` de antiguedad. */
   async findUnpublished({ olderThan, limit }) {
     return Document.find({ eventoPublicado: false, createdAt: { $lte: olderThan } }).sort({ createdAt: 1 }).limit(limit).lean();

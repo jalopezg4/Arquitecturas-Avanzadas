@@ -20,7 +20,8 @@ const EventReconciler = require("./application/EventReconciler");
 const { DocumentAuthenticationService } = require("./application/DocumentAuthenticationService");
 const AuthenticationRequestReconciler = require("./application/AuthenticationRequestReconciler");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
-const { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers } = require("./interfaces/eventHandlers");
+const { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers } = require("./interfaces/eventHandlers");
+const { TransferFolderService } = require("./application/TransferFolderService");
 
 async function main() {
   await mongoose.connect(env.mongoUri);
@@ -103,6 +104,21 @@ async function main() {
   for (const consumer of [
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.documento-autenticado", routingKey: "documento.autenticado", handler: authResult.autenticado }),
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.documento-autenticacion-fallida", routingKey: "documento.autenticacion_fallida", handler: authResult.autenticacionFallida }),
+  ]) {
+    consumer.start().catch((err) => {
+      logger.error("consumidor.inicio_fallido", { queue: consumer.queue, err });
+      consumer._scheduleReconnect();
+    });
+  }
+  // HU-05c (origen): bloquear/exportar, borrar al confirmarse y desbloquear si falla. Las colas las predeclara
+  // ms-interoperabilidad. Las URLs que se exportan duran lo mismo que una descarga del ciudadano (tope 1 h, ADR-06).
+  const transferHandlers = makeTransferHandlers({
+    transferFolderService: new TransferFolderService({ folderRepository, documentRepository, storage, eventPublisher, urlTtlSeconds: env.presignedDownloadTtlSeconds, eventPublishTimeoutMs: env.eventPublishTimeoutMs }),
+  });
+  for (const consumer of [
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.transferencia-exportar", routingKey: "transferencia.exportar_carpeta", handler: transferHandlers.exportar }),
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.ciudadano-transferido", routingKey: "ciudadano.transferido", handler: transferHandlers.transferido }),
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.transferencia-cancelada", routingKey: "transferencia.cancelada", handler: transferHandlers.cancelada }),
   ]) {
     consumer.start().catch((err) => {
       logger.error("consumidor.inicio_fallido", { queue: consumer.queue, err });

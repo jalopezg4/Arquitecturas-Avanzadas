@@ -1,5 +1,6 @@
 const Folder = require("../domain/Folder");
 const logger = require("../tracing/logger");
+const { CarpetaEnTransferenciaError } = require("../domain/errors");
 
 /** Las direcciones unicas se comparan siempre normalizadas: son direcciones de correo, no distinguen mayusculas. */
 function normalizeDireccion(value) {
@@ -62,8 +63,43 @@ class FolderRepository {
    */
   async reserveNonCertified(ciudadanoId, max) {
     await this.ensure(ciudadanoId);
-    const updated = await Folder.findOneAndUpdate({ ciudadanoId, noCertificados: { $lt: max } }, { $inc: { noCertificados: 1 } }, { new: true });
+    // `transferenciaId: null` en el mismo filtro (HU-05c): si la carpeta se bloqueo entre la comprobacion y esta
+    // escritura, no se reserva nada.
+    const updated = await Folder.findOneAndUpdate({ ciudadanoId, transferenciaId: null, noCertificados: { $lt: max } }, { $inc: { noCertificados: 1 } }, { new: true });
+    if (!updated) await this.assertWritable(ciudadanoId); // distingue "carpeta bloqueada" de "cuota llena"
     return Boolean(updated);
+  }
+
+  /** HU-05c: lanza CarpetaEnTransferenciaError si la carpeta esta en solo lectura. Una carpeta inexistente se puede escribir. */
+  async assertWritable(ciudadanoId) {
+    const folder = await Folder.findOne({ ciudadanoId }, { transferenciaId: 1 }).lean();
+    if (folder && folder.transferenciaId) throw new CarpetaEnTransferenciaError();
+  }
+
+  /**
+   * HU-05c: pone la carpeta en solo lectura para la transferencia `transferenciaId`. Idempotente para la misma
+   * transferencia; devuelve `null` si ya la bloqueo OTRA. Si el ciudadano no tiene carpeta (nunca cargo nada), se crea
+   * ya bloqueada.
+   */
+  async lockForTransfer(ciudadanoId, transferenciaId) {
+    const locked = await Folder.findOneAndUpdate({ ciudadanoId, transferenciaId: { $in: [null, transferenciaId] } }, { $set: { transferenciaId } }, { new: true }).lean();
+    if (locked) return locked;
+    try {
+      return (await Folder.create({ ciudadanoId, transferenciaId })).toObject();
+    } catch (err) {
+      if (!err || err.code !== 11000) throw err;
+      return null; // existe y la tiene otra transferencia
+    }
+  }
+
+  /** HU-05c: vuelve a permitir escrituras (transferencia fallida). Solo si la bloqueo ESA transferencia. */
+  async unlock(ciudadanoId, transferenciaId) {
+    await Folder.updateOne({ ciudadanoId, transferenciaId }, { $set: { transferenciaId: null } });
+  }
+
+  /** HU-05c: el ciudadano ya esta en el otro operador: se borra su carpeta (solo si la bloqueo esa transferencia). */
+  async deleteForTransfer(ciudadanoId, transferenciaId) {
+    await Folder.deleteOne({ ciudadanoId, transferenciaId });
   }
 
   /** Devuelve un cupo (la carga fallo despues de reservarlo, o el documento paso a certificado). Nunca baja de 0. */

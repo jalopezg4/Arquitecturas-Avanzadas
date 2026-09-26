@@ -68,4 +68,26 @@ function makeAuthenticationResultHandlers({ documentAuthenticationService }) {
   };
 }
 
-module.exports = { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers };
+/** HU-05c: ordenes de la saga de transferencia (las publica ms-interoperabilidad). */
+function parseTransferOrder(payload) {
+  if (!payload || typeof payload !== "object") throw new PermanentError("el mensaje no es un objeto");
+  if (typeof payload.transferenciaId !== "string" || !ID_RE.test(payload.transferenciaId)) throw new PermanentError("transferenciaId invalido");
+  if (typeof payload.ciudadanoId !== "string" || !ID_RE.test(payload.ciudadanoId)) throw new PermanentError("ciudadanoId invalido");
+  return { transferenciaId: payload.transferenciaId, ciudadanoId: payload.ciudadanoId };
+}
+
+function makeTransferHandlers({ transferFolderService }) {
+  return {
+    async exportar(payload) {
+      await transferFolderService.export(parseTransferOrder(payload));
+    },
+    async transferido(payload) {
+      await transferFolderService.purge(parseTransferOrder(payload));
+    },
+    async cancelada(payload) {
+      await transferFolderService.cancel(parseTransferOrder(payload));
+    },
+  };
+}
+
+module.exports = { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers };
