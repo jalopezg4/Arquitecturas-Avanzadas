@@ -8,7 +8,8 @@
     "publish:endpoint": "node scripts/publish-endpoint.js",
     "dev": "node --watch src/server.js",
     "test": "jest",
-    "scan:secrets": "node scripts/scan-secrets.js"
+    "scan:secrets": "node scripts/scan-secrets.js",
+    "test:contract": "node scripts/contract-test.js"
   },
   "type": "commonjs",
   "dependencies": {
