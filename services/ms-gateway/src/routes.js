@@ -45,6 +45,11 @@ const ROUTES = [
   { method: "PUT", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/authenticate$/, upstream: "DOCUMENTOS_URL" },
   // ms-documentos -- HU-09: URL de descarga (1 h) de un documento propio. Token de CIUDADANO; el servicio comprueba el dueno.
   { method: "GET", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/download$/, upstream: "DOCUMENTOS_URL" },
+  // ms-documentos -- HU-06.4: documento oficial. El ciudadano lo pide sobre un temporal suyo y ve sus solicitudes...
+  { method: "POST", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/request-official$/, upstream: "DOCUMENTOS_URL" },
+  { method: "GET", path: "/api/v1/citizens/me/official-requests", upstream: "DOCUMENTOS_URL" },
+  // ...y la entidad VERIFICADA ve su bandeja (la entrega va por POST /api/v1/documents/inbound con solicitudOficialId).
+  { method: "GET", path: "/api/v1/official-requests", upstream: "DOCUMENTOS_URL", actor: "entidad" },
   // ms-comparticion -- HU-06.2: paquetes documentales. El ciudadano los arma y consulta con SU token...
   { method: "POST", path: "/api/v1/packages", upstream: "COMPARTICION_URL" },
   { method: "GET", path: "/api/v1/citizens/me/packages", upstream: "COMPARTICION_URL" },

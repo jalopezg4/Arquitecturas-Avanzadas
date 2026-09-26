@@ -411,6 +411,34 @@ describe("ms-documentos: GET /api/v1/documents/:id/download (HU-09)", () => {
   });
 });
 
+describe("HU-06.4: documento oficial", () => {
+  const entitySecrets = new SecretsManager({ active: "Wd6nK2pR8vZ4tQ1yB7mX3jL5hG9sCe0A" });
+  const entityToken = () => entitySecrets.sign({ typ: "access", act: "entidad" }, { issuer: "ms-comparticion", subject: "665f1c04c9de9c4c34f6b52a", expiresIn: 900 });
+  const D = "6ab68fddb64d2aa730b415b1";
+  let docs;
+  let gw;
+  beforeEach(async () => {
+    docs = await startUpstream();
+    gw = buildApp({ secrets, entitySecrets, upstreams: { DOCUMENTOS_URL: docs.url }, issuer: "ms-identidad", timeoutMs: 2000 });
+  });
+  afterEach(async () => {
+    await docs.close();
+  });
+
+  test("ciudadano: pedir y consultar con SU token; la entidad no puede pedir por el", async () => {
+    await request(gw).post(`/api/v1/documents/${D}/request-official`).set("Authorization", `Bearer ${token()}`).send({ nit: "890901389" }).expect(201);
+    await request(gw).get("/api/v1/citizens/me/official-requests").set("Authorization", `Bearer ${token()}`).expect(201);
+    await request(gw).post(`/api/v1/documents/${D}/request-official`).set("Authorization", `Bearer ${entityToken()}`).send({}).expect(401);
+    expect(docs.calls.map((c) => `${c.method} ${c.path}`)).toEqual([`POST /api/v1/documents/${D}/request-official`, "GET /api/v1/citizens/me/official-requests"]);
+  });
+
+  test("entidad: su bandeja con token INSTITUCIONAL; con token de ciudadano -> 401", async () => {
+    await request(gw).get("/api/v1/official-requests").set("Authorization", `Bearer ${entityToken()}`).expect(201);
+    await request(gw).get("/api/v1/official-requests").set("Authorization", `Bearer ${token()}`).expect(401);
+    expect(docs.calls).toHaveLength(1);
+  });
+});
+
 describe("HU-06.2: paquetes documentales", () => {
   const ENTITY_SECRET = "Wd6nK2pR8vZ4tQ1yB7mX3jL5hG9sCe0A";
   const entitySecrets = new SecretsManager({ active: ENTITY_SECRET });
