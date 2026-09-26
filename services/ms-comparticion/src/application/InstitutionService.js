@@ -303,6 +303,17 @@ class InstitutionService {
     return { canal: "correo", correo: institution.correoContacto, nombre: institution.nombre, registrada: true };
   }
 
+  /**
+   * HU-06.4: a que institucion de este operador corresponde un NIT (para dirigirle una solicitud del documento oficial).
+   * `null` si el NIT es invalido o no esta registrado. No exige `verificada`: la solicitud queda en su bandeja, y ver la
+   * bandeja o entregar SI lo exigen (ms-documentos).
+   */
+  async resolveByNit(nit) {
+    const parsed = parseNit(nit);
+    const institution = parsed.ok ? await this.institutionRepository.findByNit(parsed.nit) : null;
+    return institution ? { institutionId: String(institution._id), nombre: institution.nombre } : null;
+  }
+
   /** HU-06.2: la entidad sigue verificada AHORA (se lee de la base propia, sin esperar a que venza su token). */
   async isVerified(institutionId) {
     const institution = await this.institutionRepository.findById(institutionId).catch(() => null);

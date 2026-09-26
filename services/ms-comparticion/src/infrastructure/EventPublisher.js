@@ -7,7 +7,11 @@ const EXCHANGE = "carpeta-ciudadana.events";
 // HU-06.2: `paquete.creado` lo consume ms-documentos (comprueba los documentos y entrega). Sin una cola ligada al topic
 // exchange, RabbitMQ descarta el mensaje; por eso se predeclara aqui, durable, para que espere aunque el consumidor no
 // este corriendo. Declarar una cola es idempotente.
-const ANTICIPATED_BINDINGS = [{ queue: "ms-documentos.paquete-creado", routingKey: "paquete.creado" }];
+const ANTICIPATED_BINDINGS = [
+  { queue: "ms-documentos.paquete-creado", routingKey: "paquete.creado" },
+  // HU-06.4: respuesta a la resolucion del NIT de la entidad emisora.
+  { queue: "ms-documentos.solicitud-oficial-resuelta", routingKey: "solicitud_oficial.resuelta" },
+];
 
 class EventPublisher {
   constructor(rabbitUri, { connect = amqp.connect } = {}) {

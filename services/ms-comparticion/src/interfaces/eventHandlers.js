@@ -22,4 +22,26 @@ function makePackageProcessedHandler({ packageService }) {
   };
 }
 
-module.exports = { makePackageProcessedHandler };
+const RESUELTA = "solicitud_oficial.resuelta";
+
+/**
+ * `solicitud_oficial.creada` (HU-06.4, la publica ms-documentos): responde a que institucion corresponde el NIT (o a
+ * ninguna). Si el broker no confirma la respuesta se lanza y el mensaje se reintenta (responder dos veces es inocuo).
+ */
+function makeOfficialRequestHandler({ institutionService, eventPublisher, timeoutMs = 3000 }) {
+  return async function onOfficialRequest(payload) {
+    if (!payload || typeof payload !== "object") throw new PermanentError("payload invalido");
+    if (typeof payload.solicitudOficialId !== "string" || !OBJECT_ID_RE.test(payload.solicitudOficialId)) throw new PermanentError("solicitudOficialId invalido");
+    if (typeof payload.nit !== "string" || payload.nit.length > 20) throw new PermanentError("nit invalido");
+    const found = await institutionService.resolveByNit(payload.nit);
+    let timer;
+    await Promise.race([
+      eventPublisher.publish(RESUELTA, { solicitudOficialId: payload.solicitudOficialId, institutionId: found ? found.institutionId : null, nombre: found ? found.nombre : null }),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("sin confirmacion del broker")), timeoutMs);
+      }),
+    ]).finally(() => clearTimeout(timer));
+  };
+}
+
+module.exports = { makePackageProcessedHandler, makeOfficialRequestHandler };

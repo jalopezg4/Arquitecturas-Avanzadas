@@ -16,7 +16,7 @@ const EventPublisher = require("./infrastructure/EventPublisher");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { PackageService } = require("./application/PackageService");
 const PackageEventReconciler = require("./application/PackageEventReconciler");
-const { makePackageProcessedHandler } = require("./interfaces/eventHandlers");
+const { makePackageProcessedHandler, makeOfficialRequestHandler } = require("./interfaces/eventHandlers");
 
 async function main() {
   await mongoose.connect(env.mongoUri);
@@ -50,10 +50,11 @@ async function main() {
   // HU-06.2: paquetes documentales. Los tokens de ciudadano solo se VERIFICAN aqui (llave de ms-identidad).
   const secrets = new SecretsManager({ active: env.jwtSecret, previous: env.jwtSecretPrevious });
   const packageRepository = new PackageRepository();
+  const eventPublisher = new EventPublisher(env.rabbitUri);
   const packageService = new PackageService({
     packageRepository,
     institutionService,
-    eventPublisher: new EventPublisher(env.rabbitUri),
+    eventPublisher,
     auditLogger,
     maxDocumentos: env.packages.maxDocumentos,
     eventPublishTimeoutMs: env.eventPublishTimeoutMs,
@@ -62,17 +63,23 @@ async function main() {
     new PackageEventReconciler({ packageRepository, packageService, minAgeMs: env.packages.reconcileMinAgeMs }).start(env.packages.reconcileIntervalMs);
   }
   // Respuesta de ms-documentos (que predeclara la cola). Reconecta solo; sin broker el servicio arranca igual.
-  const consumer = new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-comparticion.paquete-procesado", routingKey: "paquete.procesado", handler: makePackageProcessedHandler({ packageService }) });
-  consumer.start().catch((err) => {
-    logger.error("consumidor.inicio_fallido", { queue: consumer.queue, err });
-    consumer._scheduleReconnect();
-  });
+  // HU-06.4: resolver el NIT de una solicitud del documento oficial (la cola la predeclara ms-documentos).
+  const consumers = [
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-comparticion.paquete-procesado", routingKey: "paquete.procesado", handler: makePackageProcessedHandler({ packageService }) }),
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-comparticion.solicitud-oficial-creada", routingKey: "solicitud_oficial.creada", handler: makeOfficialRequestHandler({ institutionService, eventPublisher, timeoutMs: env.eventPublishTimeoutMs }) }),
+  ];
+  for (const consumer of consumers) {
+    consumer.start().catch((err) => {
+      logger.error("consumidor.inicio_fallido", { queue: consumer.queue, err });
+      consumer._scheduleReconnect();
+    });
+  }
 
   const app = buildApp({
     institutionService,
     entityAuthService,
     registrationToken: env.registrationToken,
-    isReady: () => mongoose.connection.readyState === 1 && Boolean(consumer.channel),
+    isReady: () => mongoose.connection.readyState === 1 && consumers.every((c) => Boolean(c.channel)),
     packageService,
     secrets,
     issuer: env.jwtIssuer,
