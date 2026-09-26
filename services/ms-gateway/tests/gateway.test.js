@@ -411,6 +411,52 @@ describe("ms-documentos: GET /api/v1/documents/:id/download (HU-09)", () => {
   });
 });
 
+describe("HU-06.2: paquetes documentales", () => {
+  const ENTITY_SECRET = "Wd6nK2pR8vZ4tQ1yB7mX3jL5hG9sCe0A";
+  const entitySecrets = new SecretsManager({ active: ENTITY_SECRET });
+  const entityToken = () => entitySecrets.sign({ typ: "access", act: "entidad" }, { issuer: "ms-comparticion", subject: "665f1c04c9de9c4c34f6b52a", expiresIn: 900 });
+  const P = "6ab68fddb64d2aa730b41601";
+  const D = "6ab68fddb64d2aa730b415b1";
+
+  let comp;
+  let docs;
+  let gw;
+  beforeEach(async () => {
+    comp = await startUpstream();
+    docs = await startUpstream();
+    gw = buildApp({ secrets, entitySecrets, upstreams: { COMPARTICION_URL: comp.url, DOCUMENTOS_URL: docs.url }, issuer: "ms-identidad", timeoutMs: 2000 });
+  });
+  afterEach(async () => {
+    await comp.close();
+    await docs.close();
+  });
+
+  test("rutas del ciudadano: exigen su token y van a ms-comparticion; un token institucional no las abre", async () => {
+    const t = token();
+    await request(gw).post("/api/v1/packages").set("Authorization", `Bearer ${t}`).send({ documentoIds: [D] }).expect(201);
+    await request(gw).get("/api/v1/citizens/me/packages").set("Authorization", `Bearer ${t}`).expect(201);
+    await request(gw).get(`/api/v1/citizens/me/packages/${P}`).set("Authorization", `Bearer ${t}`).expect(201);
+    await request(gw).post("/api/v1/packages").set("Authorization", `Bearer ${entityToken()}`).send({}).expect(401);
+    expect(comp.calls.map((c) => `${c.method} ${c.path}`)).toEqual(["POST /api/v1/packages", "GET /api/v1/citizens/me/packages", `GET /api/v1/citizens/me/packages/${P}`]);
+  });
+
+  test("rutas de la entidad: exigen token INSTITUCIONAL; uno de ciudadano no las abre", async () => {
+    const t = entityToken();
+    await request(gw).get("/api/v1/institutions/me/packages").set("Authorization", `Bearer ${t}`).expect(201);
+    await request(gw).get(`/api/v1/packages/${P}/documents/${D}/download`).set("Authorization", `Bearer ${t}`).expect(201);
+    await request(gw).get("/api/v1/institutions/me/packages").set("Authorization", `Bearer ${token()}`).expect(401);
+    await request(gw).get(`/api/v1/packages/${P}/documents/${D}/download`).set("Authorization", `Bearer ${token()}`).expect(401);
+    expect(comp.calls.map((c) => c.path)).toEqual(["/api/v1/institutions/me/packages"]);
+    expect(docs.calls.map((c) => c.path)).toEqual([`/api/v1/packages/${P}/documents/${D}/download`]);
+  });
+
+  test.each([["GET", `/api/v1/packages/${P}`], ["DELETE", "/api/v1/packages"], ["GET", `/api/v1/packages/${P}/documents/${D}/download/x`]])("%s %s -> 404", async (method, path) => {
+    const res = await request(gw)[method.toLowerCase()](path).set("Authorization", `Bearer ${token()}`);
+    expect(res.status).toBe(404);
+    expect(comp.calls.length + docs.calls.length).toBe(0);
+  });
+});
+
 describe("ms-interoperabilidad: transferencia de operador (HU-05c)", () => {
   let interop;
   let gw;

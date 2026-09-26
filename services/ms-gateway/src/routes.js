@@ -45,6 +45,13 @@ const ROUTES = [
   { method: "PUT", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/authenticate$/, upstream: "DOCUMENTOS_URL" },
   // ms-documentos -- HU-09: URL de descarga (1 h) de un documento propio. Token de CIUDADANO; el servicio comprueba el dueno.
   { method: "GET", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/download$/, upstream: "DOCUMENTOS_URL" },
+  // ms-comparticion -- HU-06.2: paquetes documentales. El ciudadano los arma y consulta con SU token...
+  { method: "POST", path: "/api/v1/packages", upstream: "COMPARTICION_URL" },
+  { method: "GET", path: "/api/v1/citizens/me/packages", upstream: "COMPARTICION_URL" },
+  { method: "GET", pattern: /^\/api\/v1\/citizens\/me\/packages\/[A-Za-z0-9_-]{1,64}$/, upstream: "COMPARTICION_URL" },
+  // ...y la entidad VERIFICADA ve los que le entregaron en su carpeta y descarga cada documento (token INSTITUCIONAL).
+  { method: "GET", path: "/api/v1/institutions/me/packages", upstream: "COMPARTICION_URL", actor: "entidad" },
+  { method: "GET", pattern: /^\/api\/v1\/packages\/[A-Za-z0-9_-]{1,64}\/documents\/[A-Za-z0-9_-]{1,64}\/download$/, upstream: "DOCUMENTOS_URL", actor: "entidad" },
   // ms-interoperabilidad -- HU-05c: el ciudadano inicia su transferencia a otro operador y consulta la que esta en curso.
   { method: "POST", path: "/api/v1/transfers", upstream: "INTEROPERABILIDAD_URL" },
   { method: "GET", path: "/api/v1/citizens/me/transfer", upstream: "INTEROPERABILIDAD_URL" },
