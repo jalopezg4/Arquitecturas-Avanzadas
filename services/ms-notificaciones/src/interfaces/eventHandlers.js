@@ -2,6 +2,7 @@ const { PermanentError } = require("../infrastructure/EventConsumer");
 
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const SINGLE_EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 
 function need(condition, message) {
   if (!condition) throw new PermanentError(message);
@@ -46,6 +47,22 @@ function makeEventHandlers({ notificationService }) {
       need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
       need(text(payload.titulo, 300), "titulo invalido");
       await notificationService.onDocumentAuthenticationFailed(payload);
+    },
+
+    // HU-06.2 (RF-26): correo a una entidad EXTERNA con los enlaces temporales de un paquete documental.
+    async paqueteEnvioCorreo(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido (sin el no hay idempotencia)");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      // UN solo destinatario: sin comas ni punto y coma (el transporte trataria "a@x.co,b@y.co" como dos).
+      need(typeof payload.correo === "string" && payload.correo.length <= 200 && SINGLE_EMAIL_RE.test(payload.correo), "correo invalido (un solo destinatario)");
+      need(Array.isArray(payload.documentos) && payload.documentos.length >= 1 && payload.documentos.length <= 100, "documentos invalidos");
+      for (const d of payload.documentos) {
+        need(d && text(d.titulo, 300), "titulo de documento invalido");
+        need(typeof d.url === "string" && d.url.length <= 4096 && /^https?:\/\/[^\s]+$/.test(d.url), "url de documento invalida");
+      }
+      need(text(payload.vencenEn, 40), "vencenEn invalido");
+      await notificationService.onPackageEmail(payload);
     },
 
     async solicitudCreada(payload) {

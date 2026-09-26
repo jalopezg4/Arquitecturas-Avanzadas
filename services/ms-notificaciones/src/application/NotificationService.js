@@ -144,6 +144,33 @@ class NotificationService {
   }
 
   /**
+   * paquete.envio_correo (HU-06.2, RF-26): un ciudadano envio documentos a una entidad que NO recibe en carpeta
+   * institucional. El destinatario es EXTERNO (no hay Contact): viene en el evento, validado como UN solo correo. Los
+   * enlaces temporales van solo en el cuerpo: nunca en el asunto (se guarda en Mongo) ni en los logs.
+   */
+  async onPackageEmail({ eventId, ciudadanoId, correo, nombreDestino, remitenteDireccionUnica, documentos, vencenEn }) {
+    const lista = documentos.map((d) => `- ${clean(d.titulo, 120)}: ${d.url}`);
+    return this._deliver({
+      eventKey: `paquete.envio_correo:${eventId}`,
+      tipo: "paquete_documental",
+      ciudadanoId,
+      to: correo,
+      subject: `Un ciudadano te envio ${documentos.length} documento(s) desde su carpeta ciudadana`,
+      text: [
+        `Hola${nombreDestino ? ` ${clean(nombreDestino, 120)}` : ""},`,
+        "",
+        `A traves de ${this.operatorName}, un ciudadano${remitenteDireccionUnica ? ` (${clean(remitenteDireccionUnica, 120)})` : ""} te envio estos documentos de su carpeta ciudadana:`,
+        ...lista,
+        "",
+        `Los enlaces son personales y vencen el ${clean(vencenEn, 40)}. Descargalos antes de esa fecha.`,
+        `Si tu entidad se afilia y verifica en un operador de Carpeta Ciudadana, los recibira directamente en su carpeta institucional.`,
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
+  /**
    * solicitud.creada (HU-06.3, RF-28): avisa al ciudadano que una institucion solicito documentacion suya.
    * El email usa el mecanismo existente (idempotente, se reintenta si falla). El SMS es best-effort y se intenta
    * DESPUES, fuera de `_deliver()`: si falla, se loguea y NUNCA se relanza -- no debe reintentar el evento (el email
