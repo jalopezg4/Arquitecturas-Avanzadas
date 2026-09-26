@@ -19,6 +19,9 @@ const ANTICIPATED_BINDINGS = [
   // HU-05c: respuestas a la saga de transferencia, las consume ms-interoperabilidad.
   { queue: "ms-interoperabilidad.carpeta-exportada", routingKey: "transferencia.carpeta_exportada" },
   { queue: "ms-interoperabilidad.documentos-importados", routingKey: "transferencia.documentos_importados" },
+  // HU-06.2: resultado del paquete (ms-comparticion) y envio por correo (ms-notificaciones).
+  { queue: "ms-comparticion.paquete-procesado", routingKey: "paquete.procesado" },
+  { queue: "ms-notificaciones.paquete-envio-correo", routingKey: "paquete.envio_correo" },
 ];
 
 class EventPublisher {

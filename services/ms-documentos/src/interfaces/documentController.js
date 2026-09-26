@@ -29,8 +29,19 @@ function requireOwner(auditLogger, action = "documento.cargar") {
   };
 }
 
-function makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService, solicitudService, documentAuthenticationService) {
+function makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService, solicitudService, documentAuthenticationService, packageDeliveryService) {
   return {
+    /** HU-06.2: descarga de un documento de un paquete entregado a la entidad (URL de 15 minutos, no-store). */
+    async entityDownload(req, res, next) {
+      try {
+        if (!packageDeliveryService) return res.status(503).json({ error: "servicio no disponible" });
+        const result = await packageDeliveryService.entityDownload({ institutionId: req.auth.institutionId, paqueteId: req.params.paqueteId, documentoId: req.params.documentoId });
+        res.set("Cache-Control", "no-store");
+        return res.status(200).json(result);
+      } catch (err) {
+        return next(err);
+      }
+    },
     /**
      * HU-04: pedir la autenticacion de un documento propio. Responde 202 en cuanto la solicitud queda registrada y
      * publicada (o pendiente de reenvio): nunca espera a GovCarpeta (RNF-10).

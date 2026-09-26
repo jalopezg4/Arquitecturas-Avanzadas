@@ -20,13 +20,16 @@ const EventReconciler = require("./application/EventReconciler");
 const { DocumentAuthenticationService } = require("./application/DocumentAuthenticationService");
 const AuthenticationRequestReconciler = require("./application/AuthenticationRequestReconciler");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
-const { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers } = require("./interfaces/eventHandlers");
+const { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers, makePackageCreatedHandler } = require("./interfaces/eventHandlers");
+const { PackageDeliveryService } = require("./application/PackageDeliveryService");
+const PackageGrant = require("./domain/PackageGrant");
 const { TransferImportService } = require("./application/TransferImportService");
 const { RemoteFileFetcher } = require("./infrastructure/RemoteFileFetcher");
 const { TransferFolderService } = require("./application/TransferFolderService");
 
 async function main() {
   await mongoose.connect(env.mongoUri);
+  await PackageGrant.init(); // indice unico por paquete antes de consumir (HU-06.2)
 
   const secrets = new SecretsManager({ active: env.jwtSecret, previous: env.jwtSecretPrevious });
   logger.info("jwt.llavero", secrets.status()); // solo ids de llave, nunca el secreto
@@ -117,6 +120,17 @@ async function main() {
   const transferHandlers = makeTransferHandlers({
     transferFolderService: new TransferFolderService({ folderRepository, documentRepository, storage, eventPublisher, urlTtlSeconds: env.presignedDownloadTtlSeconds, eventPublishTimeoutMs: env.eventPublishTimeoutMs }),
   });
+  // HU-06.2: entrega de paquetes documentales (URLs del correo: 1 h, como la descarga propia; de la entidad: 15 min).
+  const packageDeliveryService = new PackageDeliveryService({
+    documentRepository,
+    folderRepository,
+    storage,
+    eventPublisher,
+    auditLogger,
+    emailUrlTtlSeconds: env.presignedDownloadTtlSeconds,
+    entityUrlTtlSeconds: 900,
+    eventPublishTimeoutMs: env.eventPublishTimeoutMs,
+  });
   const importHandlers = makeTransferImportHandlers({
     transferImportService: new TransferImportService({
       documentRepository,
@@ -134,6 +148,8 @@ async function main() {
     // HU-05c (destino): importar los documentos de un ciudadano que llega. prefetch 1: cada orden descarga archivos.
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.transferencia-importar", routingKey: "transferencia.importar_documentos", handler: importHandlers.importar, prefetch: 1 }),
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.transferencia-revertir", routingKey: "transferencia.revertir_importacion", handler: importHandlers.revertir }),
+    // HU-06.2: la cola la predeclara ms-comparticion.
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.paquete-creado", routingKey: "paquete.creado", handler: makePackageCreatedHandler({ packageDeliveryService }) }),
   ]) {
     consumer.start().catch((err) => {
       logger.error("consumidor.inicio_fallido", { queue: consumer.queue, err });
@@ -150,6 +166,7 @@ async function main() {
     documentAnalyticsService,
     solicitudService,
     documentAuthenticationService,
+    packageDeliveryService,
     secrets,
     entitySecrets,
     issuer: env.jwtIssuer,

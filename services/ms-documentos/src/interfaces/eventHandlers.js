@@ -110,4 +110,31 @@ function makeTransferImportHandlers({ transferImportService, maxDocuments = 500 
   };
 }
 
-module.exports = { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers };
+/** HU-06.2: `paquete.creado` (de ms-comparticion). Un mensaje mal formado nunca se podra entregar: cola de fallidos. */
+function makePackageCreatedHandler({ packageDeliveryService, maxDocumentos = 100 }) {
+  return async function onPackageCreated(payload) {
+    if (!payload || typeof payload !== "object") throw new PermanentError("el mensaje no es un objeto");
+    if (typeof payload.paqueteId !== "string" || !OBJECT_ID_RE.test(payload.paqueteId)) throw new PermanentError("paqueteId invalido");
+    if (typeof payload.ciudadanoId !== "string" || !ID_RE.test(payload.ciudadanoId)) throw new PermanentError("ciudadanoId invalido");
+    if (!Array.isArray(payload.documentoIds) || !payload.documentoIds.length || payload.documentoIds.length > maxDocumentos) throw new PermanentError("documentoIds invalidos");
+    if (!payload.documentoIds.every((id) => typeof id === "string" && OBJECT_ID_RE.test(id))) throw new PermanentError("documentoIds invalidos");
+    if (payload.canal === "carpeta_institucional") {
+      if (typeof payload.institutionId !== "string" || !ID_RE.test(payload.institutionId)) throw new PermanentError("institutionId invalido");
+    } else if (payload.canal === "correo") {
+      if (typeof payload.correoDestino !== "string" || payload.correoDestino.length > 200 || !/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(payload.correoDestino)) throw new PermanentError("correoDestino invalido");
+    } else {
+      throw new PermanentError("canal invalido");
+    }
+    await packageDeliveryService.deliver({
+      paqueteId: payload.paqueteId,
+      ciudadanoId: payload.ciudadanoId,
+      documentoIds: payload.documentoIds,
+      canal: payload.canal,
+      institutionId: payload.institutionId || null,
+      correoDestino: payload.correoDestino || null,
+      nombreDestino: typeof payload.nombreDestino === "string" ? payload.nombreDestino.slice(0, 150) : null,
+    });
+  };
+}
+
+module.exports = { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers, makePackageCreatedHandler };
