@@ -274,6 +274,22 @@ describe("Escenario: el destino reporta fallo o no confirma (compensacion)", () 
   });
 });
 
+describe("Escenario: ms-documentos no responde a la exportacion", () => {
+  test("el barrido repite la orden y, pasados 3 plazos, desiste sin tocar GovCarpeta", async () => {
+    const res = await request(app).post("/api/v1/transfers").set("Authorization", `Bearer ${token()}`).send({ operadorDestinoId: DESTINO }).expect(202);
+
+    advance(2 * 60 * 1000 + 1);
+    await sweeper.sweepOnce();
+    expect(published("transferencia.exportar_carpeta")).toHaveLength(2);
+
+    advance(5 * 60 * 1000);
+    await sweeper.sweepOnce();
+    expect(await Transfer.findById(res.body.transferenciaId).lean()).toMatchObject({ estado: "fallida", motivo: "exportacion_sin_respuesta" });
+    expect(govCarpeta.unregisterCitizen).not.toHaveBeenCalled();
+    expect(govCarpeta.registerCitizen).not.toHaveBeenCalled();
+  });
+});
+
 describe("Validaciones al iniciar", () => {
   test("sin token -> 401; con operadorDestinoId invalido -> 400", async () => {
     await request(app).post("/api/v1/transfers").send({ operadorDestinoId: DESTINO }).expect(401);

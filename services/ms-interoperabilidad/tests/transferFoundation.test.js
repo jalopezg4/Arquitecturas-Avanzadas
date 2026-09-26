@@ -57,7 +57,7 @@ describe("ciudadano.registrado -> copia local del ciudadano", () => {
 });
 
 describe("TransferRepository", () => {
-  const saliente = (extra = {}) => ({ tipo: "saliente", estado: "exportando", ciudadanoId: ANA, documento: 1000000001, ...extra });
+  const saliente = (extra = {}) => ({ tipo: "saliente", estado: "exportando", ciudadanoId: ANA, documento: 1000000001, iniciadaEn: new Date(), ...extra });
 
   test("no permite dos transferencias VIVAS del mismo ciudadano (ni siquiera simultaneas)", async () => {
     const repo = new TransferRepository();

@@ -91,6 +91,7 @@ class TransferSagaService {
       operadorDestinoId: destino.operatorId,
       operadorDestinoNombre: destino.name,
       destinoUrl: destino.transferApiUrl,
+      iniciadaEn: this.now(),
       revisarEn: this._later(this.stepTimeoutMs),
     });
     await this._audit(transfer, "transferencia.iniciar", "exito");
@@ -103,7 +104,7 @@ class TransferSagaService {
 
   async current(ciudadanoId) {
     const t = await this.transfers.findActive("saliente", { ciudadanoId });
-    return t ? { transferenciaId: String(t._id), estado: t.estado, operadorDestino: t.operadorDestinoNombre, iniciadaEn: t.createdAt } : null;
+    return t ? { transferenciaId: String(t._id), estado: t.estado, operadorDestino: t.operadorDestinoNombre, iniciadaEn: t.iniciadaEn } : null;
   }
 
   // ---------------------------------------------------------------- 2. carpeta exportada
@@ -256,7 +257,7 @@ class TransferSagaService {
   /** Revisa una transferencia SALIENTE vencida. Devuelve lo que hizo (para logs y pruebas). */
   async review(t) {
     if (t.fallando) return this._fail(t, t.motivo || "compensacion");
-    const age = this.now().getTime() - new Date(t.createdAt).getTime();
+    const age = this.now().getTime() - new Date(t.iniciadaEn).getTime();
     switch (t.estado) {
       case "exportando":
         // Sin respuesta de ms-documentos: se repite la orden (idempotente); tras 3 plazos se desiste.

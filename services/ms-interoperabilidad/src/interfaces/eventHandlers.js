@@ -42,4 +42,23 @@ function makeFolderExportedHandler({ sagaService, maxDocuments = 500 }) {
   };
 }
 
-module.exports = { makeCitizenRegisteredHandler, makeFolderExportedHandler, need, ID_RE, EMAIL_RE };
+/** HU-05c (destino): respuestas de ms-documentos (importacion) y ms-identidad (registro). */
+function makeReceiverHandlers({ receiverService }) {
+  const base = (payload) => {
+    need(payload && typeof payload === "object", "payload invalido");
+    need(typeof payload.transferenciaId === "string" && ID_RE.test(payload.transferenciaId), "transferenciaId invalido");
+    need(typeof payload.ok === "boolean", "ok invalido");
+    return { transferenciaId: payload.transferenciaId, ok: payload.ok, motivo: typeof payload.motivo === "string" ? payload.motivo.slice(0, 200) : undefined };
+  };
+  return {
+    async documentosImportados(payload) {
+      await receiverService.onDocumentsImported(base(payload));
+    },
+    async ciudadanoImportado(payload) {
+      const direccionUnica = typeof payload.direccionUnica === "string" && payload.direccionUnica.length <= 200 && EMAIL_RE.test(payload.direccionUnica) ? payload.direccionUnica : undefined;
+      await receiverService.onCitizenRegistered({ ...base(payload), direccionUnica });
+    },
+  };
+}
+
+module.exports = { makeCitizenRegisteredHandler, makeFolderExportedHandler, makeReceiverHandlers, need, ID_RE, EMAIL_RE };

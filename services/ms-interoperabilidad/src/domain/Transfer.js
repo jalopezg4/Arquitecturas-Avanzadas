@@ -67,8 +67,12 @@ const transferSchema = new mongoose.Schema(
     confirmApi: { type: String, default: null }, // la del ORIGEN
     // Firma del pedido recibido: un reintento identico del origen no crea otra transferencia.
     huellaPedido: { type: String, default: null },
+    // Lo que se le respondera (o se le respondio) al origen en su confirmAPI: 1 exito, 0 fracaso.
+    reqStatus: { type: Number, default: null },
+    confirmacionesIntentadas: { type: Number, default: 0 },
 
-    // Control de la saga
+    // Control de la saga. `iniciadaEn` sale del reloj del servicio (no de createdAt) para medir los plazos.
+    iniciadaEn: { type: Date, required: true },
     motivo: { type: String, default: null },
     // true mientras se esta deshaciendo (compensacion en curso): el barrido la retoma si algo fallo a mitad.
     fallando: { type: Boolean, default: false },

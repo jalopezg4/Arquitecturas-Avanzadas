@@ -11,7 +11,8 @@ const { GovCarpetaDirectoryClient } = require("./infrastructure/GovCarpetaDirect
 const CitizenRepository = require("./infrastructure/CitizenRepository");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { OperatorDirectoryService } = require("./application/OperatorDirectoryService");
-const { makeCitizenRegisteredHandler, makeFolderExportedHandler } = require("./interfaces/eventHandlers");
+const { makeCitizenRegisteredHandler, makeFolderExportedHandler, makeReceiverHandlers } = require("./interfaces/eventHandlers");
+const { TransferReceiverService } = require("./application/TransferReceiverService");
 const { TransferRepository } = require("./infrastructure/TransferRepository");
 const GovCarpetaCitizenClient = require("./infrastructure/GovCarpetaCitizenClient");
 const { PeerOperatorClient } = require("./infrastructure/PeerOperatorClient");
@@ -78,20 +79,36 @@ async function main() {
     eventPublishTimeoutMs: env.eventPublishTimeoutMs,
   });
 
+  const receiverService = new TransferReceiverService({
+    transferRepository,
+    citizenRepository,
+    peerClient,
+    eventPublisher,
+    auditLogger,
+    urlPolicy: { allowPrivate: env.directory.allowPrivateUrls, requireHttps: env.directory.requireHttpsUrls },
+    maxDocuments: env.transfer.maxDocuments,
+    stepTimeoutMs: env.transfer.stepTimeoutMs,
+    eventPublishTimeoutMs: env.eventPublishTimeoutMs,
+  });
+  const receiverHandlers = makeReceiverHandlers({ receiverService });
+
   // Colas que predeclaran los publicadores (ms-identidad, ms-documentos): aqui se declaran IGUAL (solo durables).
   const consumers = [
     startConsumer(new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-interoperabilidad.ciudadano-registrado", routingKey: "ciudadano.registrado", handler: makeCitizenRegisteredHandler({ citizenRepository }) })),
     startConsumer(new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-interoperabilidad.carpeta-exportada", routingKey: "transferencia.carpeta_exportada", handler: makeFolderExportedHandler({ sagaService, maxDocuments: env.transfer.maxDocuments }) })),
+    startConsumer(new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-interoperabilidad.documentos-importados", routingKey: "transferencia.documentos_importados", handler: receiverHandlers.documentosImportados })),
+    startConsumer(new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-interoperabilidad.ciudadano-importado", routingKey: "transferencia.ciudadano_registrado", handler: receiverHandlers.ciudadanoImportado })),
   ];
 
   // Plazos y reintentos de la saga: sin esto, un mensaje perdido o un reinicio dejarian una transferencia colgada.
   if (env.transfer.sweepIntervalMs > 0) {
-    new TransferSweeper({ transferRepository, reviewers: { saliente: sagaService } }).start(env.transfer.sweepIntervalMs);
+    new TransferSweeper({ transferRepository, reviewers: { saliente: sagaService, entrante: receiverService } }).start(env.transfer.sweepIntervalMs);
   }
 
   const app = buildApp({
     isReady: () => mongoose.connection.readyState === 1 && consumers.every((c) => Boolean(c.channel)),
     sagaService,
+    receiverService,
     secrets,
     issuer: env.jwtIssuer,
   });

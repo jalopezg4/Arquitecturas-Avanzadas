@@ -13,6 +13,10 @@ class CitizenRepository {
     return Citizen.findOne({ ciudadanoId }).lean();
   }
 
+  async findByDocumento(documento) {
+    return Citizen.findOne({ documento }).lean();
+  }
+
   async remove(ciudadanoId) {
     await Citizen.deleteOne({ ciudadanoId });
   }

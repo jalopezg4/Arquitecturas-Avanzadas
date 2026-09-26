@@ -5,6 +5,7 @@ const { CiudadanoNoDisponibleError, ConfirmacionInvalidaError } = require("../ap
 const { TransferConflictError } = require("../infrastructure/TransferRepository");
 const { OperatorNotFoundError, NoTransferEndpointError, SelfTransferError, DirectoryUnavailableError, ValidationError } = require("../application/OperatorDirectoryService");
 const { UnsafeTransferUrlError } = require("../security/transferUrl");
+const { PedidoInvalidoError, CiudadanoYaAfiliadoError } = require("../application/TransferReceiverService");
 
 const OPERATOR_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,128}$/;
@@ -28,12 +29,27 @@ function parseCedula(value) {
  *   GET  /api/v1/citizens/me/transfer                            -> 200 transferencia en curso | 404
  *
  * Entre operadores (publicas: el protocolo del curso no define autenticacion entre operadores):
+ *   POST /api/transferCitizen  {id, citizenName, citizenEmail, urlDocuments, confirmAPI, ...opcionales}
+ *        -> 202: se acepta y se procesa despues; el resultado se le avisa al origen en su confirmAPI.
  *   POST /api/transferCitizenConfirm?t=<token>  {id, req_status}  -> 200. El token viaja en NUESTRO confirmAPI:
  *        sin el, una confirmacion no se acepta (cualquiera que conozca una cedula podria hacernos borrar al ciudadano).
  */
-function transferRoutes({ sagaService, secrets, issuer }) {
+function transferRoutes({ sagaService, receiverService, secrets, issuer }) {
   const router = express.Router();
   const json = express.json({ limit: "16kb" });
+  // Un pedido de transferencia trae una URL por documento (hasta TRANSFER_MAX_DOCUMENTS): mas margen, pero acotado.
+  const transferJson = express.json({ limit: "1mb" });
+
+  if (receiverService) {
+    router.post("/transferCitizen", jsonOnly, transferJson, async (req, res, next) => {
+      try {
+        const result = await receiverService.receive(req.body);
+        return res.status(202).json({ mensaje: "transferencia recibida; se confirmara en confirmAPI", transferenciaId: result.transferenciaId });
+      } catch (err) {
+        return next(err);
+      }
+    });
+  }
 
   router.post("/v1/transfers", requireAuth(secrets, { issuer }), jsonOnly, json, async (req, res, next) => {
     try {
@@ -81,6 +97,8 @@ function transferErrorHandler(err, _req, res, _next) {
   if (err instanceof NoTransferEndpointError || err instanceof UnsafeTransferUrlError) return res.status(409).json({ error: "el operador destino no tiene una direccion de transferencia valida publicada" });
   if (err instanceof DirectoryUnavailableError) return res.status(503).json({ error: "el directorio de operadores no esta disponible" });
   if (err instanceof ConfirmacionInvalidaError) return res.status(404).json({ error: err.message });
+  if (err instanceof PedidoInvalidoError) return res.status(400).json({ error: err.message });
+  if (err instanceof CiudadanoYaAfiliadoError) return res.status(409).json({ error: err.message });
   if (err && err.type === "entity.too.large") return res.status(413).json({ error: "el cuerpo es demasiado grande" });
   if (err && (err.type === "entity.parse.failed" || err instanceof SyntaxError)) return res.status(400).json({ error: "el cuerpo no es un JSON valido" });
   logger.error("interoperabilidad.error_inesperado", { err });
