@@ -17,6 +17,8 @@ const { SolicitudService } = require("./application/SolicitudService");
 const SolicitudRepository = require("./infrastructure/SolicitudRepository");
 const SolicitudEventReconciler = require("./application/SolicitudEventReconciler");
 const EventReconciler = require("./application/EventReconciler");
+const { DocumentAuthenticationService } = require("./application/DocumentAuthenticationService");
+const AuthenticationRequestReconciler = require("./application/AuthenticationRequestReconciler");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { makeCitizenRegisteredHandler } = require("./interfaces/eventHandlers");
 
@@ -88,11 +90,24 @@ async function main() {
     new SolicitudEventReconciler({ solicitudRepository, eventPublisher, minAgeMs: env.reconcile.minAgeMs, publishTimeoutMs: env.eventPublishTimeoutMs }).start(env.reconcile.intervalMs);
   }
 
+  // HU-04: solicitud de autenticacion (el resultado llega por evento desde ms-autenticacion).
+  const documentAuthenticationService = new DocumentAuthenticationService({
+    documentRepository,
+    folderRepository,
+    eventPublisher,
+    auditLogger,
+    eventPublishTimeoutMs: env.eventPublishTimeoutMs,
+  });
+  if (env.reconcile.intervalMs > 0) {
+    new AuthenticationRequestReconciler({ documentRepository, folderRepository, authenticationService: documentAuthenticationService, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
+  }
+
   const app = buildApp({
     documentService,
     inboundDocumentService,
     documentAnalyticsService,
     solicitudService,
+    documentAuthenticationService,
     secrets,
     entitySecrets,
     issuer: env.jwtIssuer,

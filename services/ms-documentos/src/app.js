@@ -10,7 +10,7 @@ const { makeDocumentController, errorHandler } = require("./interfaces/documentC
  * `inboundDocumentService` y `entitySecrets` son de HU-10 (recepcion desde una entidad emisora). Sin ellos el
  * servicio sigue atendiendo al ciudadano igual: la ruta institucional responde 401 (el middleware falla cerrado).
  */
-function buildApp({ documentService, inboundDocumentService, documentAnalyticsService, solicitudService, secrets, entitySecrets, issuer, entityIssuer, auditLogger, maxUploadBytes, maxInboundBytes }) {
+function buildApp({ documentService, inboundDocumentService, documentAnalyticsService, solicitudService, documentAuthenticationService, secrets, entitySecrets, issuer, entityIssuer, auditLogger, maxUploadBytes, maxInboundBytes }) {
   const app = express();
   app.disable("x-powered-by");
   app.use(tracingMiddleware);
@@ -37,7 +37,7 @@ function buildApp({ documentService, inboundDocumentService, documentAnalyticsSe
   app.use(
     "/api/v1",
     documentRoutes({
-      controller: makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService, solicitudService),
+      controller: makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService, solicitudService, documentAuthenticationService),
       secrets,
       entitySecrets,
       issuer,

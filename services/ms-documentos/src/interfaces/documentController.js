@@ -2,6 +2,7 @@ const logger = require("../tracing/logger");
 const { ValidationError, UnsupportedMediaTypeError, PayloadTooLargeError, QuotaExceededError, StorageUnavailableError } = require("../application/DocumentService");
 const { DestinatarioNoEncontradoError, EnvioConflictError } = require("../application/InboundDocumentService");
 const { SolicitudNotFoundError, SolicitudYaDecididaError } = require("../application/SolicitudService");
+const { DocumentoNoEncontradoError, DocumentoAjenoError, DocumentoNoDisponibleError, CedulaNoRegistradaError } = require("../application/DocumentAuthenticationService");
 
 /**
  * El dueno de la carpeta es quien lleva el token: /citizens/:id/documents solo acepta que :id sea el sub del
@@ -27,8 +28,21 @@ function requireOwner(auditLogger, action = "documento.cargar") {
   };
 }
 
-function makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService, solicitudService) {
+function makeDocumentController(documentService, inboundDocumentService, documentAnalyticsService, solicitudService, documentAuthenticationService) {
   return {
+    /**
+     * HU-04: pedir la autenticacion de un documento propio. Responde 202 en cuanto la solicitud queda registrada y
+     * publicada (o pendiente de reenvio): nunca espera a GovCarpeta (RNF-10).
+     */
+    async requestAuthentication(req, res, next) {
+      try {
+        if (!documentAuthenticationService) return res.status(503).json({ error: "servicio no disponible" });
+        const result = await documentAuthenticationService.request({ ciudadanoId: req.auth.ciudadanoId, documentoId: req.params.id });
+        return res.status(202).json(result);
+      } catch (err) {
+        return next(err);
+      }
+    },
     async list(req, res, next) {
       try {
         return res.status(200).json(await documentService.list({ ciudadanoId: req.params.id, page: req.query.page, pageSize: req.query.pageSize }));
@@ -180,6 +194,12 @@ function errorHandler(err, _req, res, _next) {
   if (err instanceof SolicitudNotFoundError) return res.status(404).json({ error: err.message });
   // HU-06.3: la solicitud ya tenia una decision. No hay revocacion de consentimiento en esta HU.
   if (err instanceof SolicitudYaDecididaError) return res.status(409).json({ error: err.message });
+  // HU-04: documento inexistente -> 404; ajeno -> 403 (ya quedo en la bitacora); no temporal -> 400 (lo pide la HU);
+  // carpeta sin cedula todavia -> 409 (no es culpa del cliente, pero reintentar mas tarde si lo resuelve).
+  if (err instanceof DocumentoNoEncontradoError) return res.status(404).json({ error: err.message });
+  if (err instanceof DocumentoAjenoError) return res.status(403).json({ error: err.message });
+  if (err instanceof DocumentoNoDisponibleError) return res.status(400).json({ error: err.message });
+  if (err instanceof CedulaNoRegistradaError) return res.status(409).json({ error: err.message });
   // HU-06.3 es la primera ruta de este servicio que recibe JSON (express.json()); las demas reciben multipart.
   if (err && err.type === "entity.too.large") return res.status(413).json({ error: "el cuerpo es demasiado grande" });
   if (err && (err.type === "entity.parse.failed" || err instanceof SyntaxError)) return res.status(400).json({ error: "el cuerpo no es un JSON valido" });

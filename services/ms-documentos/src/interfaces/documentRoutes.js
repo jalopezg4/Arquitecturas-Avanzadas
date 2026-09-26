@@ -40,6 +40,11 @@ const { requireOwner } = require("./documentController");
  * `decision` es el unico campo que se lee del cuerpo; el servicio hace la transicion de estado de forma atomica
  * (ver SolicitudRepository.decide) y responde 409 si la solicitud ya tenia una decision.
  *
+ * Autenticacion de un documento en GovCarpeta (HU-04)
+ * PUT /documents/:id/authenticate
+ * Token de CIUDADANO. Aqui `:id` es el DOCUMENTO, no la carpeta: requireOwner no sirve (compara `:id` con el
+ * ciudadano), asi que el dueno lo comprueba el servicio contra el documento. Sin cuerpo.
+ *
  * `express.json()`: primera vez que este servicio recibe cuerpo JSON (las demas rutas son multipart), por eso los
  * errores de parseo se traducen en el errorHandler de documentController.js.
  */
@@ -67,6 +72,8 @@ function documentRoutes({ controller, secrets, entitySecrets, issuer, entityIssu
   const authCitizen = requireAuth(secrets, { issuer });
   router.get("/citizens/me/document-requests", authCitizen, controller.listMyDocumentRequests);
   router.patch("/citizens/me/document-requests/:id/decision", authCitizen, jsonBody, controller.decideDocumentRequest);
+
+  router.put("/documents/:id/authenticate", authCitizen, controller.requestAuthentication);
 
   return router;
 }

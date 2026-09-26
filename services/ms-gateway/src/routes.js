@@ -40,6 +40,9 @@ const ROUTES = [
   // de CIUDADANO (por defecto); "me" es literal -- el servicio saca al ciudadano del token, nunca de la ruta.
   { method: "GET", path: "/api/v1/citizens/me/document-requests", upstream: "DOCUMENTOS_URL" },
   { method: "PATCH", pattern: /^\/api\/v1\/citizens\/me\/document-requests\/[A-Za-z0-9_-]{1,64}\/decision$/, upstream: "DOCUMENTOS_URL" },
+  // ms-documentos -- HU-04: el ciudadano pide autenticar un documento propio en GovCarpeta (responde 202; el resultado
+  // llega por evento). Token de CIUDADANO; el servicio comprueba que el documento sea suyo.
+  { method: "PUT", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/authenticate$/, upstream: "DOCUMENTOS_URL" },
 ];
 
 function findRoute(method, path, routes = ROUTES) {

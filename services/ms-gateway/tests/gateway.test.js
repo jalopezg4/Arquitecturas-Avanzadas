@@ -338,6 +338,51 @@ describe("ms-documentos: HU-06.3 (RF-27/28/29) -- solicitudes documentales", () 
   });
 });
 
+describe("ms-documentos: PUT /api/v1/documents/:id/authenticate (HU-04)", () => {
+  const ENTITY_SECRET = "Wd6nK2pR8vZ4tQ1yB7mX3jL5hG9sCe0A";
+  const entitySecrets = new SecretsManager({ active: ENTITY_SECRET });
+  const entityToken = () => entitySecrets.sign({ typ: "access", act: "entidad" }, { issuer: "ms-comparticion", subject: "665f1c04c9de9c4c34f6b52a", expiresIn: 900 });
+  const DOC_ID = "6ab68fddb64d2aa730b415bb";
+
+  let docs;
+  let gw;
+  beforeEach(async () => {
+    docs = await startUpstream();
+    gw = buildApp({ secrets, entitySecrets, upstreams: { DOCUMENTOS_URL: docs.url }, issuer: "ms-identidad", timeoutMs: 2000 });
+  });
+  afterEach(async () => {
+    await docs.close();
+  });
+
+  test("con token de CIUDADANO se reenvia a ms-documentos con el Authorization intacto", async () => {
+    const t = token();
+
+    await request(gw).put(`/api/v1/documents/${DOC_ID}/authenticate`).set("Authorization", `Bearer ${t}`).expect(201);
+
+    expect(docs.calls).toHaveLength(1);
+    expect(docs.calls[0]).toMatchObject({ method: "PUT", path: `/api/v1/documents/${DOC_ID}/authenticate` });
+    expect(docs.calls[0].headers.authorization).toBe(`Bearer ${t}`);
+  });
+
+  test("sin token o con token INSTITUCIONAL -> 401 y ms-documentos no recibe nada", async () => {
+    await request(gw).put(`/api/v1/documents/${DOC_ID}/authenticate`).expect(401);
+    await request(gw).put(`/api/v1/documents/${DOC_ID}/authenticate`).set("Authorization", `Bearer ${entityToken()}`).expect(401);
+    expect(docs.calls).toHaveLength(0);
+  });
+
+  test.each([
+    ["POST", `/api/v1/documents/${DOC_ID}/authenticate`],
+    ["PUT", "/api/v1/documents/a b/authenticate"],
+    ["PUT", `/api/v1/documents/${"x".repeat(65)}/authenticate`],
+    ["PUT", `/api/v1/documents/${DOC_ID}/authenticate/extra`],
+    ["PUT", `/api/v1/documents/${DOC_ID}`],
+  ])("%s %s -> 404 (patron estricto), no llega a ms-documentos", async (method, path) => {
+    const res = await request(gw)[method.toLowerCase()](path).set("Authorization", `Bearer ${token()}`);
+    expect(res.status).toBe(404);
+    expect(docs.calls).toHaveLength(0);
+  });
+});
+
 describe("ms-comparticion: POST /api/v1/institutions (HU-06.1, publica)", () => {
   let comp;
   let gw;
