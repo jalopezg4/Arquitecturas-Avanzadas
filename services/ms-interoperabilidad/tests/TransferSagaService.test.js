@@ -406,4 +406,66 @@ describe("PeerOperatorClient (SSRF)", () => {
     const client5 = new PeerOperatorClient({ http: { post: jest.fn(async () => ({ status: 503 })) } });
     await expect(client5.post("https://destino.example.co/api/transferCitizen", {})).rejects.toMatchObject({ definitive: false });
   });
+
+  // Revision del PR #90: 408/425/429 son transitorios (un gateway o un limite de tasa), con Retry-After.
+  const conEstado = (status, headers = {}) => new PeerOperatorClient({ http: { post: jest.fn(async () => ({ status, headers })) } });
+  test.each([408, 425, 429, 500, 502, 504])("%i es transitorio", async (status) => {
+    await expect(conEstado(status).post("https://destino.example.co/api/transferCitizen", {})).rejects.toMatchObject({ definitive: false, status });
+  });
+  test.each([301, 400, 401, 404, 409, 422, 501])("%i es definitivo", async (status) => {
+    await expect(conEstado(status).post("https://destino.example.co/api/transferCitizen", {})).rejects.toMatchObject({ definitive: true, status });
+  });
+
+  test("Retry-After en segundos o como fecha HTTP viaja en el error", async () => {
+    await expect(conEstado(429, { "retry-after": "120" }).post("https://destino.example.co/x", {})).rejects.toMatchObject({ retryAfterMs: 120000 });
+    const err = await conEstado(503, { "retry-after": new Date(Date.now() + 30000).toUTCString() }).post("https://destino.example.co/x", {}).catch((e) => e);
+    expect(err.retryAfterMs).toBeGreaterThan(25000);
+    expect(await conEstado(429, { "retry-after": "pronto" }).post("https://destino.example.co/x", {}).catch((e) => e)).not.toHaveProperty("retryAfterMs");
+  });
+
+  test("una URL insegura es un error DEFINITIVO y no se hace la peticion", async () => {
+    const http = { post: jest.fn() };
+    await expect(new PeerOperatorClient({ http }).post("http://127.0.0.1/x", {})).rejects.toMatchObject({ definitive: true });
+    expect(http.post).not.toHaveBeenCalled();
+  });
+});
+
+describe("Un 429 del destino no compensa: se reintenta respetando Retry-After (acotado)", () => {
+  const limite = (retryAfterMs) => Object.assign(new Error("el operador respondio 429"), { status: 429, definitive: false, ...(retryAfterMs ? { retryAfterMs } : {}) });
+
+  test("429 con Retry-After 120 s: sigue enviando, sin re-afiliar, y vuelve a intentar a los 2 minutos", async () => {
+    peer.post.mockRejectedValueOnce(limite(120000));
+    const res = await request(app).post("/api/v1/transfers").set("Authorization", `Bearer ${token()}`).send({ operadorDestinoId: DESTINO }).expect(202);
+    await saga.onFolderExported({ transferenciaId: res.body.transferenciaId, ok: true, documentos: exportados });
+
+    const t = await Transfer.findById(res.body.transferenciaId).lean();
+    expect(t).toMatchObject({ estado: "enviando", enviosRealizados: 1 });
+    expect(t.revisarEn.getTime() - clock.now.getTime()).toBe(120000);
+    expect(govCarpeta.registerCitizen).not.toHaveBeenCalled();
+
+    advance(120000);
+    await sweeper.sweepOnce();
+    expect((await Transfer.findById(res.body.transferenciaId).lean()).estado).toBe("esperando_confirmacion");
+  });
+
+  test("un Retry-After enorme se acota al plazo de confirmacion (5 min)", async () => {
+    peer.post.mockRejectedValueOnce(limite(10 * 3600 * 1000));
+    const res = await request(app).post("/api/v1/transfers").set("Authorization", `Bearer ${token()}`).send({ operadorDestinoId: DESTINO }).expect(202);
+    await saga.onFolderExported({ transferenciaId: res.body.transferenciaId, ok: true, documentos: exportados });
+
+    const t = await Transfer.findById(res.body.transferenciaId).lean();
+    expect(t.revisarEn.getTime() - clock.now.getTime()).toBe(5 * 60 * 1000);
+  });
+
+  test("tres 429 seguidos agotan los envios y entonces si se compensa", async () => {
+    peer.post.mockRejectedValue(limite());
+    const res = await request(app).post("/api/v1/transfers").set("Authorization", `Bearer ${token()}`).send({ operadorDestinoId: DESTINO }).expect(202);
+    await saga.onFolderExported({ transferenciaId: res.body.transferenciaId, ok: true, documentos: exportados });
+    advance(61000);
+    await sweeper.sweepOnce();
+    advance(61000);
+    await sweeper.sweepOnce();
+
+    expect(await Transfer.findById(res.body.transferenciaId).lean()).toMatchObject({ estado: "fallida", motivo: "destino_no_recibio_reintentos_agotados" });
+  });
 });

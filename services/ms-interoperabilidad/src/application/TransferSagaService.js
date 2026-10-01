@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const logger = require("../tracing/logger");
+const { boundedDelay } = require("../infrastructure/httpStatus");
 const { CONFIRM_PATH } = require("./EndpointRegistrationService");
 
 class CiudadanoNoDisponibleError extends Error {
@@ -192,7 +193,10 @@ class TransferSagaService {
   }
 
   async _sendFailed(t, err, motivo) {
-    const updated = await this.transfers.update(t._id, "enviando", { revisarEn: this._later(Math.min(this.confirmTimeoutMs, 60000)) }, { enviosRealizados: 1 }, LIBRE);
+    // Espera hasta el siguiente envio: 1 min, o lo que pida el destino (Retry-After) acotado al plazo de confirmacion.
+    // Igual cuenta como un envio: el total sigue acotado por maxSendAttempts.
+    const espera = boundedDelay(err && err.retryAfterMs, Math.min(this.confirmTimeoutMs, 60000), this.confirmTimeoutMs);
+    const updated = await this.transfers.update(t._id, "enviando", { revisarEn: this._later(espera) }, { enviosRealizados: 1 }, LIBRE);
     if (!updated) return { ignored: true }; // ya la resolvio otro camino (confirmacion o compensacion)
     logger.warn("transferencia.envio_fallido", { transferenciaId: String(t._id), envio: updated.enviosRealizados, motivo, err });
     if (err && err.definitive) return this._fail(updated, motivo);

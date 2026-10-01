@@ -243,6 +243,41 @@ describe("Flujo completo del destino", () => {
     expect(published("transferencia.importar_documentos")).toHaveLength(1); // solo la original
   });
 
+  test("un 429 del origen al confirmar no es definitivo: se reintenta despues de su Retry-After (acotado)", async () => {
+    peer.post.mockRejectedValueOnce(Object.assign(new Error("429"), { status: 429, definitive: false, retryAfterMs: 90000 }));
+    const id = await recibidaEImportada();
+    await handlers.ciudadanoImportado({ transferenciaId: id, ok: true });
+
+    const t = await Transfer.findById(id).lean();
+    expect(t).toMatchObject({ estado: "confirmando", confirmacionesIntentadas: 1 });
+    expect(t.revisarEn.getTime() - clock.now.getTime()).toBe(90000);
+  });
+
+  test("el origen reenvia la MISMA transferencia ya completada (no recibio la confirmacion): 202 y se le vuelve a confirmar 1", async () => {
+    peer.post.mockRejectedValue(Object.assign(new Error("400"), { status: 400, definitive: true }));
+    const id = await recibidaEImportada();
+    await handlers.ciudadanoImportado({ transferenciaId: id, ok: true });
+    expect(await Transfer.findById(id).lean()).toMatchObject({ estado: "completada", motivo: "origen_no_recibio_confirmacion" });
+    await Citizen.create({ ciudadanoId: (await Transfer.findById(id).lean()).ciudadanoId, documento: 1032236578, nombre: "Carlos", correo: "c@x.co" });
+    peer.post.mockReset().mockResolvedValue({ status: 200 });
+
+    const res = await recibir().expect(202); // reenvio identico
+    expect(res.body.transferenciaId).toBe(id);
+    await sweeper.sweepOnce();
+
+    expect(peer.post).toHaveBeenCalledWith(CONFIRM, { id: 1032236578, req_status: 1 });
+    expect(await Transfer.findById(id).lean()).toMatchObject({ estado: "completada" });
+    expect(await Transfer.countDocuments({ tipo: "entrante" })).toBe(1);
+  });
+
+  test("un pedido DISTINTO para un ciudadano que ya llego sigue siendo 409", async () => {
+    const id = await recibidaEImportada();
+    await handlers.ciudadanoImportado({ transferenciaId: id, ok: true });
+    await Citizen.create({ ciudadanoId: (await Transfer.findById(id).lean()).ciudadanoId, documento: 1032236578, nombre: "Carlos", correo: "c@x.co" });
+
+    await recibir(pedido({ urlDocuments: { URL1: ["https://origen.example.co/files/9.pdf"] } })).expect(409);
+  });
+
   test("ms-documentos no responde: el barrido repite la orden y, pasado el plazo, rechaza y confirma 0", async () => {
     const res = await recibir().expect(202);
 

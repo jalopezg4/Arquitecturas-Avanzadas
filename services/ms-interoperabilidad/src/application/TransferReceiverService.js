@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const mongoose = require("mongoose");
 const logger = require("../tracing/logger");
 const { assertSafeTransferUrl } = require("../security/transferUrl");
+const { boundedDelay } = require("../infrastructure/httpStatus");
 
 class PedidoInvalidoError extends Error {
   constructor(message) {
@@ -136,7 +137,14 @@ class TransferReceiverService {
       if (enCurso.huellaPedido === huella) return { transferenciaId: String(enCurso._id), estado: enCurso.estado, repetida: true };
       throw new CiudadanoYaAfiliadoError();
     }
-    if (await this.citizens.findByDocumento(req.documento)) throw new CiudadanoYaAfiliadoError();
+    if (await this.citizens.findByDocumento(req.documento)) {
+      // El origen reenvia EXACTAMENTE la transferencia que ya completamos: no recibio nuestra confirmacion (se perdio o
+      // la desistimos). Se le vuelve a confirmar 1 en vez de responder 409, que lo haria compensar y dejaria al
+      // ciudadano activo en los dos operadores.
+      const reabierta = await this._reopenForReconfirm(req.documento, huella);
+      if (reabierta) return { transferenciaId: String(reabierta._id), estado: reabierta.estado, repetida: true };
+      throw new CiudadanoYaAfiliadoError();
+    }
 
     let t;
     try {
@@ -163,6 +171,14 @@ class TransferReceiverService {
     await this._audit(t, "transferencia.recibir", "exito");
     await this._publish(IMPORTAR, this._importOrder(t)).catch((err) => logger.error("transferencia.orden_no_publicada", { transferenciaId: String(t._id), note: "la reenvia el barrido", err }));
     return { transferenciaId: String(t._id), estado: t.estado };
+  }
+
+  async _reopenForReconfirm(documento, huella) {
+    const last = await this.transfers.findLatestByDocumento("entrante", documento);
+    if (!last || last.huellaPedido !== huella || last.estado !== "completada" || last.reqStatus !== 1) return null;
+    const reopened = await this.transfers.transition(last._id, "completada", "confirmando", { activa: true, revisarEn: this.now(), finalizadaEn: null, confirmacionesIntentadas: 0 });
+    if (reopened) logger.info("transferencia.reconfirmacion", { transferenciaId: String(last._id), note: "el origen reenvio una transferencia ya completada" });
+    return reopened || (await this.transfers.findById(last._id));
   }
 
   _importOrder(t) {
@@ -227,7 +243,8 @@ class TransferReceiverService {
     try {
       await this.peer.post(t.confirmApi, { id: t.documento, req_status: t.reqStatus });
     } catch (err) {
-      const updated = await this.transfers.update(t._id, "confirmando", { revisarEn: this._later(60000) }, { confirmacionesIntentadas: 1 });
+      // 1 min entre intentos, o lo que pida el origen (Retry-After) acotado a 5 min.
+      const updated = await this.transfers.update(t._id, "confirmando", { revisarEn: this._later(boundedDelay(err && err.retryAfterMs, 60000, 5 * 60000)) }, { confirmacionesIntentadas: 1 });
       const intentos = updated ? updated.confirmacionesIntentadas : t.confirmacionesIntentadas + 1;
       logger.warn("transferencia.confirmacion_fallida", { transferenciaId: String(t._id), intento: intentos, err });
       if (!err.definitive && intentos < this.maxConfirmAttempts) return { estado: "confirmando", reintentar: true };
