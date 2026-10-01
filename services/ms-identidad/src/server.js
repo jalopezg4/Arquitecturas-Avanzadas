@@ -15,6 +15,7 @@ const { AuthService } = require("./application/AuthService");
 const PendingRegistrationReconciler = require("./application/PendingRegistrationReconciler");
 const { CitizenTransferService } = require("./application/CitizenTransferService");
 const { AccountActivationService } = require("./application/AccountActivationService");
+const ActivationReconciler = require("./application/ActivationReconciler");
 const Citizen = require("./domain/Citizen");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { makeTransferHandlers } = require("./interfaces/eventHandlers");
@@ -73,6 +74,9 @@ async function main() {
     ttlMs: env.activationTtlHours * 3600 * 1000,
     eventPublishTimeoutMs: env.eventPublishTimeoutMs,
   });
+  if (env.reconcile.intervalMs > 0) {
+    new ActivationReconciler({ citizenModel: Citizen, activationService, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
+  }
   const transferHandlers = makeTransferHandlers({
     citizenTransferService: new CitizenTransferService({ citizenRepository, refreshSessionRepository, govCarpetaClient, eventPublisher, auditLogger, accountActivationService: activationService, eventPublishTimeoutMs: env.eventPublishTimeoutMs }),
   });

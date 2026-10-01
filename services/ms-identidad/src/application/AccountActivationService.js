@@ -51,6 +51,10 @@ function withTimeout(promise, ms) {
  *              (dos intentos simultaneos con el mismo codigo: solo uno gana)
  *   resend()   codigo nuevo (invalida el anterior), como maximo uno cada `resendCooldownMs`; responde igual exista o no el
  *              documento (no sirve para averiguar quien esta afiliado aqui)
+ *
+ * Toda emision es UNA escritura condicional y solo publica quien la gana: N reenvios simultaneos mandan un solo correo
+ * (el enfriamiento esta en el filtro, no en una lectura previa). Si el broker no confirma, queda
+ * `activacionPublicada: false` y ActivationReconciler emite otro.
  */
 class AccountActivationService {
   constructor({ citizenModel, eventPublisher, auditLogger, ttlMs = 72 * 3600 * 1000, resendCooldownMs = 5 * 60 * 1000, eventPublishTimeoutMs = 3000, now = () => new Date() }) {
@@ -63,14 +67,24 @@ class AccountActivationService {
     this.now = now;
   }
 
-  /** Genera y envia un codigo para un ciudadano activo SIN contrasena. Devuelve false si no aplica. */
-  async issue(citizenId) {
+  /**
+   * Genera y envia un codigo para un ciudadano activo SIN contrasena. Devuelve false si no aplica.
+   *   cooldownMs     solo si el ultimo se envio hace al menos ese tiempo (reenvios pedidos por el ciudadano)
+   *   onlyIfMissing  solo si no tiene un codigo que haya llegado al broker (reentregas y reconciliador: no mandan un
+   *                  segundo correo a quien ya tiene su codigo)
+   */
+  async issue(citizenId, { cooldownMs = 0, onlyIfMissing = false } = {}) {
     const codigo = crypto.randomBytes(32).toString("base64url");
     const now = this.now();
     const venceEn = new Date(now.getTime() + this.ttlMs);
+    const filter = { _id: citizenId, estado: "activo", passwordHash: null };
+    const and = [];
+    if (cooldownMs > 0) and.push({ $or: [{ activacionEnviadaEn: null }, { activacionEnviadaEn: { $lte: new Date(now.getTime() - cooldownMs) } }] });
+    if (onlyIfMissing) and.push({ $or: [{ activacionHash: null }, { activacionPublicada: false }] });
+    if (and.length) filter.$and = and;
     const citizen = await this.Citizen.findOneAndUpdate(
-      { _id: citizenId, estado: "activo", passwordHash: null },
-      { $set: { activacionHash: sha256(codigo), activacionVenceEn: venceEn, activacionEnviadaEn: now } },
+      filter,
+      { $set: { activacionHash: sha256(codigo), activacionVenceEn: venceEn, activacionEnviadaEn: now, activacionPublicada: false } },
       { new: true }
     ).lean();
     if (!citizen) return false;
@@ -87,10 +101,12 @@ class AccountActivationService {
         this.eventPublishTimeoutMs
       );
     } catch (err) {
-      // No se reintenta solo: el ciudadano puede pedir un reenvio (resend) y el codigo guardado sigue sirviendo.
-      logger.error("ciudadano.activacion_no_publicada", { note: "el ciudadano puede pedir un reenvio", err });
+      // Queda `activacionPublicada: false`: ActivationReconciler emite otro (o el ciudadano pide un reenvio).
+      logger.error("ciudadano.activacion_no_publicada", { note: "la reemite el reconciliador", err });
       return false;
     }
+    // Solo si sigue siendo ESTE codigo (otra emision pudo reemplazarlo entretanto).
+    await this.Citizen.updateOne({ _id: citizen._id, activacionHash: citizen.activacionHash }, { $set: { activacionPublicada: true } });
     await this._audit(String(citizen._id), "ciudadano.activacion_enviar", "exito");
     return true;
   }
@@ -127,9 +143,9 @@ class AccountActivationService {
   async resend(body) {
     const documento = parseDocumento(body && body.documento);
     if (documento === null) throw new ActivacionDatosError("documento invalido");
-    const citizen = await this.Citizen.findOne({ documento }).lean();
-    const puede = citizen && citizen.estado === "activo" && citizen.passwordHash === null && (!citizen.activacionEnviadaEn || this.now() - citizen.activacionEnviadaEn >= this.resendCooldownMs);
-    if (puede) await this.issue(citizen._id);
+    const citizen = await this.Citizen.findOne({ documento }, { _id: 1 }).lean();
+    // El estado, la falta de contrasena y el enfriamiento se comprueban en la escritura condicional de `issue`.
+    if (citizen) await this.issue(citizen._id, { cooldownMs: this.resendCooldownMs });
     return { mensaje: "si la cuenta esta pendiente de activacion, se envio un codigo nuevo al correo registrado" };
   }
 

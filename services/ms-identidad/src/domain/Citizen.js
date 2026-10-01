@@ -21,6 +21,9 @@ const citizenSchema = new mongoose.Schema(
     activacionHash: { type: String, default: null },
     activacionVenceEn: { type: Date, default: null },
     activacionEnviadaEn: { type: Date, default: null },
+    // false = el ultimo codigo emitido no se confirmo en el broker (no le llego al ciudadano): ActivationReconciler
+    // emite otro. true por defecto: un ciudadano sin codigo pendiente no tiene nada que reenviar.
+    activacionPublicada: { type: Boolean, default: true },
     // HU-02: proteccion contra fuerza bruta. El contador y el bloqueo se actualizan de forma
     // atomica en CitizenRepository (nunca leer-modificar-guardar: dos intentos simultaneos se perderian).
     intentosFallidos: { type: Number, default: 0 },

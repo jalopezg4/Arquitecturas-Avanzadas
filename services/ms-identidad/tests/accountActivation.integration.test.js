@@ -18,6 +18,7 @@ const logger = require("../src/tracing/logger");
 const { AuthService } = require("../src/application/AuthService");
 const { AccountActivationService } = require("../src/application/AccountActivationService");
 const { CitizenTransferService } = require("../src/application/CitizenTransferService");
+const ActivationReconciler = require("../src/application/ActivationReconciler");
 const { makeTransferHandlers } = require("../src/interfaces/eventHandlers");
 
 const secrets = new SecretsManager({ active: "k9Xv2mQ7pL4wZ8rT1nB6yH3jD5fG0sAe" });
@@ -179,5 +180,60 @@ describe("POST /api/v1/auth/activate/resend", () => {
     const a = await reenviar(999999).expect(202);
     const b = await reenviar(CEDULA).expect(202);
     expect(a.body).toEqual(b.body);
+  });
+});
+
+// Revision del PR #90: emision atomica (sin correos de mas) y ningun transferido se queda sin codigo.
+describe("emision del codigo: atomica y garantizada", () => {
+  const reenviar = (documento) => request(app).post("/api/v1/auth/activate/resend").send({ documento });
+  const reconciler = () => new ActivationReconciler({ citizenModel: Citizen, activationService: activation, minAgeMs: 60000, now: () => new Date(Date.now() + 120000) });
+
+  test("10 reenvios SIMULTANEOS pasado el enfriamiento: un solo codigo nuevo, y es el que sirve", async () => {
+    await llegaTransferido();
+    clock.now = new Date(clock.now.getTime() + 5 * 60 * 1000);
+
+    await Promise.all(Array.from({ length: 10 }, () => reenviar(CEDULA).expect(202)));
+
+    expect(codigos()).toHaveLength(2); // el de la llegada + UNO del reenvio
+    await activar({ documento: CEDULA, codigo: codigos()[1].codigo, password: PASSWORD }).expect(200);
+  });
+
+  test("si el broker no confirma el codigo al llegar, el reconciliador emite otro que si sirve", async () => {
+    publisher.publish.mockImplementation(async (rk) => {
+      if (rk === "ciudadano.activacion_requerida") throw new Error("broker caido");
+    });
+    await llegaTransferido();
+    expect((await Citizen.findById(NUEVO_ID).lean()).activacionPublicada).toBe(false);
+    publisher.publish.mockImplementation(async () => {});
+
+    expect(await reconciler().reconcileOnce()).toMatchObject({ emitidos: 1 });
+
+    const nuevo = codigos()[codigos().length - 1];
+    expect((await Citizen.findById(NUEVO_ID).lean()).activacionPublicada).toBe(true);
+    await activar({ documento: CEDULA, codigo: nuevo.codigo, password: PASSWORD }).expect(200);
+    expect(await reconciler().reconcileOnce()).toMatchObject({ emitidos: 0 });
+  });
+
+  test("activado por otro camino sin codigo (p. ej. PendingRegistrationReconciler): la reentrega lo emite", async () => {
+    await Citizen.create({ _id: NUEVO_ID, documento: CEDULA, nombre: "Ana Gomez", correo: "ana@example.com", direccion: "Calle 1", direccionUnica: "1000000001-ab12cd34@carpetacolombia.co", passwordHash: null, estado: "activo", eventoPublicado: true, transferenciaOrigenId: "6ab68fddb64d2aa730b41501" });
+
+    const evento = await llegaTransferido(); // reentrega de la orden de registrar
+
+    expect(evento).toMatchObject({ ciudadanoId: NUEVO_ID });
+    await activar({ documento: CEDULA, codigo: evento.codigo, password: PASSWORD }).expect(200);
+  });
+
+  test("...y si no hay reentrega, lo emite el reconciliador", async () => {
+    await Citizen.create({ _id: NUEVO_ID, documento: CEDULA, nombre: "Ana Gomez", correo: "ana@example.com", direccion: "Calle 1", direccionUnica: "1000000001-ab12cd34@carpetacolombia.co", passwordHash: null, estado: "activo", eventoPublicado: true });
+
+    expect(await reconciler().reconcileOnce()).toMatchObject({ emitidos: 1 });
+    expect(codigos()).toHaveLength(1);
+  });
+
+  test("las reentregas de un ciudadano que ya tiene su codigo no mandan otro correo", async () => {
+    await llegaTransferido();
+    await llegaTransferido();
+    await llegaTransferido();
+    expect(codigos()).toHaveLength(1);
   });
 });

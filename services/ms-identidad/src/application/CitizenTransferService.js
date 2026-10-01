@@ -93,6 +93,7 @@ class CitizenTransferService {
       }
     } else if (citizen.estado === "activo") {
       await this._publishRegistered(citizen); // reentrega: ya estaba; se asegura el evento
+      await this._ensureActivationCode(citizen); // y el codigo, si el primer intento no lo emitio
       return { ok: true, direccionUnica: citizen.direccionUnica };
     } else {
       // Pendiente de una entrega anterior que no termino: quiza GovCarpeta SI lo registro. Se pregunta antes de reintentar.
@@ -161,9 +162,16 @@ class CitizenTransferService {
     const active = await this.citizens.activatePending(citizen._id);
     const current = active || (await this.citizens.findById(citizen._id));
     await this._publishRegistered(current);
-    // Recien activado y sin contrasena (la contrasena no viaja entre operadores): se le envia el codigo de activacion.
-    if (active && this.activation && !current.passwordHash) await this.activation.issue(current._id).catch(() => false);
+    // Sin contrasena (no viaja entre operadores): necesita su codigo de activacion. Se emite en CUALQUIER camino (gane
+    // o no esta llamada la activacion), pero solo si aun no tiene uno: una reentrega no manda un segundo correo.
+    await this._ensureActivationCode(current);
     return { ok: true, direccionUnica: current.direccionUnica };
+  }
+
+  async _ensureActivationCode(citizen) {
+    if (!this.activation || !citizen || citizen.passwordHash) return;
+    // Si el broker falla queda `activacionPublicada: false` y ActivationReconciler lo reemite.
+    await this.activation.issue(citizen._id, { onlyIfMissing: true }).catch(() => false);
   }
 
   async _publishRegistered(citizen) {
