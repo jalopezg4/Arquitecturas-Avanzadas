@@ -7,6 +7,7 @@ const { MongoMemoryServer } = require("mongodb-memory-server");
 
 const Citizen = require("../src/domain/Citizen");
 const RefreshSession = require("../src/domain/RefreshSession");
+const RevertedImport = require("../src/domain/RevertedImport");
 const CitizenRepository = require("../src/infrastructure/CitizenRepository");
 const RefreshSessionRepository = require("../src/infrastructure/RefreshSessionRepository");
 const { PermanentError } = require("../src/infrastructure/BrokerConsumer");
@@ -138,5 +139,81 @@ describe("transferencia.registrar_ciudadano (destino)", () => {
 
   test.each([["sin cedula", { documento: undefined }], ["correo invalido", { correo: "x" }], ["id invalido", { ciudadanoId: "abc" }]])("%s -> cola de fallidos", async (_c, extra) => {
     await expect(handlers.registrarCiudadano(llegada(extra))).rejects.toBeInstanceOf(PermanentError);
+  });
+});
+
+// Revision del PR #90: rechazar la transferencia en el destino compensa TAMBIEN el registro en ms-identidad.
+describe("transferencia.revertir_registro (destino)", () => {
+  beforeEach(async () => {
+    govCarpeta.unregisterCitizen = jest.fn(async () => {});
+    await RevertedImport.createIndexes();
+  });
+
+  test("ya registrado y afiliado: lo desafilia en GovCarpeta, revoca sesiones y lo borra; repetirlo no hace nada", async () => {
+    await handlers.registrarCiudadano(llegada());
+    await RefreshSession.create({ familia: "f1", ciudadanoId: NUEVO_ID, currentJti: "j1", expiresAt: new Date(Date.now() + 3600e3) });
+
+    await handlers.revertirRegistro({ transferenciaId: T1, ciudadanoId: NUEVO_ID });
+    await handlers.revertirRegistro({ transferenciaId: T1, ciudadanoId: NUEVO_ID });
+
+    expect(govCarpeta.unregisterCitizen).toHaveBeenCalledTimes(1);
+    expect(govCarpeta.unregisterCitizen).toHaveBeenCalledWith(1000000001);
+    expect(await Citizen.countDocuments()).toBe(0);
+    expect((await RefreshSession.findOne().lean()).revokedAt).toBeInstanceOf(Date);
+  });
+
+  test("la orden de registrar que llega DESPUES de revertir no crea ni afilia a nadie (ok:false)", async () => {
+    await handlers.revertirRegistro({ transferenciaId: T1, ciudadanoId: NUEVO_ID });
+
+    await handlers.registrarCiudadano(llegada());
+
+    expect(govCarpeta.registerCitizen).not.toHaveBeenCalled();
+    expect(await Citizen.countDocuments()).toBe(0);
+    expect(published("transferencia.ciudadano_registrado")).toEqual([{ transferenciaId: T1, ciudadanoId: NUEVO_ID, ok: false, motivo: "transferencia_revertida" }]);
+  });
+
+  test("revertida MIENTRAS GovCarpeta lo afiliaba: la importacion lo desafilia y no lo activa", async () => {
+    govCarpeta.registerCitizen.mockImplementationOnce(async () => {
+      await handlers.revertirRegistro({ transferenciaId: T1, ciudadanoId: NUEVO_ID }); // aun pendiente y sin marca
+    });
+
+    await handlers.registrarCiudadano(llegada());
+
+    expect(govCarpeta.unregisterCitizen).toHaveBeenCalledTimes(1);
+    expect(await Citizen.countDocuments()).toBe(0);
+    expect(published("ciudadano.registrado")).toHaveLength(0);
+  });
+
+  test("pendiente sin afiliar: se borra sin tocar GovCarpeta (la afiliacion que vea podria ser del origen)", async () => {
+    await Citizen.create({ _id: NUEVO_ID, documento: 1000000001, nombre: "Ana", direccion: "Calle 1", correo: "a@b.co", direccionUnica: DIR, estado: "pendiente", transferenciaOrigenId: T1 });
+
+    await handlers.revertirRegistro({ transferenciaId: T1, ciudadanoId: NUEVO_ID });
+
+    expect(govCarpeta.unregisterCitizen).not.toHaveBeenCalled();
+    expect(await Citizen.countDocuments()).toBe(0);
+  });
+
+  test("no toca a un ciudadano que no llego por ESA transferencia", async () => {
+    await Citizen.create({ _id: NUEVO_ID, documento: 1000000001, nombre: "Ana", direccion: "Calle 1", correo: "a@b.co", passwordHash: "$argon2id$x", direccionUnica: DIR, estado: "activo" });
+
+    await handlers.revertirRegistro({ transferenciaId: T1, ciudadanoId: NUEVO_ID });
+
+    expect(govCarpeta.unregisterCitizen).not.toHaveBeenCalled();
+    expect(await Citizen.countDocuments()).toBe(1);
+  });
+
+  test("GovCarpeta no responde al desafiliar: se lanza para reintentar y el ciudadano sigue (nada a medias)", async () => {
+    await handlers.registrarCiudadano(llegada());
+    govCarpeta.unregisterCitizen.mockRejectedValueOnce(new Error("GOVCARPETA_UNAVAILABLE"));
+
+    await expect(handlers.revertirRegistro({ transferenciaId: T1, ciudadanoId: NUEVO_ID })).rejects.toThrow();
+    expect(await Citizen.countDocuments()).toBe(1);
+
+    await handlers.revertirRegistro({ transferenciaId: T1, ciudadanoId: NUEVO_ID });
+    expect(await Citizen.countDocuments()).toBe(0);
+  });
+
+  test("mensaje invalido -> cola de fallidos", async () => {
+    await expect(handlers.revertirRegistro({ transferenciaId: T1, ciudadanoId: "abc" })).rejects.toBeInstanceOf(PermanentError);
   });
 });

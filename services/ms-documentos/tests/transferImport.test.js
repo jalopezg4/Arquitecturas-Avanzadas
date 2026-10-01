@@ -9,6 +9,7 @@ const { MongoMemoryServer } = require("mongodb-memory-server");
 
 const Document = require("../src/domain/Document");
 const Folder = require("../src/domain/Folder");
+const RevertedTransfer = require("../src/domain/RevertedTransfer");
 const DocumentRepository = require("../src/infrastructure/DocumentRepository");
 const FolderRepository = require("../src/infrastructure/FolderRepository");
 const { PermanentError } = require("../src/infrastructure/BrokerConsumer");
@@ -56,7 +57,7 @@ afterEach(async () => {
   await mongoose.connection.dropDatabase();
 });
 beforeEach(async () => {
-  await Promise.all([Document.createIndexes(), Folder.createIndexes()]);
+  await Promise.all([Document.createIndexes(), Folder.createIndexes(), RevertedTransfer.createIndexes()]);
   routes = {
     "/a.pdf": (_req, res) => res.end(PDF1),
     "/b.pdf": (_req, res) => res.end(PDF2),
@@ -187,6 +188,32 @@ describe("transferencia.revertir_importacion", () => {
     expect(await Document.countDocuments({ ciudadanoId: NUEVO })).toBe(0);
     expect(storage.objects.size).toBe(0);
     expect(await Folder.countDocuments({ ciudadanoId: NUEVO })).toBe(0);
+  });
+});
+
+// Revision del PR #90: una orden de importar que llega tarde no deja documentos de una transferencia ya revertida.
+describe("importacion y reversion a la vez", () => {
+  test("una orden de importar que llega DESPUES de revertir no crea nada y responde ok:false", async () => {
+    await handlers.revertir({ transferenciaId: T1, ciudadanoId: NUEVO });
+
+    await handlers.importar(orden(dosDocs()));
+
+    expect(await Document.countDocuments({ ciudadanoId: NUEVO })).toBe(0);
+    expect(respuestas()).toEqual([{ transferenciaId: T1, ciudadanoId: NUEVO, ok: false, importados: 0, motivo: "transferencia_revertida" }]);
+  });
+
+  test("si se revierte MIENTRAS se importa, lo traido en esa entrega tambien se borra", async () => {
+    routes["/b.pdf"] = (_req, res) => {
+      // la reversion llega cuando el primer documento ya se creo
+      handlers.revertir({ transferenciaId: T1, ciudadanoId: NUEVO }).then(() => res.end(PDF2));
+    };
+
+    await handlers.importar(orden(dosDocs()));
+
+    expect(await Document.countDocuments({ ciudadanoId: NUEVO })).toBe(0);
+    expect(storage.objects.size).toBe(0);
+    expect(await Folder.countDocuments({ ciudadanoId: NUEVO })).toBe(0);
+    expect(respuestas()[0]).toMatchObject({ ok: false, motivo: "transferencia_revertida" });
   });
 });
 

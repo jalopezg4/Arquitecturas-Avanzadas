@@ -79,6 +79,7 @@ async function main() {
   for (const consumer of [
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-identidad.ciudadano-transferido", routingKey: "ciudadano.transferido", handler: transferHandlers.ciudadanoTransferido }),
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-identidad.transferencia-registrar", routingKey: "transferencia.registrar_ciudadano", handler: transferHandlers.registrarCiudadano }),
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-identidad.transferencia-revertir-registro", routingKey: "transferencia.revertir_registro", handler: transferHandlers.revertirRegistro }),
   ]) {
     consumer.start().catch((err) => {
       logger.error("consumidor.inicio_fallido", { queue: consumer.queue, err });

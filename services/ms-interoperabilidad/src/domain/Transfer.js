@@ -73,6 +73,9 @@ const transferSchema = new mongoose.Schema(
     // Lo que se le respondera (o se le respondio) al origen en su confirmAPI: 1 exito, 0 fracaso.
     reqStatus: { type: Number, default: null },
     confirmacionesIntentadas: { type: Number, default: 0 },
+    // Rechazada: falta que salgan las ordenes de reversion (documentos en ms-documentos, registro en ms-identidad).
+    // Mientras sea true no se le confirma 0 al origen; el barrido reintenta publicarlas.
+    reversionPendiente: { type: Boolean, default: false },
 
     // Control de la saga. `iniciadaEn` sale del reloj del servicio (no de createdAt) para medir los plazos.
     iniciadaEn: { type: Date, required: true },

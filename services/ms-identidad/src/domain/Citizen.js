@@ -29,6 +29,12 @@ const citizenSchema = new mongoose.Schema(
     // true cuando el broker confirmo `ciudadano.registrado`; false = hay que reenviarlo (PendingRegistrationReconciler).
     // Los ciudadanos anteriores a este campo no lo tienen y no se reenvian.
     eventoPublicado: { type: Boolean, default: false },
+    // HU-05c (destino): transferencia por la que llego este ciudadano (null = se registro aqui). Solo esa transferencia
+    // puede revertir su importacion.
+    transferenciaOrigenId: { type: String, default: null },
+    // HU-05c (destino): GovCarpeta ya lo afilio a NUESTRO operador por la importacion. Si se revierte, hay que
+    // desafiliarlo; sin esta marca no se sabe si la afiliacion que ve GovCarpeta es nuestra o del operador origen.
+    afiliadoPorImportacion: { type: Boolean, default: false },
     estado: {
       type: String,
       enum: ["pendiente", "activo", "transferido"],

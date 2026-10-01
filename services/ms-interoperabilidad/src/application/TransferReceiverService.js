@@ -18,6 +18,8 @@ class CiudadanoYaAfiliadoError extends Error {
 
 const IMPORTAR = "transferencia.importar_documentos";
 const REVERTIR = "transferencia.revertir_importacion";
+// Compensa el registro en ms-identidad: borra al ciudadano importado y, si ya se afilio, lo desafilia en GovCarpeta.
+const REVERTIR_REGISTRO = "transferencia.revertir_registro";
 const REGISTRAR = "transferencia.registrar_ciudadano";
 const KEY_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
@@ -43,6 +45,10 @@ const optText = (v, max) => (typeof v === "string" && v.trim() && v.length <= ma
  *
  * El origen solo borra sus datos cuando le confirmamos 1, y solo le confirmamos 1 cuando el ciudadano ya esta completo
  * aqui (documentos importados + afiliado en GovCarpeta con nuestro operador).
+ *
+ * Rechazar es una COMPENSACION completa: primero la transicion condicional (si otro camino ya resolvio la
+ * transferencia, no se deshace nada), luego las ordenes de reversion a ms-documentos y ms-identidad (con reintento
+ * desde el barrido mientras `reversionPendiente`) y solo despues se le confirma 0 al origen.
  */
 class TransferReceiverService {
   constructor({ transferRepository, citizenRepository, peerClient, eventPublisher, auditLogger, urlPolicy = {}, maxDocuments = 500, stepTimeoutMs = 2 * 60 * 1000, maxConfirmAttempts = 5, eventPublishTimeoutMs = 3000, now = () => new Date() }) {
@@ -187,14 +193,31 @@ class TransferReceiverService {
     return next ? this._confirm(next) : { ignored: true };
   }
 
-  /** No se pudo: se deshace lo importado (ms-identidad ya se limpia solo) y se le confirma 0 al origen. */
+  /** No se pudo: se deshace lo importado y lo registrado, y despues se le confirma 0 al origen. */
   async _reject(t, motivo) {
-    await this._publish(REVERTIR, { transferenciaId: String(t._id), ciudadanoId: t.ciudadanoId }).catch((err) =>
-      logger.error("transferencia.reversion_no_publicada", { transferenciaId: String(t._id), err })
-    );
-    const next = await this.transfers.transition(t._id, ["importando", "registrando"], "confirmando", { reqStatus: 0, motivo, revisarEn: this.now() });
-    await this._audit(t, "transferencia.rechazar", "fallo", motivo);
-    return next ? this._confirm(next) : { ignored: true };
+    const next = await this.transfers.transition(t._id, ["importando", "registrando"], "confirmando", { reqStatus: 0, motivo, reversionPendiente: true, revisarEn: this.now() });
+    if (!next) return { ignored: true }; // ya la resolvio otro camino (p. ej. el registro termino justo antes)
+    await this._audit(next, "transferencia.rechazar", "fallo", motivo);
+    return this._revertThenConfirm(next);
+  }
+
+  /** Publica las ordenes de reversion pendientes; si el broker no confirma, el barrido lo reintenta y no se confirma aun. */
+  async _revertThenConfirm(t) {
+    if (t.reversionPendiente) {
+      const order = { transferenciaId: String(t._id), ciudadanoId: t.ciudadanoId };
+      try {
+        await this._publish(REVERTIR, order);
+        await this._publish(REVERTIR_REGISTRO, { ...order, documento: t.documento });
+      } catch (err) {
+        logger.error("transferencia.reversion_no_publicada", { transferenciaId: String(t._id), note: "la reintenta el barrido", err });
+        await this.transfers.update(t._id, "confirmando", { revisarEn: this._later(60000) });
+        return { estado: "confirmando", reintentar: true };
+      }
+      const done = await this.transfers.update(t._id, "confirmando", { reversionPendiente: false });
+      if (!done) return { ignored: true };
+      t = done;
+    }
+    return this._confirm(t);
   }
 
   // ---------------------------------------------------------------- 4. confirmar al origen
@@ -226,13 +249,15 @@ class TransferReceiverService {
       case "importando":
       case "registrando": {
         if (age > 3 * this.stepTimeoutMs) return this._reject(t, `${t.estado}_sin_respuesta`);
-        await this.transfers.update(t._id, t.estado, { revisarEn: this._later(this.stepTimeoutMs) });
-        const [rk, order] = t.estado === "importando" ? [IMPORTAR, this._importOrder(t)] : [REGISTRAR, this._registerOrder(t)];
+        // Solo se repite la orden si sigue en ese estado: con una copia vieja se podria reimportar algo ya revertido.
+        const still = await this.transfers.update(t._id, t.estado, { revisarEn: this._later(this.stepTimeoutMs) });
+        if (!still) return { ignored: true };
+        const [rk, order] = still.estado === "importando" ? [IMPORTAR, this._importOrder(still)] : [REGISTRAR, this._registerOrder(still)];
         await this._publish(rk, order);
-        return { estado: t.estado, reenviada: true };
+        return { estado: still.estado, reenviada: true };
       }
       case "confirmando":
-        return this._confirm(t);
+        return this._revertThenConfirm(t);
       default:
         return { ignored: true };
     }
@@ -248,4 +273,4 @@ class TransferReceiverService {
   }
 }
 
-module.exports = { TransferReceiverService, PedidoInvalidoError, CiudadanoYaAfiliadoError, IMPORTAR, REVERTIR, REGISTRAR };
+module.exports = { TransferReceiverService, PedidoInvalidoError, CiudadanoYaAfiliadoError, IMPORTAR, REVERTIR, REVERTIR_REGISTRO, REGISTRAR };

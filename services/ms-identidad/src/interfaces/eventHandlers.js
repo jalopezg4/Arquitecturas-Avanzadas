@@ -41,6 +41,14 @@ function makeTransferHandlers({ citizenTransferService }) {
         direccionUnica: typeof payload.direccionUnica === "string" && payload.direccionUnica.length <= 200 ? payload.direccionUnica : null,
       });
     },
+
+    /** `transferencia.revertir_registro` (destino): la transferencia se rechazo; se compensa el registro. */
+    async revertirRegistro(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.transferenciaId === "string" && ID_RE.test(payload.transferenciaId), "transferenciaId invalido");
+      need(typeof payload.ciudadanoId === "string" && OBJECT_ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      await citizenTransferService.revertImport({ transferenciaId: payload.transferenciaId, ciudadanoId: payload.ciudadanoId });
+    },
   };
 }
 

@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const logger = require("../tracing/logger");
+const RevertedTransfer = require("../domain/RevertedTransfer");
 
 const IMPORTADOS = "transferencia.documentos_importados";
 
@@ -57,6 +58,7 @@ class TransferImportService {
   }
 
   async _import({ transferenciaId, ciudadanoId, documento, direccionUnica, documentos }) {
+    if (await this._reverted(transferenciaId)) return { ok: false, importados: 0, motivo: "transferencia_revertida" };
     await this.folderRepository.ensure(ciudadanoId, direccionUnica, documento);
     const existentes = new Map((await this.documentRepository.findByTransfer(transferenciaId)).map((d) => [d.claveTransferencia, d]));
     try {
@@ -73,6 +75,12 @@ class TransferImportService {
     // Los temporales ocupan cupo aunque superen el maximo de este operador: al llegar no se pierde nada, pero el
     // ciudadano no podra cargar mas temporales hasta bajar del limite. Se cuentan TODOS los de la transferencia (no
     // solo los de esta entrega) y por id: un reintento tras un corte a mitad no deja ninguno sin contar.
+    // Si se revirtio mientras se importaba, lo traido en esta entrega tambien se borra. La lapida se escribe ANTES de que
+    // la reversion liste los documentos: o esta comprobacion la ve, o la reversion ve todo lo creado aqui.
+    if (await this._reverted(transferenciaId)) {
+      await this.revert({ transferenciaId, ciudadanoId });
+      return { ok: false, importados: 0, motivo: "transferencia_revertida" };
+    }
     const importados = await this.documentRepository.findByTransfer(transferenciaId);
     await this.folderRepository.addNonCertified(ciudadanoId, importados.filter((d) => d.estado === "temporal").map((d) => d._id));
     const total = importados.length;
@@ -117,6 +125,9 @@ class TransferImportService {
 
   /** Deshace la importacion de una transferencia: objetos, documentos y la carpeta si quedo vacia. Idempotente. */
   async revert({ transferenciaId, ciudadanoId }) {
+    await RevertedTransfer.updateOne({ transferenciaId }, { $setOnInsert: { revertidaEn: this.now() } }, { upsert: true }).catch((err) => {
+      if (!err || err.code !== 11000) throw err;
+    });
     const docs = await this.documentRepository.findByTransfer(transferenciaId);
     for (const d of docs) await this.storage.delete(d.storageKey);
     await this.documentRepository.deleteByIds(docs.map((d) => d._id));
@@ -124,6 +135,10 @@ class TransferImportService {
     const remaining = (await this.documentRepository.listAllByOwner(ciudadanoId, 1)).length;
     await this.folderRepository.deleteIfEmpty(ciudadanoId, remaining);
     if (docs.length) logger.info("transferencia.importacion_revertida", { transferenciaId, documentos: docs.length });
+  }
+
+  async _reverted(transferenciaId) {
+    return Boolean(await RevertedTransfer.exists({ transferenciaId }));
   }
 }
 

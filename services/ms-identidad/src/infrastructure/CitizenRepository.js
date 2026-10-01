@@ -1,4 +1,5 @@
 const Citizen = require("../domain/Citizen");
+const RevertedImport = require("../domain/RevertedImport");
 
 class CitizenRepository {
   async findByDocumento(documento) {
@@ -75,6 +76,26 @@ class CitizenRepository {
    * protocolo acordado: "borrar la info de BD y bucket"). Solo si sigue activo; repetirlo no hace nada. Borrarlo (y no
    * solo marcarlo) permite que, si algun dia regresa, se importe de nuevo con la misma direccion unica (RF-10).
    */
+  /** HU-05c (destino): GovCarpeta ya lo afilio a nosotros por la importacion (se desafilia si se revierte). */
+  async markAffiliatedByImport(id) {
+    await Citizen.updateOne({ _id: id }, { $set: { afiliadoPorImportacion: true } });
+  }
+
+  /** HU-05c (destino): borra al ciudadano importado por ESA transferencia, este pendiente o activo. */
+  async deleteImported(id, transferenciaId) {
+    return Citizen.deleteOne({ _id: id, transferenciaOrigenId: transferenciaId });
+  }
+
+  async markImportReverted({ ciudadanoId, transferenciaId, now }) {
+    await RevertedImport.updateOne({ ciudadanoId }, { $setOnInsert: { transferenciaId, revertidaEn: now } }, { upsert: true }).catch((err) => {
+      if (!err || err.code !== 11000) throw err;
+    });
+  }
+
+  async isImportReverted(ciudadanoId) {
+    return Boolean(await RevertedImport.exists({ ciudadanoId }));
+  }
+
   async deleteTransferred(id) {
     return Citizen.deleteOne({ _id: id, estado: "activo" });
   }

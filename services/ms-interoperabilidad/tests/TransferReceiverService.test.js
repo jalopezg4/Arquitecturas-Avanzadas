@@ -193,6 +193,56 @@ describe("Flujo completo del destino", () => {
     expect(await Transfer.findById(id).lean()).toMatchObject({ estado: "completada", motivo: "origen_no_recibio_confirmacion" });
   });
 
+  // Revision del PR #90: rechazar es una compensacion completa y nunca se hace con una copia vieja.
+  test("el barrido con una copia vieja NO revierte una transferencia que el registro ya completo", async () => {
+    const id = await recibidaEImportada();
+    advance(6 * 60 * 1000 + 1); // vencido: el barrido la rechazaria
+    const vieja = await Transfer.findById(id).lean();
+    await handlers.ciudadanoImportado({ transferenciaId: id, ok: true }); // el registro llega justo antes
+
+    expect(await receiver.review(vieja)).toEqual({ ignored: true });
+
+    expect(published("transferencia.revertir_importacion")).toHaveLength(0);
+    expect(published("transferencia.revertir_registro")).toHaveLength(0);
+    expect(peer.post).toHaveBeenCalledWith(CONFIRM, { id: 1032236578, req_status: 1 });
+    expect((await Transfer.findById(id).lean()).estado).toBe("completada");
+  });
+
+  test("al rechazar se compensa tambien el registro en ms-identidad", async () => {
+    const id = await recibidaEImportada();
+    advance(6 * 60 * 1000 + 1);
+    await sweeper.sweepOnce(); // registrando_sin_respuesta
+
+    expect(published("transferencia.revertir_registro")).toEqual([{ transferenciaId: id, ciudadanoId: expect.stringMatching(/^[0-9a-f]{24}$/), documento: 1032236578 }]);
+    expect(await Transfer.findById(id).lean()).toMatchObject({ estado: "rechazada", reversionPendiente: false });
+  });
+
+  test("si el broker no publica la reversion, NO se confirma 0 todavia: el barrido la reintenta y luego confirma", async () => {
+    const res = await recibir().expect(202);
+    publisher.publish.mockRejectedValueOnce(new Error("broker caido"));
+
+    await handlers.documentosImportados({ transferenciaId: res.body.transferenciaId, ok: false, motivo: "URL2 invalida" });
+    expect(peer.post).not.toHaveBeenCalled();
+    expect(await Transfer.findById(res.body.transferenciaId).lean()).toMatchObject({ estado: "confirmando", reversionPendiente: true });
+
+    advance(61 * 1000);
+    await sweeper.sweepOnce();
+
+    expect(published("transferencia.revertir_registro")).toHaveLength(1);
+    expect(peer.post).toHaveBeenCalledWith(CONFIRM, { id: 1032236578, req_status: 0 });
+    expect((await Transfer.findById(res.body.transferenciaId).lean()).estado).toBe("rechazada");
+  });
+
+  test("el barrido con una copia vieja no repite la orden de importar de una transferencia ya rechazada", async () => {
+    const res = await recibir().expect(202);
+    advance(2 * 60 * 1000 + 1);
+    const vieja = await Transfer.findById(res.body.transferenciaId).lean();
+    await handlers.documentosImportados({ transferenciaId: res.body.transferenciaId, ok: false, motivo: "x" });
+
+    expect(await receiver.review(vieja)).toEqual({ ignored: true });
+    expect(published("transferencia.importar_documentos")).toHaveLength(1); // solo la original
+  });
+
   test("ms-documentos no responde: el barrido repite la orden y, pasado el plazo, rechaza y confirma 0", async () => {
     const res = await recibir().expect(202);
 
