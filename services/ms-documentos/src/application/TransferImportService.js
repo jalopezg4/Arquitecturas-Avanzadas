@@ -59,12 +59,10 @@ class TransferImportService {
   async _import({ transferenciaId, ciudadanoId, documento, direccionUnica, documentos }) {
     await this.folderRepository.ensure(ciudadanoId, direccionUnica, documento);
     const existentes = new Map((await this.documentRepository.findByTransfer(transferenciaId)).map((d) => [d.claveTransferencia, d]));
-    let temporales = 0;
     try {
       for (const item of documentos) {
         if (existentes.has(item.clave)) continue; // ya importado en una entrega anterior
-        const doc = await this._importOne({ transferenciaId, ciudadanoId, item });
-        if (doc.estado === "temporal") temporales++;
+        await this._importOne({ transferenciaId, ciudadanoId, item });
       }
     } catch (err) {
       if (err && err.transient) throw err; // red / 5xx del origen: se reintenta la orden completa (lo ya traido se conserva)
@@ -73,9 +71,11 @@ class TransferImportService {
       return { ok: false, importados: 0, motivo: String(err.message || "error").slice(0, 200) };
     }
     // Los temporales ocupan cupo aunque superen el maximo de este operador: al llegar no se pierde nada, pero el
-    // ciudadano no podra cargar mas temporales hasta bajar del limite.
-    await this.folderRepository.addNonCertified(ciudadanoId, temporales);
-    const total = (await this.documentRepository.findByTransfer(transferenciaId)).length;
+    // ciudadano no podra cargar mas temporales hasta bajar del limite. Se cuentan TODOS los de la transferencia (no
+    // solo los de esta entrega) y por id: un reintento tras un corte a mitad no deja ninguno sin contar.
+    const importados = await this.documentRepository.findByTransfer(transferenciaId);
+    await this.folderRepository.addNonCertified(ciudadanoId, importados.filter((d) => d.estado === "temporal").map((d) => d._id));
+    const total = importados.length;
     logger.info("transferencia.documentos_importados", { transferenciaId, importados: total });
     return { ok: true, importados: total };
   }
@@ -120,6 +120,7 @@ class TransferImportService {
     const docs = await this.documentRepository.findByTransfer(transferenciaId);
     for (const d of docs) await this.storage.delete(d.storageKey);
     await this.documentRepository.deleteByIds(docs.map((d) => d._id));
+    for (const d of docs) await this.folderRepository.releaseNonCertified(ciudadanoId, d._id);
     const remaining = (await this.documentRepository.listAllByOwner(ciudadanoId, 1)).length;
     await this.folderRepository.deleteIfEmpty(ciudadanoId, remaining);
     if (docs.length) logger.info("transferencia.importacion_revertida", { transferenciaId, documentos: docs.length });

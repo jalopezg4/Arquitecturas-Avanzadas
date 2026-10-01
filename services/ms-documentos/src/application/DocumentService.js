@@ -200,12 +200,14 @@ class DocumentService {
     await this.folderRepository.assertWritable(ciudadanoId);
 
     const consumesQuota = estado === "temporal";
+    // El id se genera antes de crear el documento: el cupo se reserva A NOMBRE de este documento.
+    const documentoId = new mongoose.Types.ObjectId();
     let reserved = false;
     let key = null;
     let stored = false;
     try {
       if (consumesQuota) {
-        reserved = await this.folderRepository.reserveNonCertified(ciudadanoId, this.quota);
+        reserved = await this.folderRepository.reserveNonCertified(ciudadanoId, documentoId, this.quota);
         if (!reserved) throw new QuotaExceededError(this.quota);
       }
 
@@ -222,6 +224,7 @@ class DocumentService {
       }
 
       const doc = await this.documentRepository.create({
+        _id: documentoId,
         ciudadanoId,
         ...clean,
         ...(extra || {}), // HU-10: procedencia (origen, emisorInstitutionId, envioId). Vacio en la carga del ciudadano.
@@ -241,7 +244,8 @@ class DocumentService {
         await this.storage.delete(key).catch((e) => logger.error("documento.compensacion_fallo", { step: "delete_objeto", err: e }));
       }
       if (reserved) {
-        await this.folderRepository.releaseNonCertified(ciudadanoId).catch((e) => logger.error("documento.compensacion_fallo", { step: "liberar_cupo", err: e }));
+        // Si esto falla, el QuotaReconciler devuelve el cupo (el id quedo en `cupos` sin documento).
+        await this.folderRepository.releaseNonCertified(ciudadanoId, documentoId).catch((e) => logger.error("documento.compensacion_fallo", { step: "liberar_cupo", err: e }));
       }
       const reason = err instanceof QuotaExceededError ? "cuota_llena" : err.message;
       await this._audit(ciudadanoId, err instanceof QuotaExceededError ? "rechazo" : "fallo", reason, undefined, undefined, actor);

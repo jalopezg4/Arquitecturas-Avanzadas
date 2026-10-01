@@ -193,8 +193,11 @@ class OfficialRequestService {
   }
 
   /**
-   * El definitivo ya se guardo: la solicitud queda atendida (una sola vez) y el temporal se REEMPLAZA -- se borra su
-   * archivo y sus metadatos y se libera su cupo (RNF-04), si sigue siendo temporal y del ciudadano.
+   * El definitivo ya se guardo: la solicitud queda atendida (una sola vez) y el temporal se REEMPLAZA -- se borran sus
+   * metadatos, se libera su cupo (RNF-04) y se borra su archivo, si sigue siendo temporal y del ciudadano.
+   *
+   * Si un intento anterior marco la solicitud pero se corto antes de terminar, el reintento del MISMO envio (mismo
+   * documento definitivo) retoma la limpieza: cada paso es idempotente.
    */
   async complete({ solicitudOficialId, documentoDefinitivoId, institutionId, ciudadanoId }) {
     // El filtro repite la entidad y el ciudadano (defensa en profundidad): ninguna entrega cierra una solicitud ajena,
@@ -204,18 +207,36 @@ class OfficialRequestService {
       { $set: { estado: "atendida", abierta: false, documentoDefinitivoId, atendidaEn: this.now() } },
       { new: true }
     ).lean();
-    if (!r) return { replaced: false };
-    const temporal = await this.documentRepository.findById(r.documentoTemporalId);
-    let replaced = false;
-    if (temporal && temporal.ciudadanoId === r.ciudadanoId && temporal.estado === "temporal") {
-      await this.storage.delete(temporal.storageKey).catch((err) => logger.error("solicitud_oficial.temporal_no_borrado_del_storage", { err }));
-      const deleted = await this.documentRepository.deleteByIds([temporal._id]);
-      if (deleted) await this.folderRepository.releaseNonCertified(r.ciudadanoId);
-      replaced = deleted > 0;
-    }
+    if (!r) return this._resumeCompletion({ solicitudOficialId, documentoDefinitivoId, institutionId, ciudadanoId });
+    const replaced = await this._replaceTemporal(r);
     await this._audit({ actor: institutionId, actorType: "entidad", action: "documento.reemplazar_temporal", documentoId: r.documentoTemporalId, owner: r.ciudadanoId, delegated: true, outcome: "exito", metadata: { solicitudOficialId, documentoDefinitivoId, temporalReemplazado: replaced } });
     logger.info("solicitud_oficial.atendida", { solicitudOficialId, temporalReemplazado: replaced });
     return { replaced };
+  }
+
+  /** Reintento de un `complete` que se corto: solo si ESTA entrega (mismo definitivo) ya habia atendido la solicitud. */
+  async _resumeCompletion({ solicitudOficialId, documentoDefinitivoId, institutionId, ciudadanoId }) {
+    const r = await OfficialRequest.findOne({ _id: solicitudOficialId, estado: "atendida", institutionId, ciudadanoId, documentoDefinitivoId }).lean();
+    if (!r) return { replaced: false };
+    const replaced = await this._replaceTemporal(r);
+    if (replaced) logger.info("solicitud_oficial.reemplazo_retomado", { solicitudOficialId });
+    return { replaced };
+  }
+
+  /**
+   * Orden pensado para los reintentos: primero los metadatos (el documento deja de existir para el ciudadano), luego
+   * el cupo (idempotente por documento, se repite siempre) y al final el archivo. Si el archivo no se puede borrar
+   * queda huerfano en el storage, pero nunca un documento que apunta a un archivo inexistente.
+   */
+  async _replaceTemporal(r) {
+    const temporal = await this.documentRepository.findById(r.documentoTemporalId);
+    let replaced = false;
+    if (temporal && temporal.ciudadanoId === r.ciudadanoId && temporal.estado === "temporal") {
+      replaced = (await this.documentRepository.deleteByIds([temporal._id])) > 0;
+      if (replaced) await this.storage.delete(temporal.storageKey).catch((err) => logger.error("solicitud_oficial.temporal_no_borrado_del_storage", { err }));
+    }
+    await this.folderRepository.releaseNonCertified(r.ciudadanoId, r.documentoTemporalId);
+    return replaced;
   }
 
   async _audit({ actor, actorType, action, documentoId, owner, delegated = false, outcome, reason, metadata }) {

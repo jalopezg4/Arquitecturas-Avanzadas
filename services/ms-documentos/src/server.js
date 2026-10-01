@@ -19,6 +19,7 @@ const SolicitudEventReconciler = require("./application/SolicitudEventReconciler
 const EventReconciler = require("./application/EventReconciler");
 const { DocumentAuthenticationService } = require("./application/DocumentAuthenticationService");
 const AuthenticationRequestReconciler = require("./application/AuthenticationRequestReconciler");
+const QuotaReconciler = require("./application/QuotaReconciler");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers, makePackageCreatedHandler, makeOfficialRequestResolvedHandler } = require("./interfaces/eventHandlers");
 const { OfficialRequestService } = require("./application/OfficialRequestService");
@@ -50,6 +51,9 @@ async function main() {
   const auditLogger = new AuditLogger({ auditRepository: new AuditRepository() });
   const documentRepository = new DocumentRepository();
   const folderRepository = new FolderRepository();
+  // RNF-04: carpetas anteriores a la cuota por documento se migran ANTES de aceptar cargas.
+  const quotaReconciler = new QuotaReconciler({ folderRepository, documentRepository });
+  await quotaReconciler.migrateLegacy();
   const eventPublisher = new EventPublisher(env.rabbitUri);
   const documentService = new DocumentService({
     documentRepository,
@@ -167,6 +171,7 @@ async function main() {
   if (env.reconcile.intervalMs > 0) {
     new OfficialRequestReconciler({ officialRequestService, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
     new AuthenticationRequestReconciler({ documentRepository, folderRepository, authenticationService: documentAuthenticationService, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
+    quotaReconciler.start(env.reconcile.intervalMs);
   }
 
   const app = buildApp({

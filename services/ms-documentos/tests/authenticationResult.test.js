@@ -42,7 +42,6 @@ beforeEach(() => {
 
 /** Documento temporal de Ana (con su cupo ocupado) ya pedido a autenticar: queda `en autenticacion`, intento 1. */
 async function enAutenticacion() {
-  await Folder.create({ ciudadanoId: ANA, documento: 1000000001, noCertificados: 1 });
   const doc = await Document.create({
     ciudadanoId: ANA,
     titulo: "Diploma",
@@ -53,6 +52,7 @@ async function enAutenticacion() {
     tamanoBytes: 100,
     sha256: "a".repeat(64),
   });
+  await Folder.create({ ciudadanoId: ANA, documento: 1000000001, noCertificados: 1, cupos: [String(doc._id)] });
   await documentRepository.startAuthentication(doc._id, ANA, NOW);
   return String(doc._id);
 }
@@ -71,7 +71,7 @@ describe("documento.autenticado", () => {
 
   test("una reentrega del mismo evento no libera el cupo dos veces", async () => {
     const id = await enAutenticacion();
-    await Folder.updateOne({ ciudadanoId: ANA }, { noCertificados: 3 }); // otros temporales ocupan cupo
+    await Folder.updateOne({ ciudadanoId: ANA }, { noCertificados: 3, $push: { cupos: { $each: ["otro-1", "otro-2"] } } }); // otros temporales ocupan cupo
 
     const evento = { documentoId: id, intento: 1, autenticadoEn: AUTENTICADO_EN };
     await handlers.autenticado(evento);
@@ -79,6 +79,28 @@ describe("documento.autenticado", () => {
     await Promise.all([handlers.autenticado(evento), handlers.autenticado(evento)]);
 
     expect(await cupo()).toBe(2);
+  });
+
+  // Revision del PR #90: si liberar el cupo falla DESPUES de certificar, la reentrega lo libera (y solo una vez).
+  test("si liberar el cupo falla tras certificar, la reentrega del evento lo libera", async () => {
+    const id = await enAutenticacion();
+    const folders = new FolderRepository();
+    const real = folders.releaseNonCertified.bind(folders);
+    let fallas = 1;
+    folders.releaseNonCertified = async (...args) => {
+      if (fallas-- > 0) throw new Error("mongo no disponible");
+      return real(...args);
+    };
+    const h = makeAuthenticationResultHandlers({ documentAuthenticationService: new DocumentAuthenticationService({ documentRepository, folderRepository: folders, eventPublisher: makeFakePublisher(), now: () => NOW }) });
+    const evento = { documentoId: id, intento: 1, autenticadoEn: AUTENTICADO_EN };
+
+    await expect(h.autenticado(evento)).rejects.toThrow("mongo no disponible");
+    expect((await estado(id)).estado).toBe("certificado");
+    expect(await cupo()).toBe(1);
+
+    await h.autenticado(evento); // reentrega
+    await h.autenticado(evento);
+    expect(await cupo()).toBe(0);
   });
 
   test("un resultado de un intento viejo no certifica el intento vigente", async () => {

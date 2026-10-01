@@ -154,6 +154,20 @@ describe("transferencia.importar_documentos", () => {
     expect(storage.put).toHaveBeenCalledTimes(2);
   });
 
+  // Revision del PR #90: los temporales traidos en la entrega que se corto tambien ocupan cupo.
+  test("tras un corte a mitad, el reintento cuenta el cupo de TODOS los temporales importados (una sola vez)", async () => {
+    const docs = [{ clave: "URL2", url: `${base}/b.pdf`, titulo: "Acta" }, { clave: "URL3", url: `${base}/caido`, titulo: "Recibo" }];
+    await expect(handlers.importar(orden(docs))).rejects.toThrow(/503/);
+
+    routes["/caido"] = (_req, res) => res.end(PDF2);
+    await handlers.importar(orden(docs));
+    await handlers.importar(orden(docs)); // reentrega
+
+    const folder = await Folder.findOne({ ciudadanoId: NUEVO }).lean();
+    expect(folder.noCertificados).toBe(2);
+    expect(folder.cupos).toHaveLength(2);
+  });
+
   test.each([
     ["ciudadanoId que no es ObjectId", { ciudadanoId: "abc" }],
     ["documentos no es arreglo", { documentos: "x" }],

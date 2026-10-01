@@ -9,6 +9,12 @@ class DocumentRepository {
     return Document.findById(id);
   }
 
+  /** Ids de los documentos del ciudadano que ocupan cupo (RNF-04): temporales y los que estan en autenticacion. */
+  async listNonCertifiedIds(ciudadanoId) {
+    const docs = await Document.find({ ciudadanoId, estado: { $in: ["temporal", "en autenticacion"] } }, { _id: 1 }).lean();
+    return docs.map((d) => String(d._id));
+  }
+
   /** HU-10: el documento que esa institucion ya entrego con ese `envioId`, si lo hay (clave de idempotencia). */
   async findByEnvio(emisorInstitutionId, envioId) {
     return Document.findOne({ emisorInstitutionId, envioId }).lean();

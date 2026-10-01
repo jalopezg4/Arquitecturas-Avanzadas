@@ -236,6 +236,24 @@ describe("Escenario: entidad publica el documento definitivo (HU-10)", () => {
     await entregar({ envioId: "envio-normal-00001", solicitudOficialId }).expect(409);
   });
 
+  // Revision del PR #90: si el reemplazo del temporal se corta despues de marcar la solicitud, el reintento lo termina.
+  test("si borrar el temporal falla tras marcar la solicitud, el reintento del envio lo borra y libera el cupo", async () => {
+    const { docId, solicitudOficialId } = await solicitudPendiente();
+    const repo = official.documentRepository;
+    const real = repo.deleteByIds.bind(repo);
+    repo.deleteByIds = jest.fn().mockRejectedValueOnce(new Error("mongo no disponible")).mockImplementation(real);
+
+    await entregar({ solicitudOficialId }).expect(500);
+    expect((await OfficialRequest.findById(solicitudOficialId).lean()).estado).toBe("atendida");
+    expect(await Document.findById(docId).lean()).not.toBeNull(); // nunca un documento sin archivo
+    expect(storage.delete).not.toHaveBeenCalled();
+
+    await entregar({ solicitudOficialId }).expect(200); // reintento del mismo envio
+    expect(await Document.findById(docId).lean()).toBeNull();
+    expect(storage.delete).toHaveBeenCalledTimes(1);
+    expect((await Folder.findOne({ ciudadanoId: ANA }).lean()).noCertificados).toBe(0);
+  });
+
   test("complete() no cierra una solicitud de otra entidad ni de otro ciudadano", async () => {
     const { docId, solicitudOficialId } = await solicitudPendiente();
     expect(await official.complete({ solicitudOficialId, documentoDefinitivoId: "x", institutionId: OTRA, ciudadanoId: ANA })).toEqual({ replaced: false });
