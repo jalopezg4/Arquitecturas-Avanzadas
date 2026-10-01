@@ -71,9 +71,11 @@ Espere hasta un minuto (RabbitMQ tarda en arrancar y `ms-notificaciones` se reco
 
 ```bash
 curl http://localhost:3000/health
-curl http://localhost:3002/ready
 curl http://localhost:3003/ready
+docker compose exec ms-documentos wget -qO- localhost:3002/ready
 ```
+
+`ms-documentos` no se publica en el host (HT-03: así se puede escalar con `docker compose up --scale ms-documentos=N`); solo se alcanza por el gateway o desde la red interna del compose, por eso se comprueba con `docker compose exec`.
 
 Para ver los registros de un servicio: `docker compose logs -f ms-documentos`. Para apagar todo: `docker compose down` (agregue `-v` si también quiere borrar los datos).
 
