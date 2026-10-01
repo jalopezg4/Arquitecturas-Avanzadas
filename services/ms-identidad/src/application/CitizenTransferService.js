@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const logger = require("../tracing/logger");
 const { publishCitizenRegistered } = require("./events");
+const { isTransientStatus } = require("../infrastructure/httpStatus");
 
 const IMPORTADO = "transferencia.ciudadano_registrado";
 const DIRECCION_UNICA_RE = /^[^\s@<>,;]+@carpetacolombia\.co$/i;
@@ -104,7 +105,7 @@ class CitizenTransferService {
       await this.govCarpeta.registerCitizen({ id: documento, name: nombre, address: citizen.direccion, email: correo });
     } catch (err) {
       const status = err && err.response ? err.response.status : undefined;
-      const ambiguous = status === undefined || (status >= 500 && status !== 501);
+      const ambiguous = isTransientStatus(status);
       if (!ambiguous) {
         await this.citizens.deletePending(citizen._id);
         return { ok: false, motivo: `govcarpeta_rechazo_${status}` };

@@ -66,7 +66,28 @@ describe("GovCarpetaClient.authenticateDocument()", () => {
     expect(http.put).toHaveBeenCalledTimes(3);
   });
 
-  test.each([[204], [501], [400], [404]])("%i es definitivo: no reintenta y no cuenta como autenticado", async (status) => {
+  // Revision del PR #90: el sandbox vive en Heroku; un dyno dormido o el router responden 502/503/504/429.
+  test.each([[502], [503], [504], [429], [408], [425]])("%i es transitorio: reintenta y, agotado, GOVCARPETA_UNAVAILABLE (no 'rechazado')", async (status) => {
+    const { http, gc } = client([{ status }, { status }, { status }]);
+
+    const err = await gc.authenticateDocument(INPUT).catch((e) => e);
+    expect(err).toMatchObject({ code: "GOVCARPETA_UNAVAILABLE", intentos: 3 });
+    expect(err.definitive).toBeUndefined();
+    expect(http.put).toHaveBeenCalledTimes(3);
+  });
+
+  test("un 503 seguido de 200 termina autenticado", async () => {
+    const { gc } = client([{ status: 503 }, OK]);
+    await expect(gc.authenticateDocument(INPUT)).resolves.toMatchObject({ status: 200, intentos: 2 });
+  });
+
+  test("respeta Retry-After acotado a 5 s (nunca menos que la espera normal)", async () => {
+    const { sleep, gc } = client([{ status: 429, headers: { "retry-after": "3" } }, { status: 503, headers: { "retry-after": "3600" } }, OK]);
+    await gc.authenticateDocument(INPUT);
+    expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([3000, 5000]);
+  });
+
+  test.each([[204], [501], [400], [404], [302]])("%i es definitivo: no reintenta y no cuenta como autenticado", async (status) => {
     const { http, gc } = client([{ status }, OK]);
 
     await expect(gc.authenticateDocument(INPUT)).rejects.toMatchObject({ definitive: true, response: { status } });

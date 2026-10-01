@@ -146,6 +146,18 @@ describe("GovCarpetaCitizenClient", () => {
     expect(http.post).toHaveBeenCalledTimes(1);
   });
 
+  // Revision del PR #90: misma clasificacion HTTP en todos los clientes de GovCarpeta (httpStatus.js).
+  test.each([502, 503, 504, 429])("unregisterCitizen reintenta un %i (router/dyno de Heroku)", async (status) => {
+    const { http, client } = make([{ status }, { status: 201 }]);
+    await expect(client.unregisterCitizen(1)).resolves.toEqual({ status: 201 });
+    expect(http.delete).toHaveBeenCalledTimes(2);
+  });
+
+  test.each([[503, false], [429, false], [501, true], [400, true]])("registerCitizen con %i -> definitive=%s (lo transitorio lo reintenta el barrido)", async (status, definitive) => {
+    const { client } = make([{ status }]);
+    await expect(client.registerCitizen({ id: 1, name: "Ana", address: "Calle 1", email: "a@b.co" })).rejects.toMatchObject({ definitive });
+  });
+
   test("sin OPERATOR_ID falla antes de llamar a GovCarpeta", async () => {
     const { http, client } = make([], { operatorId: "" });
     await expect(client.unregisterCitizen(1)).rejects.toThrow(/OPERATOR_ID/);

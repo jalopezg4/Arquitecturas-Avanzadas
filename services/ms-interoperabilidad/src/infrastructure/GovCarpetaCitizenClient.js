@@ -1,5 +1,6 @@
 const axios = require("axios");
 const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
+const { isTransientStatus } = require("./httpStatus");
 
 /**
  * Adapter de GovCarpeta para la afiliacion del ciudadano durante una transferencia (HU-05c). Mismo contrato que usa
@@ -46,10 +47,10 @@ class GovCarpetaCitizenClient {
       }
       // 201 "Deleted" / 200; 204 "Not Content" = no estaba afiliado a nosotros: para quien se va, el resultado es el mismo.
       if (res && [200, 201, 204].includes(res.status)) return { status: res.status };
-      if (res && res.status !== 500) {
+      if (res && !isTransientStatus(res.status)) {
         throw Object.assign(new Error(`unregisterCitizen respondio ${res.status}`), { definitive: true, response: { status: res.status } });
       }
-      if (res) lastError = Object.assign(new Error("unregisterCitizen respondio 500"), { response: { status: 500 } });
+      if (res) lastError = Object.assign(new Error(`unregisterCitizen respondio ${res.status}`), { response: { status: res.status } });
       if (attempt < this.maxRetries) await this.sleep(this.baseDelayMs * 2 ** (attempt - 1));
     }
     throw Object.assign(new Error("GovCarpeta no respondio tras agotar reintentos"), { code: "GOVCARPETA_UNAVAILABLE", cause: lastError });
@@ -65,7 +66,8 @@ class GovCarpetaCitizenClient {
       throw Object.assign(new Error("GovCarpeta no respondio a registerCitizen"), { code: "GOVCARPETA_UNAVAILABLE", cause: err });
     }
     if (res.status === 201 || res.status === 200) return { status: res.status };
-    throw Object.assign(new Error(`registerCitizen respondio ${res.status}`), { definitive: res.status !== 500, response: { status: res.status } });
+    // No se reintenta aqui (no es idempotente): un transitorio lo reintenta el barrido de la saga.
+    throw Object.assign(new Error(`registerCitizen respondio ${res.status}`), { definitive: !isTransientStatus(res.status), response: { status: res.status } });
   }
 }
 
