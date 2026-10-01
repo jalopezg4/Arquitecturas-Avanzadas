@@ -27,13 +27,18 @@ const OfficialRequestReconciler = require("./application/OfficialRequestReconcil
 const OfficialRequest = require("./domain/OfficialRequest");
 const { PackageDeliveryService } = require("./application/PackageDeliveryService");
 const PackageGrant = require("./domain/PackageGrant");
+const Folder = require("./domain/Folder");
+const Document = require("./domain/Document");
+const RevertedTransfer = require("./domain/RevertedTransfer");
 const { TransferImportService } = require("./application/TransferImportService");
 const { RemoteFileFetcher } = require("./infrastructure/RemoteFileFetcher");
 const { TransferFolderService } = require("./application/TransferFolderService");
 
 async function main() {
   await mongoose.connect(env.mongoUri);
-  await Promise.all([PackageGrant.init(), OfficialRequest.init()]); // indices unicos antes de consumir (HU-06.2, HU-06.4)
+  // Indices unicos ANTES de aceptar cargas o consumir: en una base nueva se construyen en segundo plano y N cargas
+  // simultaneas podrian crear varias carpetas del mismo ciudadano (cuota por carpeta, RNF-04) o duplicar envios.
+  await Promise.all([Folder.init(), Document.init(), RevertedTransfer.init(), PackageGrant.init(), OfficialRequest.init()]);
 
   const secrets = new SecretsManager({ active: env.jwtSecret, previous: env.jwtSecretPrevious });
   logger.info("jwt.llavero", secrets.status()); // solo ids de llave, nunca el secreto
