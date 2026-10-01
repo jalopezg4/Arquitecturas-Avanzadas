@@ -204,6 +204,46 @@ describe("Escenario: entidad publica el documento definitivo (HU-10)", () => {
     await entregar({ solicitudOficialId: sol }).expect(409); // destinatario es Ana
   });
 
+  // Revision del PR #90: el reintento de un envio no puede saltarse el control de dueno de la solicitud.
+  test("repetir un envio anterior indicando la solicitud de OTRO ciudadano -> 409; su temporal sigue intacto", async () => {
+    await entregar({}).expect(201); // envio normal de EAFIT a Ana
+    await Folder.create({ ciudadanoId: BETO, direccionUnica: "2-cd@carpetacolombia.co" });
+    const betoDoc = String((await Document.create({ ciudadanoId: BETO, titulo: "x", entidadAvaladora: "x", fecha: new Date(), storageKey: `ciudadanos/${BETO}/t.pdf`, mimeType: "application/pdf", tamanoBytes: 1, sha256: "a".repeat(64) }))._id);
+    const sol = (await pedir(betoDoc, { nit: NIT_EAFIT }, citizen(BETO)).expect(202)).body.solicitudOficialId;
+    await resolved({ solicitudOficialId: sol, institutionId: EAFIT });
+
+    await entregar({ solicitudOficialId: sol }).expect(409); // mismo envioId, archivo y destinatario
+
+    expect((await OfficialRequest.findById(sol).lean()).estado).toBe("pendiente");
+    expect(await Document.findById(betoDoc).lean()).not.toBeNull();
+  });
+
+  test("repetir un envio anterior indicando una solicitud de OTRA entidad -> 409; la solicitud sigue pendiente", async () => {
+    const { docId, solicitudOficialId } = await solicitudPendiente(); // pendiente para EAFIT
+    await entregar({ envioId: "envio-otra-000001" }, entity(OTRA)).expect(201); // envio normal de OTRA a Ana
+
+    await entregar({ envioId: "envio-otra-000001", solicitudOficialId }, entity(OTRA)).expect(409);
+
+    expect((await OfficialRequest.findById(solicitudOficialId).lean()).estado).toBe("pendiente");
+    expect(await Document.findById(docId).lean()).not.toBeNull();
+  });
+
+  test("repetir un envio anterior indicando una solicitud que atendio OTRO envio -> 409", async () => {
+    const { solicitudOficialId } = await solicitudPendiente();
+    await entregar({ envioId: "envio-normal-00001" }).expect(201);
+    await entregar({ solicitudOficialId }).expect(201); // la atiende envio-oficial-0001
+
+    await entregar({ envioId: "envio-normal-00001", solicitudOficialId }).expect(409);
+  });
+
+  test("complete() no cierra una solicitud de otra entidad ni de otro ciudadano", async () => {
+    const { docId, solicitudOficialId } = await solicitudPendiente();
+    expect(await official.complete({ solicitudOficialId, documentoDefinitivoId: "x", institutionId: OTRA, ciudadanoId: ANA })).toEqual({ replaced: false });
+    expect(await official.complete({ solicitudOficialId, documentoDefinitivoId: "x", institutionId: EAFIT, ciudadanoId: BETO })).toEqual({ replaced: false });
+    expect((await OfficialRequest.findById(solicitudOficialId).lean()).estado).toBe("pendiente");
+    expect(await Document.findById(docId).lean()).not.toBeNull();
+  });
+
   test("una entrega normal (sin solicitud) sigue funcionando igual que en HU-10", async () => {
     await entregar({}).expect(201);
   });

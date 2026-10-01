@@ -183,10 +183,12 @@ class OfficialRequestService {
    * Antes de aceptar una entrega de HU-10 que dice atender una solicitud: debe existir, estar pendiente, ser de ESTA
    * entidad y del MISMO ciudadano al que va el documento. Si no, la entrega se rechaza entera (409) sin guardar nada.
    */
-  async assertAttendable({ solicitudOficialId, institutionId, ciudadanoId }) {
+  async assertAttendable({ solicitudOficialId, institutionId, ciudadanoId, documentoDefinitivoId = null }) {
     const r = typeof solicitudOficialId === "string" && mongoose.isValidObjectId(solicitudOficialId) ? await OfficialRequest.findById(solicitudOficialId).lean() : null;
     if (!r || r.institutionId !== institutionId || r.ciudadanoId !== ciudadanoId) throw new SolicitudOficialNoAtendibleError();
     if (r.estado === "pendiente") return r;
+    // Reintento de un envio que YA atendio esta misma solicitud: se acepta (idempotente), pero solo con ese documento.
+    if (documentoDefinitivoId && r.estado === "atendida" && r.documentoDefinitivoId === documentoDefinitivoId) return r;
     throw new SolicitudOficialNoAtendibleError();
   }
 
@@ -194,9 +196,11 @@ class OfficialRequestService {
    * El definitivo ya se guardo: la solicitud queda atendida (una sola vez) y el temporal se REEMPLAZA -- se borra su
    * archivo y sus metadatos y se libera su cupo (RNF-04), si sigue siendo temporal y del ciudadano.
    */
-  async complete({ solicitudOficialId, documentoDefinitivoId, institutionId }) {
+  async complete({ solicitudOficialId, documentoDefinitivoId, institutionId, ciudadanoId }) {
+    // El filtro repite la entidad y el ciudadano (defensa en profundidad): ninguna entrega cierra una solicitud ajena,
+    // aunque el llamador se haya saltado `assertAttendable`.
     const r = await OfficialRequest.findOneAndUpdate(
-      { _id: solicitudOficialId, estado: "pendiente" },
+      { _id: solicitudOficialId, estado: "pendiente", institutionId, ciudadanoId },
       { $set: { estado: "atendida", abierta: false, documentoDefinitivoId, atendidaEn: this.now() } },
       { new: true }
     ).lean();

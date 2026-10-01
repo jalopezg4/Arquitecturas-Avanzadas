@@ -106,8 +106,12 @@ class InboundDocumentService {
     if (atiende) {
       if (!this.officialRequestService) throw new ValidationError("esta instancia no atiende solicitudes del documento oficial");
       const existingEnvio = await this.documentRepository.findByEnvio(emisor.id, envioId);
-      // Un reintento del mismo envio ya atendio la solicitud: no se vuelve a exigir que siga pendiente.
-      if (!existingEnvio) await this.officialRequestService.assertAttendable({ solicitudOficialId, institutionId: emisor.id, ciudadanoId: carpeta.ciudadanoId });
+      // Un reintento del mismo envio tambien se valida (entidad y ciudadano); solo se le perdona que la solicitud ya
+      // este atendida si la atendio ESE documento.
+      await this.officialRequestService.assertAttendable({
+        solicitudOficialId, institutionId: emisor.id, ciudadanoId: carpeta.ciudadanoId,
+        documentoDefinitivoId: existingEnvio ? String(existingEnvio._id) : null,
+      });
     }
 
     // Huella del contenido: decide si un `envioId` repetido es el mismo envio o uno distinto. Si el archivo no es
@@ -120,7 +124,7 @@ class InboundDocumentService {
       if (existing) {
         const again = this._resolveExisting(existing, { ciudadanoId: carpeta.ciudadanoId, sha256 });
         // HU-06.4: si el primer intento se corto antes de cerrar la solicitud, el reintento la cierra (idempotente).
-        if (atiende) await this.officialRequestService.complete({ solicitudOficialId, documentoDefinitivoId: again.documentoId, institutionId: emisor.id });
+        if (atiende) await this.officialRequestService.complete({ solicitudOficialId, documentoDefinitivoId: again.documentoId, institutionId: emisor.id, ciudadanoId: carpeta.ciudadanoId });
         return again;
       }
     }
@@ -145,7 +149,7 @@ class InboundDocumentService {
       return this._resolveExisting(existing, { ciudadanoId: carpeta.ciudadanoId, sha256 });
     }
 
-    if (atiende) await this.officialRequestService.complete({ solicitudOficialId, documentoDefinitivoId: result.documentoId, institutionId: emisor.id });
+    if (atiende) await this.officialRequestService.complete({ solicitudOficialId, documentoDefinitivoId: result.documentoId, institutionId: emisor.id, ciudadanoId: carpeta.ciudadanoId });
     logger.info("documento.recibido", { emisorInstitutionId: emisor.id }); // sin titulo ni direccion del ciudadano
     // La URL prefirmada NO se devuelve: la entidad entrego el documento, no gana acceso de lectura a una carpeta ajena.
     return { documentoId: result.documentoId, ciudadanoId: carpeta.ciudadanoId, duplicado: false };
