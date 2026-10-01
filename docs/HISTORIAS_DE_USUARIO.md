@@ -348,7 +348,7 @@ Como ciudadano quiero consultar los documentos almacenados en mi carpeta, para s
 - ✅ `GET /api/v1/citizens/{id}/documents` requiere JWT revalidado en `ms-documentos` (no solo en el gateway); el gateway lo expone como ruta protegida
 - ✅ Ownership check: un ciudadano solo consulta su propia carpeta
 - ✅ Paginación: `page` (default 1), `pageSize` (default 10, máx. 100: un valor mayor se limita a 100; un valor no entero o menor que 1 responde `400`). La respuesta trae `documentos`, `total`, `currentPage`, `pageSize` y `totalPages`; orden: fecha del documento descendente
-- ⚠️ Cada elemento incluye: documentoId, título, estado, entidad avaladora y fechas (`fecha` del documento y `fechaCarga`; RF-19, RF-20). **Parcial:** el estado se devuelve tal como está guardado, y hoy el modelo solo conoce `temporal` y `certificado`; `en autenticación` aparecerá cuando HU-04 (autenticación) lo introduzca, sin cambios en esta consulta
+- ✅ Cada elemento incluye: documentoId, título, estado (`temporal` / `en autenticacion` / `certificado`), entidad avaladora y fechas (`fecha` del documento y `fechaCarga`; RF-19, RF-20). El estado `en autenticacion` llegó con HU-04 (#90) sin cambios en esta consulta; verificado en ejecución real con Docker
 - ✅ Respuesta 200 incluso si la carpeta está vacía
 - ✅ Respuesta 403 si el token pertenece a otro ciudadano (el intento queda en la bitácora como `documento.consultar` / `no_es_dueno`)
 
@@ -524,8 +524,7 @@ Para comparar: la primera versión que te di tenía 15 HU inventadas (algunas si
 
 ---
 
-## ⚠️ Dos acciones pendientes
+## Acciones de reconciliación (resueltas)
 
-**1. Reconciliar con GitHub.** Ya existen 6 issues creados (#7-#12) con la numeración y alcance antiguos (incluían "Listar documentos" y "Descargar documento" con AC de monolito/bcrypt). Ahora que HU-08 y HU-09 cubren exactamente esas dos funciones pero con AC correctos (microservicios, ownership revalidado, URL prefirmada), hay que decidir: ¿editar los issues #7-#12 para que apunten a las HU correctas de este documento, o cerrarlos y recrear todo con la numeración de aquí (HU-01 a HU-11)?
-
-**2. Llevar el hallazgo de RF-22, RF-23, RF-11 y RF-34 al equipo.** El expediente de arquitectura que ya entregaron/van a entregar no menciona estas cuatro historias en ningún lado — ni siquiera en la tabla de trazabilidad de la sección 9.1. Vale la pena que el equipo decida si las agrega al documento (como ya se hizo con RF-38 y RF-39) antes de la sustentación, para que no sea el profesor quien note el vacío primero.
+1. **Issues antiguos (#7-#12):** ya no existen en GitHub; los issues vigentes siguen la numeración de este documento (HU-01 a HU-11, HT-xx).
+2. **RF-22, RF-23, RF-11 y RF-34:** quedaron cubiertos por HU-08, HU-09, HU-10 y HU-11, todas implementadas.
