@@ -98,7 +98,7 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 | Tamaño | `MAX_UPLOAD_BYTES` (10 MB por defecto, tope duro 50 MB) → `413`. Un solo archivo, campo `archivo`; más archivos o campos → `400` |
 | Clave en el storage | `ciudadanos/<ciudadanoId>/<uuid>.pdf`. **Nada que envíe el usuario** (nombre de archivo, título) entra en la clave: sin recorrido de rutas ni colisiones entre ciudadanos |
 | Qué se guarda en Mongo | Solo metadatos y la **clave** del objeto, nunca el binario. Además la huella SHA-256 (base de la autenticación, HU-04) |
-| Cuota (RNF-04) | `QUOTA_NO_CERTIFICADOS` (5) por ciudadano, solo para documentos `temporal`; los `certificado` no cuentan. El cupo se **reserva de forma atómica** antes de subir nada (contador en Mongo con incremento condicional): 10 cargas simultáneas con cuota 5 dan exactamente 5 éxitos y 5 `409`, y el rechazado nunca sube el archivo |
+| Cuota (RNF-04) | `QUOTA_NO_CERTIFICADOS` (5) por ciudadano, solo para documentos `temporal`; los `certificado` no cuentan. El cupo se **reserva de forma atómica** antes de subir nada (incremento condicional en Mongo): 10 cargas simultáneas con cuota 5 dan exactamente 5 éxitos y 5 `409`, y el rechazado nunca sube el archivo. El cupo es **por documento** (`Folder.cupos`, el id se genera antes de reservar): reservar y liberar son idempotentes, así que cualquier reintento puede volver a liberarlo sin descuadrar la cuota. `QuotaReconciler` devuelve las reservas viejas sin documento (una compensación que no alcanzó a liberar) y cuenta lo que falte; al arrancar migra las carpetas que solo tenían el contador |
 | Fallos a mitad de camino | Compensación: si falla el storage se devuelve el cupo (`503`); si falla guardar los metadatos se **borra el objeto** subido y se devuelve el cupo |
 | URL de descarga | Prefirmada, **1 hora como máximo** (ADR-06), firmada para el endpoint *público* del storage. Alterar la clave da `403` |
 | Evento `documento.cargado` | Se publica **después** de guardar; la respuesta no espera al consumidor. Si el broker no confirma en `EVENT_PUBLISH_TIMEOUT_MS` o lo rechaza, la carga **no falla** (ADR-04): el documento queda con `eventoPublicado: false` para reconciliar. Lleva un `eventId` para que el consumidor sea idempotente |
@@ -367,8 +367,9 @@ cédula.
 |---|---|
 | Cédula (`idCitizen`) | Copia local en la carpeta, desde `ciudadano.registrado` (ya la traía). No va en el token ni se pide al ciudadano. Una carpeta creada por una carga antes del evento no la tiene: responde `409` y se puede reintentar cuando llegue |
 | Intentos | Cada solicitud incrementa `autenticacionIntento`. El `eventId` es `<documentoId>-auth-<n>`: un reenvío del mismo intento es el mismo evento; pedir de nuevo tras un fallo no se confunde con un duplicado |
-| Resultado | Se aplica solo si el documento sigue `en autenticacion` **en ese intento**: un resultado repetido o atrasado no hace nada, y el cupo se libera una sola vez |
+| Resultado | Se aplica solo si el documento sigue `en autenticacion` **en ese intento**: un resultado repetido o atrasado no cambia el estado. Liberar el cupo es idempotente: si falló después de certificar, la reentrega del evento lo libera |
 | Cuota | `en autenticacion` sigue siendo no certificado y conserva su cupo; al certificarse se libera (RNF-04); si falla, lo conserva |
+| Sin resultado | Un documento `en autenticacion` con la solicitud ya publicada y sin resultado tras `AUTHENTICATION_TIMEOUT_MS` (30 min; el arranque exige más de 15, la vigencia de la URL) vuelve a `temporal`: `ms-documentos` publica `documento.autenticacion_fallida` (`no_disponible`, el mismo `eventId` que usaría `ms-autenticacion`) y el ciudadano recibe el aviso y puede reintentar. Si el broker no lo confirma, no cambia nada y se reintenta |
 | Broker caído al pedir | La solicitud no falla (ADR-04): queda `autenticacionEventoPublicado:false` y la reenvía `AuthenticationRequestReconciler` |
 | `ms-autenticacion` caído | La cola `ms-autenticacion.autenticacion-solicitada` la predeclara `ms-documentos`: las solicitudes esperan y se procesan al volver (matriz de degradación) |
 
@@ -378,9 +379,9 @@ cédula.
 |---|---|
 | URL prefirmada | De **lectura**, vigencia **exacta** de `PRESIGNED_URL_AUTH_TTL_SECONDS` (900 s por defecto; el arranque rechaza más de 900). Se firma para `S3_PUBLIC_ENDPOINT` (el host que GovCarpeta abre). Solo se firman claves `ciudadanos/<ciudadanoId>/<uuid>.pdf` **del mismo ciudadano del evento**: aunque alguien publicara en el bus, no obtiene una URL de otro objeto |
 | Llamada | `{idCitizen: number, UrlDocument, documentTitle}` (U mayúscula), nunca el binario; respuesta tratada como texto plano; `x-trace-id` propagado |
-| Reintentos | `500` o sin respuesta → hasta **3** intentos con espera creciente (1 s, 2 s). `204`/`501`/otros → definitivo, sin reintentar. Solo `200` certifica |
+| Reintentos | Transitorio (sin respuesta, `408`, `425`, `429` y `5xx` salvo `501`: el sandbox vive en Heroku y un dyno dormido responde `503`) → hasta **3** intentos con espera creciente (1 s, 2 s, o el `Retry-After` hasta 5 s); agotados, `no_disponible`. `204`/`501`/`3xx`/otros `4xx` → definitivo (`rechazado`), sin reintentar. Solo `200` certifica. La misma clasificación (`httpStatus.js`) la usan todos los clientes de GovCarpeta del sistema |
 | Resultado | `documento.autenticado` o `documento.autenticacion_fallida` (`motivo`: `rechazado` \| `no_disponible`). Si GovCarpeta no respondió tras los 3 intentos, **además** el mensaje original va a `ms-autenticacion.autenticacion-solicitada.fallidos` (evidencia de la caída del centralizador); un rechazo definitivo es un resultado procesado y se confirma normal |
-| Idempotencia | `AuthenticationAttempt` con índice único por `eventId` y reclamo atómico: una reentrega no vuelve a llamar a GovCarpeta (8 entregas simultáneas → 1 llamada); si el resultado no se alcanzó a publicar, se republica **el mismo**. Un fallo propio antes de llamar (p. ej. no se pudo firmar) libera el reclamo para que la reentrega lo retome; un reclamo abandonado se retoma tras 5 min |
+| Idempotencia | `AuthenticationAttempt` con índice único por `eventId` y reclamo atómico: una reentrega no vuelve a llamar a GovCarpeta (8 entregas simultáneas → 1 llamada); si el resultado no se alcanzó a publicar, se republica **el mismo**. Un fallo propio antes de llamar (p. ej. no se pudo firmar), o no poder guardar el resultado, libera el reclamo para que la reentrega lo retome. Una entrega que encuentra el intento **en curso** no se confirma como duplicada (si el proceso que lo tenía murió, el resultado se perdería): lanza un error transitorio, el consumidor reintenta con espera creciente y la retoma cuando el reclamo vence (`staleClaimMs`, derivado de los plazos de GovCarpeta: ~55 s por defecto) |
 | Bitácora | `documento.autenticar_govcarpeta`, `actorType: "sistema"`, `resourceOwner` = ciudadano, `delegated: true` (actúa porque el ciudadano lo pidió), con el número de llamadas |
 | Datos personales | Ni la cédula, ni el título, ni la URL firmada (es una credencial temporal) aparecen en logs, en la base de este servicio ni en el evento de resultado |
 | Configuración | Mismas reglas que el resto fuera de local (TLS en Mongo/RabbitMQ, `https` en S3, en el host público y en GovCarpeta, sin credenciales de tutorial). `GOVCARPETA_MAX_ATTEMPTS` no puede superar 3 |
@@ -393,8 +394,11 @@ cédula.
   guarda el estado y la `fechaAutenticacion` (supuesto ya declarado en el expediente, 9.4).
 - **Credenciales de storage:** `ms-autenticacion` usa las mismas del bucket de `ms-documentos`; en despliegue deberían
   ser de solo lectura.
-- **Cupo al certificar:** pasar a `certificado` y liberar el cupo son dos escrituras; si el proceso muere entre ambas,
-  el ciudadano queda con un cupo ocupado de más (nunca de menos).
+- **Una llamada puede repetirse:** si guardar el resultado falla, o un proceso lento supera `staleClaimMs`, GovCarpeta
+  puede recibir el mismo `PUT` dos veces. Se asume idempotente (es una actualización del mismo documento); no se
+  verificó contra el sandbox.
+- **Resultado tardío:** si un resultado llega después del plazo de 30 min, el documento ya volvió a `temporal` y el
+  resultado se ignora (el ciudadano recibió el aviso de que no se pudo completar y puede pedirlo de nuevo).
 - **Sin límite de solicitudes:** un ciudadano puede reintentar un documento rechazado cuantas veces quiera (cada una es
   una llamada al centralizador); no hay limitación de tasa en el sistema.
 - **La URL entregada no se puede revocar** antes de sus 15 minutos (propiedad de las URLs prefirmadas).
@@ -432,7 +436,12 @@ ciudadano -POST /api/v1/transfers {operadorDestinoId}-> ms-interoperabilidad (20
 | Solo lectura | Mientras dura, la carpeta no admite cargas (HU-03), entregas institucionales (HU-10), autenticaciones (HU-04) ni solicitudes (HU-06.3): `409`. La consulta sigue funcionando. La reserva de cupo lo revalida de forma atómica |
 | Datos del ciudadano | Copia local en `ms-interoperabilidad` desde `ciudadano.registrado` (que ahora lleva también `direccion`): no hay llamadas síncronas entre servicios (ADR-01) |
 | **Confirmación** | El protocolo no autentica al operador que llama: cualquiera que conozca una cédula podría confirmar y hacernos **borrar** al ciudadano. Por eso nuestro `confirmAPI` lleva un **token aleatorio por transferencia** (`?t=...`); una confirmación sin él (o con otro) responde `404` y no borra nada. Compatible con el protocolo: el destino llama la URL tal cual la recibió |
-| Borrado | Solo tras `req_status: 1`, y primero se publica `ciudadano.transferido` (si el broker no confirma se responde error y el destino reintenta). Repetir la confirmación responde igual sin volver a borrar |
+| Borrado | Solo tras `req_status: 1`. Aceptarlo es una escritura condicional (`confirmada`) que **excluye** a la compensación: si ya se estaba compensando (p. ej. venció el plazo) la confirmación responde `404` y no se borra nada; una vez aceptada ya no se compensa, solo se termina (si el broker no confirma `ciudadano.transferido`, el barrido lo reintenta). Se borra **solo lo exportado** (`Folder.exportados`, fijado en la primera exportación). Repetir la confirmación responde igual sin volver a borrar |
+| Tope | `TRANSFER_MAX_DOCUMENTS` (500, el mismo en `ms-documentos` y `ms-interoperabilidad`; el arranque rechaza más porque el pedido lleva una URL firmada por documento y el cuerpo se limita a 1 MB). Una carpeta más grande **no se recorta**: la exportación responde `ok:false` `demasiados_documentos` y la transferencia se cancela de inmediato |
+| Documentos que llegan durante la exportación | Una carga (p. ej. un certificado de HU-10) que termina después de fijada la exportación se deshace (`409`); si no se pudiera deshacer, al confirmar no se borra ni ella ni la carpeta (queda bloqueada para revisión) |
+| Copias viejas | Ningún paso de la saga sigue con la copia de la transferencia que trae quien lo invoca: si la escritura condicional no prospera, otro camino ya la resolvió y el paso se abandona (sin re-afiliar, sin `transferencia.cancelada` tardía, sin bitácora falsa) |
+| Errores del otro operador | Transitorios: red, `408`, `425`, `429` y `5xx` salvo `501`, con su `Retry-After` acotado entre 1 y 5 min (y contando como envío). Definitivos: `3xx`, otros `4xx`, `501` y una URL que no pasa la política |
+| Aviso | `transferencia.cancelada` lleva el motivo (código) y el operador destino: `ms-notificaciones` le explica al ciudadano por qué no se completó y que sus datos siguen aquí (un correo por transferencia) |
 | Plazos | `TransferSweeper` (cada 30 s) reenvía a los 5 min sin confirmación, hasta 3 envíos; repite órdenes internas sin respuesta; termina compensaciones que quedaron a medias (`fallando`) |
 | Estado en `ms-identidad` | Se **borra** el registro (no se deja `transferido`): el protocolo pide borrar y así, si el ciudadano regresa, se puede importar de nuevo con la misma dirección única (índice único) |
 
@@ -451,7 +460,8 @@ otro operador -POST /api/transferCitizen-> ms-interoperabilidad (202)
 | URLs de un tercero | `confirmAPI` y cada URL de documento pasan la política de HU-05a (http/https, sin credenciales, sin hosts o IPs locales/privadas, sin `file:`); además la **IP resuelta** se valida al conectar (DNS rebinding, pendiente desde HU-05a), sin redirecciones, con plazo y tamaño máximo |
 | Documentos | Se aceptan PDF, PNG y JPEG por su **firma real**; si el origen declara `sha256`, debe coincidir. Todo o nada: si uno falla, se deshace lo importado y se confirma `0` (el origen no borra nada). Un 5xx del origen se reintenta. Idempotente por (transferencia, clave) |
 | Estado del documento | El que declare el origen en `metadata` (`certificado`/`temporal`); sin metadato, `temporal`. Los temporales ocupan cupo aunque superen el máximo (no se pierde nada al llegar). Un escaneo (imagen) no se puede autenticar después (HU-04 solo firma PDF) |
-| Reintentos del origen | Un pedido idéntico devuelve la misma transferencia; otro pedido para la misma cédula en curso, o una cédula que ya es nuestra: `409` |
+| Reintentos del origen | Un pedido idéntico devuelve la misma transferencia. Si es idéntico a una transferencia que **ya completamos** (el origen no recibió la confirmación), se reabre y se le vuelve a confirmar `1` en vez de responder `409`, que lo haría compensar y dejaría al ciudadano en los dos operadores. Otro pedido para la misma cédula en curso, o una cédula que ya es nuestra: `409` |
+| Rechazo | Compensación **completa**: primero la transición condicional (si el registro acababa de completarse, no se deshace nada), luego las órdenes de reversión de los documentos (`ms-documentos`) **y del registro** (`transferencia.revertir_registro` → `ms-identidad` desafilia en GovCarpeta si la afiliación es nuestra, revoca sesiones y borra al ciudadano), con reintento desde el barrido (`reversionPendiente`), y **solo después** se confirma `0`. Las dos reversiones dejan una lápida: una orden de importar o registrar que llega tarde, o una que estaba a mitad, no vuelve a crear nada |
 | Registro | Igual de cuidadoso que HU-01: `pendiente` antes de GovCarpeta, sin reintento ciego de `registerCitizen`, un resultado ambiguo se resuelve con `validateCitizen` |
 
 ### Límites conocidos
@@ -461,13 +471,19 @@ otro operador -POST /api/transferCitizen-> ms-interoperabilidad (202)
 - **RF-10 depende del origen**: si el otro operador no envía `direccionUnica` (extensión opcional), se le genera una
   nueva y queda constancia en el log.
 - **Compensación incompleta posible**: si el destino alcanzó a afiliar al ciudadano pero su confirmación nunca nos
-  llegó, al compensar `registerCitizen` responde `501`; la transferencia queda `fallida` con el motivo
-  `reafiliacion_fallida_501` para revisión manual. GovCarpeta no permite distinguir el caso automáticamente.
+  llegó (ni tras nuestros reenvíos), al compensar `registerCitizen` responde `501`; la transferencia queda `fallida`
+  con el motivo `reafiliacion_fallida_501` para revisión manual. GovCarpeta no permite distinguir el caso
+  automáticamente. Lo mismo si el destino confirma `1` cuando ya empezamos a compensar: respondemos `404` y el otro
+  operador debería revertir.
+- **Reversión en el destino tras un corte**: si `ms-identidad` cayó justo después de que GovCarpeta afiliara al
+  ciudadano y antes de marcarlo (`afiliadoPorImportacion`), la reversión no sabe que la afiliación es nuestra (podría
+  ser la del origen, que re-afilia al compensar) y no lo desafilia.
 - **Estado de los documentos**: un documento `en autenticacion` viaja como `temporal`; el `certificado` que declara el
   otro operador se acepta sin re-verificar (GovCarpeta no ofrece un artefacto verificable, ver 9.4 del expediente).
 - **URLs exportadas**: vigencia de 1 h (tope de `PRESIGNED_URL_DOWNLOAD_TTL_SECONDS`); alcanza para los 3 envíos de
   5 minutos. No se pueden revocar antes de vencer.
-- **Sin aviso al ciudadano que se va** del resultado de su transferencia (solo el que llega recibe la bienvenida).
+- **Aviso al ciudadano que se va**: solo si la transferencia se cancela; si se completa, su aviso es la bienvenida del
+  operador destino.
 - No se probó contra otro operador real del curso: la suite de contrato es HT-05.
 
 ### 14.2 Activación de cuenta del ciudadano transferido
@@ -480,7 +496,8 @@ queda activo, con su carpeta, pero sin contraseña.
 | Código | Al importarlo, `ms-identidad` genera un código aleatorio de **256 bits**, de un solo uso, y guarda **solo su huella SHA-256** y su vencimiento (`ACTIVATION_TTL_HOURS`, 72 h por defecto, tope 7 días) |
 | Envío | `ciudadano.activacion_requerida` → `ms-notificaciones` lo envía al correo que trajo el operador origen. El código va solo en el cuerpo: nunca en el asunto (se guarda en Mongo) ni en los logs |
 | Activar | `POST /api/v1/auth/activate {documento, codigo, password}` (pública en el gateway): la contraseña se guarda con Argon2id y el código se **consume en la misma escritura condicional** (dos intentos simultáneos: uno gana). Cualquier fallo —documento inexistente, código errado, vencido o ya usado— es el mismo `401` genérico. Una cuenta que ya tiene contraseña no se puede "activar" (no sirve para cambiar una contraseña ajena) |
-| Reenviar | `POST /api/v1/auth/activate/resend {documento}`: código nuevo (invalida el anterior), máximo uno cada 5 minutos; responde lo mismo exista o no el documento (no permite averiguar quién está afiliado) |
+| Reenviar | `POST /api/v1/auth/activate/resend {documento}`: código nuevo (invalida el anterior), máximo uno cada 5 minutos; responde lo mismo exista o no el documento (no permite averiguar quién está afiliado). El enfriamiento va **en el filtro de la escritura condicional**: N reenvíos simultáneos mandan un solo correo |
+| Garantía de envío | El código se emite en cualquier camino en que el ciudadano quede activo sin contraseña (también si lo activó el reconciliador del registro), pero solo si aún no tiene uno: una reentrega no manda otro correo. Si el broker no lo confirma queda `activacionPublicada: false` y `ActivationReconciler` emite uno nuevo (el código no se guarda en claro, así que no se puede reenviar el mismo) |
 | Bitácora | `ciudadano.activacion_enviar`, `ciudadano.activar` (éxito y rechazo) |
 
 **Límites:** el correo es el único factor (el mismo supuesto que cualquier recuperación de cuenta por correo); si el
@@ -581,8 +598,8 @@ entidad -POST /api/v1/documents/inbound (HU-10) + solicitudOficialId-> certifica
 | Resolver la entidad | La hace `ms-comparticion`, dueña de las entidades, por evento. **El token institucional no se modificó**: no lleva el NIT (decisión de ADR-07, cubierta por una prueba) |
 | Bandeja | Solo entidades **verificadas** (`403`) y solo sus solicitudes `pendiente`. Incluye la dirección única del ciudadano, que es lo que HU-10 necesita para entregar |
 | Aviso a la entidad | Al resolverse, `ms-comparticion` informa su correo de contacto y la entidad recibe un correo (`solicitud_oficial.pendiente` → ms-notificaciones) con el documento pedido y cómo atenderlo; sin enlaces. Un solo destinatario, un correo por solicitud, reenviado por el reconciliador si el broker no confirma |
-| Atender | La entrega de HU-10 con `solicitudOficialId` se valida **antes** de guardar nada: la solicitud debe estar pendiente, ser de esa entidad y del mismo ciudadano destinatario (`409` si no). Reintentar el mismo envío responde `200` y cierra la solicitud si había quedado a medias |
-| Reemplazo | El temporal se **borra** (archivo y metadatos) y se libera su cupo (RNF-04), solo si sigue siendo temporal y del ciudadano. Queda en la bitácora como `documento.reemplazar_temporal` (entidad, delegada) |
+| Atender | La entrega de HU-10 con `solicitudOficialId` se valida **antes** de guardar nada: la solicitud debe estar pendiente, ser de esa entidad y del mismo ciudadano destinatario (`409` si no). El reintento del mismo envío **también** se valida (entidad y ciudadano): solo se le perdona que la solicitud ya esté atendida si la atendió ese mismo documento; responde `200` y termina el reemplazo si había quedado a medias. El cierre filtra además por entidad y ciudadano (defensa en profundidad) |
+| Reemplazo | El temporal se **borra** y se libera su cupo (RNF-04), solo si sigue siendo temporal y del ciudadano. Orden pensado para los reintentos: metadatos → cupo (idempotente) → archivo; si el archivo no se puede borrar queda huérfano en el storage, pero nunca un documento sin archivo. Queda en la bitácora como `documento.reemplazar_temporal` (entidad, delegada) |
 
 **Límites conocidos.**
 
