@@ -804,3 +804,19 @@ describe("Cuerpo y fallos del destino", () => {
     }
   });
 });
+
+describe("ADR-06: POST /api/v1/auth/reauthenticate (autenticacion escalonada)", () => {
+  test("es PROTEGIDA: sin sesion el gateway responde 401 y ms-identidad no recibe nada", async () => {
+    const res = await request(gateway).post("/api/v1/auth/reauthenticate").send({ password: "x" });
+    expect(res.status).toBe(401);
+    expect(upstream.calls).toHaveLength(0);
+  });
+
+  test("con sesion se reenvia a ms-identidad con el Authorization y el cuerpo intactos", async () => {
+    const t = token();
+    await request(gateway).post("/api/v1/auth/reauthenticate").set("Authorization", `Bearer ${t}`).send({ password: "Clave-123" });
+    expect(upstream.calls).toHaveLength(1);
+    expect(upstream.calls[0]).toMatchObject({ method: "POST", path: "/api/v1/auth/reauthenticate", body: { password: "Clave-123" } });
+    expect(upstream.calls[0].headers.authorization).toBe(`Bearer ${t}`);
+  });
+});

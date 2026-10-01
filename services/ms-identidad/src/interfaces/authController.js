@@ -44,6 +44,21 @@ function makeAuthController(authService, activationService) {
       }
     },
 
+    /** ADR-06: confirma la contrasena y devuelve un access token reforzado para operaciones sensibles. */
+    async reauthenticate(req, res) {
+      try {
+        const body = req.body || {};
+        const result = await authService.reauthenticate({ ciudadanoId: req.auth.ciudadanoId, password: body.password });
+        res.set("Cache-Control", "no-store");
+        return res.status(200).json(result);
+      } catch (err) {
+        if (err instanceof InvalidCredentialsError) return res.status(401).json({ error: err.message });
+        if (err instanceof ValidationError) return res.status(400).json({ error: err.message });
+        logger.error("reautenticacion.error_inesperado", { err });
+        return res.status(500).json({ error: "Error interno" });
+      }
+    },
+
     async refresh(req, res) {
       try {
         const tokens = await authService.refresh(req.body || {});

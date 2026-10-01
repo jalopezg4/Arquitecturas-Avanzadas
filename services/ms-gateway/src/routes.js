@@ -20,6 +20,8 @@ const ROUTES = [
   { method: "POST", path: "/api/v1/auth/activate/resend", upstream: "IDENTIDAD_URL", public: true },
   // ms-identidad -- protegidas
   { method: "GET", path: "/api/v1/auth/me", upstream: "IDENTIDAD_URL" },
+  // ADR-06: confirmar la contrasena antes de una operacion sensible (protegida: exige la sesion vigente)
+  { method: "POST", path: "/api/v1/auth/reauthenticate", upstream: "IDENTIDAD_URL" },
   // ms-comparticion -- HU-06.1: registro de una entidad institucional. Publica (la entidad aun no tiene cuenta con nosotros);
   // el servicio puede exigir un token de registro (x-registration-token), que el gateway reenvia intacto.
   { method: "POST", path: "/api/v1/institutions", upstream: "COMPARTICION_URL", public: true },

@@ -72,6 +72,19 @@ Por qué una sesión y no un registro por token: con "marcar usado" y "emitir el
 
 **Cada servicio valida el token por sí mismo (ADR-06).** `src/security/requireAuth.js` verifica firma (llavero de la sección 3, algoritmo fijado a HS256), expiración, emisor y que sea un token de **acceso**: un refresh token no sirve para llamar a la API. Cada microservicio debe montarlo con **su propio** `SecretsManager` (misma llave compartida), sin llamar a `ms-identidad` ni confiar en que el gateway ya validó. Probado con un segundo servicio simulado: acepta el token válido (también tras rotar la llave), rechaza el expirado, el firmado con otra llave, `alg=none`, el alterado y el refresh.
 
+### Autenticación escalonada (ADR-06, RNF-06)
+
+Las operaciones **sensibles** exigen, además de la sesión, que el ciudadano **confirme su contraseña** en los últimos 5 minutos: un token de acceso robado, o un dispositivo desbloqueado, no basta para sacar sus documentos ni para llevarse su carpeta. Consultar o descargar lo propio sigue pidiendo solo la sesión (la fricción se gradúa según el riesgo, como decide ADR-06).
+
+| Operación sensible | Servicio | Ruta |
+|---|---|---|
+| Enviar documentos a un tercero (paquete, HU-06.2) | `ms-comparticion` | `POST /api/v1/packages` |
+| **Autorizar** que una entidad reciba documentos (HU-06.3; rechazar no) | `ms-documentos` | `PATCH /api/v1/citizens/me/document-requests/:id/decision` |
+| Cambiar de operador (HU-05c) | `ms-interoperabilidad` | `POST /api/v1/transfers` |
+
+- `POST /api/v1/auth/reauthenticate` (con la sesión vigente y `{ password }`) devuelve un access token **reforzado** de 5 minutos (`JWT_STEP_UP_EXPIRES_IN`) con el claim `reauth` (segundos epoch de la confirmación). Mismas protecciones que el login: Argon2id en tiempo uniforme, respuesta 401 genérica, los fallos **cuentan para el bloqueo** de la cuenta (no sirve para adivinar la contraseña con un token robado) y decisión final atómica (cuenta activa y no bloqueada).
+- Cada servicio lo exige por su cuenta (`requireRecentAuth`, copia propia por servicio): sin confirmación, o con una de más de 5 minutos o con marca en el futuro, responde **401** con `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age=300` (RFC 9470), para que el cliente pida la contraseña y reintente.
+
 ## 6. Gateway (`ms-gateway`, HU-02)
 
 Único punto de entrada. Por cada petición: asigna o propaga el `x-trace-id`, busca la ruta en una **lista blanca** (`src/routes.js`; lo que no está declarado responde `404` y **nunca se reenvía**, tampoco por otro método), y si la ruta no es pública exige un **access token válido antes de contactar al servicio** (mismo criterio que `requireAuth`: firma, expiración, emisor y tipo de token). Luego reenvía la petición con el `Authorization` intacto: **cada microservicio vuelve a validarlo** (ADR-06), el gateway es la primera barrera y no la única.

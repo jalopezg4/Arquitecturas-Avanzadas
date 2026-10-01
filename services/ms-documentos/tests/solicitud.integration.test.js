@@ -72,7 +72,9 @@ beforeEach(async () => {
 const entityToken = (institutionId = EAFIT, { ver = true, ...claims } = {}, options = {}) =>
   entitySecrets.sign({ typ: "access", act: "entidad", ver, ...claims }, { issuer: "ms-comparticion", subject: institutionId, expiresIn: 900, ...options });
 /** Token de ciudadano tal como lo emite ms-identidad (HU-02). */
-const citizenToken = (ciudadanoId = ANA, options = {}) => secrets.sign({ typ: "access" }, { issuer: "ms-identidad", subject: ciudadanoId, expiresIn: 900, ...options });
+// Por defecto REFORZADO (ADR-06: autorizar exige haber confirmado la contrasena); `plainCitizenToken` es una sesion normal.
+const citizenToken = (ciudadanoId = ANA, options = {}, reauth = Math.floor(Date.now() / 1000)) => secrets.sign({ typ: "access", reauth }, { issuer: "ms-identidad", subject: ciudadanoId, expiresIn: 900, ...options });
+const plainCitizenToken = (ciudadanoId = ANA) => secrets.sign({ typ: "access" }, { issuer: "ms-identidad", subject: ciudadanoId, expiresIn: 900 });
 
 const REQUEST_BODY = { direccionUnica: DIR_ANA, descripcion: "Solicitar copia del certificado de estudios" };
 const crear = (token = entityToken(), body = REQUEST_BODY) => request(app).post(PATH).set("Authorization", `Bearer ${token}`).send(body);
@@ -417,5 +419,39 @@ describe("Decidir una solicitud (PATCH /citizens/me/document-requests/:id/decisi
 
     await decidir(creada.body.id, "autorizar").expect(409);
     expect((await Solicitud.findById(creada.body.id).lean()).estado).toBe("rechazada");
+  });
+});
+
+describe("ADR-06: autorizar una solicitud exige confirmar la contrasena (autenticacion escalonada)", () => {
+  const decidir = (id, decision, token) => request(app).patch(`${CITIZEN_PATH}/${id}/decision`).set("Authorization", `Bearer ${token}`).send({ decision });
+
+  test("AUTORIZAR con una sesion normal -> 401 insufficient_user_authentication y la solicitud sigue pendiente", async () => {
+    const creada = await crear(entityToken(EAFIT)).expect(201);
+
+    const res = await decidir(creada.body.id, "autorizar", plainCitizenToken(ANA));
+
+    expect(res.status).toBe(401);
+    expect(res.headers["www-authenticate"]).toMatch(/insufficient_user_authentication/);
+    expect(res.headers["www-authenticate"]).toMatch(/max_age=300/);
+    expect(res.body.reautenticacion).toMatch(/reauthenticate/);
+    const sigue = await decidir(creada.body.id, "autorizar", citizenToken(ANA));
+    expect(sigue.status).toBe(200); // con el token reforzado si se puede
+  });
+
+  test("una confirmacion VIEJA (mas de 5 min) ya no vale", async () => {
+    const creada = await crear(entityToken(EAFIT)).expect(201);
+    const vieja = citizenToken(ANA, {}, Math.floor(Date.now() / 1000) - 301);
+    await decidir(creada.body.id, "autorizar", vieja).expect(401);
+  });
+
+  test("una marca de confirmacion en el FUTURO (reloj manipulado) no vale", async () => {
+    const creada = await crear(entityToken(EAFIT)).expect(201);
+    const futura = citizenToken(ANA, {}, Math.floor(Date.now() / 1000) + 3600);
+    await decidir(creada.body.id, "autorizar", futura).expect(401);
+  });
+
+  test("RECHAZAR no es sensible: basta la sesion normal", async () => {
+    const creada = await crear(entityToken(EAFIT)).expect(201);
+    await decidir(creada.body.id, "rechazar", plainCitizenToken(ANA)).expect(200);
   });
 });

@@ -40,6 +40,8 @@ const config = {
   // Llaves anteriores que siguen VERIFICANDO tokens durante una rotacion (separadas por coma).
   jwtSecretPrevious: list(process.env.JWT_SECRET_PREVIOUS),
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
+  // ADR-06: vigencia del token reforzado tras confirmar la contrasena (operaciones sensibles).
+  jwtStepUpExpiresIn: process.env.JWT_STEP_UP_EXPIRES_IN || "5m",
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   // Cuanto espera la confirmacion del broker antes de responder igual (el aviso no es camino critico, ADR-04).
   eventPublishTimeoutMs: toInt(process.env.EVENT_PUBLISH_TIMEOUT_MS, 3000),

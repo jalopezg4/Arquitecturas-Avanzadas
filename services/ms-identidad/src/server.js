@@ -100,6 +100,7 @@ async function main() {
     auditLogger,
     accessExpiresIn: env.jwtAccessExpiresIn,
     refreshExpiresIn: env.jwtRefreshExpiresIn,
+    stepUpExpiresIn: env.jwtStepUpExpiresIn,
   });
 
   const app = buildApp({ citizenSagaService, authService, secrets, activationService });

@@ -1,5 +1,6 @@
 const express = require("express");
 const requireAuth = require("../security/requireAuth");
+const requireRecentAuth = require("../security/requireRecentAuth");
 const requireEntityAuth = require("../security/requireEntityAuth");
 const requireVerifiedEntity = require("../security/requireVerifiedEntity");
 const uploadMiddleware = require("./uploadMiddleware");
@@ -74,7 +75,10 @@ function documentRoutes({ controller, secrets, entitySecrets, issuer, entityIssu
 
   const authCitizen = requireAuth(secrets, { issuer });
   router.get("/citizens/me/document-requests", authCitizen, controller.listMyDocumentRequests);
-  router.patch("/citizens/me/document-requests/:id/decision", authCitizen, jsonBody, controller.decideDocumentRequest);
+  // ADR-06: AUTORIZAR que una entidad reciba documentos es sensible (rechazar no): exige confirmar la contrasena.
+  const stepUp = requireRecentAuth();
+  const stepUpToAuthorize = (req, res, next) => (req.body && req.body.decision === "autorizar" ? stepUp(req, res, next) : next());
+  router.patch("/citizens/me/document-requests/:id/decision", authCitizen, jsonBody, stepUpToAuthorize, controller.decideDocumentRequest);
 
   router.put("/documents/:id/authenticate", authCitizen, controller.requestAuthentication);
   // HU-09: descarga. Igual que la autenticacion, `:id` es el documento: el dueno lo comprueba el servicio.
