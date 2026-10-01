@@ -35,6 +35,12 @@ class DocumentRepository {
     return Document.find({ ciudadanoId }).sort({ createdAt: 1 }).limit(limit).lean();
   }
 
+  /** HU-05c (origen): los documentos de esa lista que siguen siendo del ciudadano (filtra por dueno). */
+  async findByIdsForOwner(ciudadanoId, ids) {
+    if (!ids.length) return [];
+    return Document.find({ ciudadanoId, _id: { $in: ids } }).sort({ createdAt: 1 }).lean();
+  }
+
   /** HU-05c (destino): lo importado por una transferencia (para idempotencia o para revertirla). */
   async findByTransfer(transferenciaOrigenId) {
     return Document.find({ transferenciaOrigenId }).lean();

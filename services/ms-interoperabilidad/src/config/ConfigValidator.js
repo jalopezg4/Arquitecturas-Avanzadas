@@ -90,6 +90,8 @@ function validateConfig(cfg) {
       if (!isPositiveInt(value)) problems.push(`${name} debe ser un entero positivo`);
     }
     if (!Number.isInteger(t.sweepIntervalMs) || t.sweepIntervalMs < 0) problems.push("TRANSFER_SWEEP_INTERVAL_MS debe ser un entero >= 0");
+    // Una URL prefirmada por documento (~1 KB) en un cuerpo de 1 MB: mas de 500 no caben. Mismo valor en ms-documentos.
+    if (isPositiveInt(t.maxDocuments) && t.maxDocuments > 500) problems.push("TRANSFER_MAX_DOCUMENTS no puede superar 500 (cuerpo de 1 MB del protocolo)");
   }
   if (cfg.eventPublishTimeoutMs !== undefined && !isPositiveInt(cfg.eventPublishTimeoutMs)) problems.push("EVENT_PUBLISH_TIMEOUT_MS debe ser un entero positivo");
 

@@ -103,7 +103,20 @@ class FolderRepository {
 
   /** HU-05c: vuelve a permitir escrituras (transferencia fallida). Solo si la bloqueo ESA transferencia. */
   async unlock(ciudadanoId, transferenciaId) {
-    await Folder.updateOne({ ciudadanoId, transferenciaId }, { $set: { transferenciaId: null } });
+    await Folder.updateOne({ ciudadanoId, transferenciaId }, { $set: { transferenciaId: null }, $unset: { exportados: 1 } });
+  }
+
+  /**
+   * HU-05c: fija QUE documentos exporta la transferencia. Solo la primera vez: una exportacion repetida (reintento de
+   * la orden) reutiliza la misma lista, asi el origen nunca borra algo distinto de lo que mando. Devuelve la lista
+   * vigente, o null si la carpeta ya no la tiene bloqueada esa transferencia.
+   */
+  async setExported(ciudadanoId, transferenciaId, documentoIds) {
+    const ids = documentoIds.map(String);
+    const set = await Folder.findOneAndUpdate({ ciudadanoId, transferenciaId, exportados: { $exists: false } }, { $set: { exportados: ids } }, { new: true }).lean();
+    if (set) return set.exportados;
+    const folder = await Folder.findOne({ ciudadanoId, transferenciaId }, { exportados: 1 }).lean();
+    return folder ? folder.exportados || null : null;
   }
 
   /** HU-05c: el ciudadano ya esta en el otro operador: se borra su carpeta (solo si la bloqueo esa transferencia). */

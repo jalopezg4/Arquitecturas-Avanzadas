@@ -128,7 +128,7 @@ async function main() {
   // HU-05c (origen): bloquear/exportar, borrar al confirmarse y desbloquear si falla. Las colas las predeclara
   // ms-interoperabilidad. Las URLs que se exportan duran lo mismo que una descarga del ciudadano (tope 1 h, ADR-06).
   const transferHandlers = makeTransferHandlers({
-    transferFolderService: new TransferFolderService({ folderRepository, documentRepository, storage, eventPublisher, urlTtlSeconds: env.presignedDownloadTtlSeconds, eventPublishTimeoutMs: env.eventPublishTimeoutMs }),
+    transferFolderService: new TransferFolderService({ folderRepository, documentRepository, storage, eventPublisher, urlTtlSeconds: env.presignedDownloadTtlSeconds, maxDocuments: env.transfer.maxDocuments, eventPublishTimeoutMs: env.eventPublishTimeoutMs }),
   });
   // HU-06.2: entrega de paquetes documentales (URLs del correo: 1 h, como la descarga propia; de la entidad: 15 min).
   const packageDeliveryService = new PackageDeliveryService({
@@ -150,6 +150,7 @@ async function main() {
       eventPublisher,
       eventPublishTimeoutMs: env.eventPublishTimeoutMs,
     }),
+    maxDocuments: env.transfer.maxDocuments,
   });
   for (const consumer of [
     new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-documentos.transferencia-exportar", routingKey: "transferencia.exportar_carpeta", handler: transferHandlers.exportar }),

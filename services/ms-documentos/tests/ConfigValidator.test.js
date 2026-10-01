@@ -108,4 +108,9 @@ describe("ConfigValidator de ms-documentos", () => {
     expect(validateConfig(prod({ tls: { caPath: "/ca" } })).join()).toContain("TLS_CA_PATH");
     expect(validateConfig(prod({ tls: { required: true } })).join()).toContain("REQUIRE_TLS");
   });
+
+  test("TRANSFER_MAX_DOCUMENTS: entero entre 1 y 500 (mismo tope que ms-interoperabilidad)", () => {
+    for (const bad of [0, 501, 1.5]) expect(validateConfig(prod({ transfer: { maxDocuments: bad } })).join()).toContain("TRANSFER_MAX_DOCUMENTS");
+    expect(validateConfig(prod({ transfer: { maxDocuments: 500 } }))).toEqual([]);
+  });
 });

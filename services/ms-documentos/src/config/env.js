@@ -70,6 +70,10 @@ const config = {
     intervalMs: toInt(process.env.RECONCILE_INTERVAL_MS, 60000),
     minAgeMs: toInt(process.env.RECONCILE_MIN_AGE_MS, 60000),
   },
+  // HU-05c: maximo de documentos de una transferencia, en los dos sentidos (mismo valor que en ms-interoperabilidad).
+  transfer: {
+    maxDocuments: toInt(process.env.TRANSFER_MAX_DOCUMENTS, 500),
+  },
   // HU-05c: descarga de los documentos de un ciudadano que llega transferido (URLs de OTRO operador).
   transferImport: {
     timeoutMs: toInt(process.env.TRANSFER_DOWNLOAD_TIMEOUT_MS, 30000),

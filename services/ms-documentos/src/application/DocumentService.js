@@ -3,7 +3,7 @@ const logger = require("../tracing/logger");
 const { documentoCargadoPayload } = require("./events");
 const mongoose = require("mongoose");
 const { ESTADOS_DE_CARGA } = require("../domain/Document");
-const { DocumentoNoEncontradoError, DocumentoAjenoError } = require("../domain/errors");
+const { DocumentoNoEncontradoError, DocumentoAjenoError, CarpetaEnTransferenciaError } = require("../domain/errors");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -234,6 +234,20 @@ class DocumentService {
         tamanoBytes: file.buffer.length,
         sha256: crypto.createHash("sha256").update(file.buffer).digest("hex"),
       });
+
+      // HU-05c: `assertWritable` se comprobo al principio, pero entre eso y crear el documento la carpeta pudo
+      // bloquearse y exportarse. Si la exportacion ya se fijo sin este documento, no viajaria al destino: se deshace.
+      const folder = await this.folderRepository.get(ciudadanoId);
+      if (folder && folder.transferenciaId && Array.isArray(folder.exportados) && !folder.exportados.includes(String(doc._id))) {
+        const removed = await this.documentRepository.deleteByIds([doc._id]).catch(() => 0);
+        // Si no se pudo borrar, el documento se queda (con su archivo y su cupo): el borrado de la transferencia no
+        // lo toca y la carpeta se conserva para revisarlo.
+        if (!removed) {
+          stored = false;
+          reserved = false;
+        }
+        throw new CarpetaEnTransferenciaError();
+      }
 
       await this._publish(doc);
       await this._audit(ciudadanoId, "exito", undefined, { estado, tamanoBytes: file.buffer.length }, doc._id.toString(), actor);

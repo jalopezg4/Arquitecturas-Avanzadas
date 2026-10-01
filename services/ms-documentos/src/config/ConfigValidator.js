@@ -14,6 +14,9 @@ const WEAK_S3_KEYS = new Set(["minioadmin", "minio", "admin", "root", "test", "c
 const MAX_DOWNLOAD_TTL_SECONDS = 60 * 60;
 const MAX_STORAGE_TOTAL_MS = 9000; // por debajo del plazo por defecto del gateway (10 s)
 const MAX_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024; // tope duro: un valor mayor casi siempre es un error de configuracion
+// HU-05c: el pedido de transferencia lleva una URL prefirmada por documento (~1 KB cada una) y el cuerpo se limita a
+// 1 MB en ms-interoperabilidad: mas de 500 no caben.
+const MAX_TRANSFER_DOCUMENTS = 500;
 
 class ConfigError extends Error {
   constructor(problems) {
@@ -117,6 +120,10 @@ function validateConfig(cfg) {
   const ttl = cfg.presignedDownloadTtlSeconds;
   if (!isPositiveInt(ttl)) problems.push("PRESIGNED_URL_DOWNLOAD_TTL_SECONDS debe ser un entero positivo");
   else if (ttl > MAX_DOWNLOAD_TTL_SECONDS) problems.push(`PRESIGNED_URL_DOWNLOAD_TTL_SECONDS no puede superar ${MAX_DOWNLOAD_TTL_SECONDS}s (politica de expiracion, ADR-06)`);
+
+  if (cfg.transfer && (!isPositiveInt(cfg.transfer.maxDocuments) || cfg.transfer.maxDocuments > MAX_TRANSFER_DOCUMENTS)) {
+    problems.push(`TRANSFER_MAX_DOCUMENTS debe ser un entero entre 1 y ${MAX_TRANSFER_DOCUMENTS} (cuerpo de 1 MB del protocolo)`);
+  }
 
   const ti = cfg.transferImport;
   if (ti) {

@@ -204,3 +204,61 @@ describe("ciudadano.transferido / transferencia.cancelada", () => {
     await upload().expect(201);
   });
 });
+
+// Revision del PR #90: tope unico, sin recortes silenciosos, y el origen borra SOLO lo que exporto.
+describe("tope de documentos y lista de exportados", () => {
+  const conTope = (maxDocuments) =>
+    makeTransferHandlers({ transferFolderService: new TransferFolderService({ folderRepository, documentRepository, storage, eventPublisher: publisher, urlTtlSeconds: 3600, maxDocuments, eventPublishTimeoutMs: 200, now: () => NOW }) });
+  const docDirecto = () =>
+    Document.create({ ciudadanoId: ANA, titulo: "x", entidadAvaladora: "x", fecha: new Date(), storageKey: `ciudadanos/${ANA}/tarde.pdf`, mimeType: "application/pdf", tamanoBytes: 1, sha256: "a".repeat(64), estado: "certificado" });
+
+  test("mas documentos que el tope -> ok:false 'demasiados_documentos' (sin recortar) y la carpeta queda desbloqueada", async () => {
+    for (let i = 0; i < 3; i++) await upload().expect(201);
+
+    await conTope(2).exportar({ transferenciaId: T1, ciudadanoId: ANA });
+
+    expect(exportado()).toEqual([{ transferenciaId: T1, ciudadanoId: ANA, ok: false, motivo: "demasiados_documentos" }]);
+    expect((await Folder.findOne({ ciudadanoId: ANA }).lean()).transferenciaId).toBeNull();
+    await upload().expect(201);
+  });
+
+  test("exactamente el tope -> se exportan todos", async () => {
+    await upload().expect(201);
+    await upload().expect(201);
+    await conTope(2).exportar({ transferenciaId: T1, ciudadanoId: ANA });
+    expect(exportado()[0]).toMatchObject({ ok: true });
+    expect(exportado()[0].documentos).toHaveLength(2);
+  });
+
+  test("un documento que aparece despues de exportar no entra en un reintento ni se borra al confirmar", async () => {
+    await upload().expect(201);
+    await handlers.exportar({ transferenciaId: T1, ciudadanoId: ANA });
+    const tarde = await docDirecto(); // se colo durante la exportacion
+
+    await handlers.exportar({ transferenciaId: T1, ciudadanoId: ANA }); // reintento de la orden
+    const [primera, segunda] = exportado();
+    expect(segunda.documentos.map((d) => d.documentoId)).toEqual(primera.documentos.map((d) => d.documentoId));
+
+    await handlers.transferido({ transferenciaId: T1, ciudadanoId: ANA });
+    expect(await Document.findById(tarde._id).lean()).not.toBeNull(); // no viajo: no se pierde
+    expect(await Document.countDocuments({ ciudadanoId: ANA })).toBe(1);
+    expect((await Folder.findOne({ ciudadanoId: ANA }).lean()).transferenciaId).toBe(T1); // se conserva bloqueada
+  });
+
+  test("una carga que termina justo despues de exportar se deshace (409) en vez de quedar fuera del envio", async () => {
+    const documentService = new DocumentService({ documentRepository, folderRepository, storage, eventPublisher: publisher, quota: 5, maxUploadBytes: 1024 * 1024 });
+    await upload().expect(201);
+    const putReal = storage.put.getMockImplementation();
+    storage.put.mockImplementationOnce(async (...args) => {
+      await handlers.exportar({ transferenciaId: T1, ciudadanoId: ANA }); // la carpeta se bloquea y exporta en medio
+      return putReal(...args);
+    });
+
+    await expect(documentService.upload({ ciudadanoId: ANA, file: { buffer: pdf(), mimetype: "application/pdf" }, metadata: validMeta, estado: "certificado" })).rejects.toThrow(/transferencia/);
+
+    expect(await Document.countDocuments({ ciudadanoId: ANA })).toBe(1);
+    expect(storage.objects.size).toBe(1); // el archivo de la carga deshecha tambien se borro
+    await handlers.transferido({ transferenciaId: T1, ciudadanoId: ANA });
+    expect(await Folder.countDocuments({ ciudadanoId: ANA })).toBe(0);
+  });
+});

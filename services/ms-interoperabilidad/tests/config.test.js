@@ -159,4 +159,9 @@ describe("HU-05c: configuracion de la transferencia", () => {
     expect(problems).toContain("TRANSFER_MAX_SEND_ATTEMPTS");
     expect(problems).toContain("TRANSFER_SWEEP_INTERVAL_MS");
   });
+
+  test("TRANSFER_MAX_DOCUMENTS no puede superar 500 (cuerpo de 1 MB del protocolo)", () => {
+    expect(validateConfig(prod({ transfer: { ...prod().transfer, maxDocuments: 501 } })).join()).toContain("TRANSFER_MAX_DOCUMENTS");
+    expect(validateConfig(prod({ transfer: { ...prod().transfer, maxDocuments: 500 } })).join()).not.toContain("TRANSFER_MAX_DOCUMENTS");
+  });
 });
