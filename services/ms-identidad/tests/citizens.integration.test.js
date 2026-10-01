@@ -205,3 +205,35 @@ describe("telefono en el registro (HU-06.3, Paso 3.1)", () => {
     expect(sinTelefono.telefono).toBeNull();
   });
 });
+
+describe("POST /api/v1/citizens -- Registraduria (HU-01, pasos 4-5)", () => {
+  const Citizen = require("../src/domain/Citizen");
+  const { SimulatedRegistraduriaClient } = require("../src/infrastructure/RegistraduriaClient");
+  const appWith = (registraduriaClient, gov = makeFakeGovCarpeta()) =>
+    buildApp({ citizenSagaService: new CitizenSagaService({ citizenRepository: new CitizenRepository(), govCarpetaClient: gov, eventPublisher: makeFakePublisher(), registraduriaClient }) });
+
+  test("422 si la Registraduria no encuentra la identidad; no se persiste ni se llama a GovCarpeta", async () => {
+    const gov = makeFakeGovCarpeta();
+    const res = await request(appWith(new SimulatedRegistraduriaClient({ noEncontrados: [String(validBody.documento)] }), gov)).post("/api/v1/citizens").send(validBody);
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/Registraduria/);
+    expect(gov.validateCitizen).not.toHaveBeenCalled();
+    expect(await Citizen.countDocuments()).toBe(0);
+  });
+
+  test("422 si la cedula esta cancelada", async () => {
+    const res = await request(appWith(new SimulatedRegistraduriaClient({ cancelados: [String(validBody.documento)] }))).post("/api/v1/citizens").send(validBody);
+    expect(res.status).toBe(422);
+  });
+
+  test("503 si la Registraduria no responde, sin dejar nada", async () => {
+    const res = await request(appWith(new SimulatedRegistraduriaClient({ noDisponible: true }))).post("/api/v1/citizens").send(validBody);
+    expect(res.status).toBe(503);
+    expect(await Citizen.countDocuments()).toBe(0);
+  });
+
+  test("201 cuando la identidad es vigente", async () => {
+    await request(appWith(new SimulatedRegistraduriaClient())).post("/api/v1/citizens").send(validBody).expect(201);
+  });
+});

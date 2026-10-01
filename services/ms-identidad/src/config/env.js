@@ -46,6 +46,12 @@ const config = {
   // Vigencia del codigo de activacion del ciudadano transferido (HU-05c). 1 a 168 horas.
   activationTtlHours: toInt(process.env.ACTIVATION_TTL_HOURS, 72),
   // Reconciliacion de registros (0 desactiva el proceso): resuelve pendientes ambiguos y reenvia ciudadano.registrado.
+  // Registraduria SIMULADA (HU-01, supuesto 9.4): cedulas que responde como inexistentes o canceladas, para poder
+  // demostrar el rechazo. Vacio = todas vigentes.
+  registraduria: {
+    noEncontrados: list(process.env.REGISTRADURIA_SIMULADA_NO_ENCONTRADOS),
+    cancelados: list(process.env.REGISTRADURIA_SIMULADA_CANCELADOS),
+  },
   reconcile: {
     intervalMs: toInt(process.env.RECONCILE_INTERVAL_MS, 60000),
     minAgeMs: toInt(process.env.RECONCILE_MIN_AGE_MS, 5 * 60000),

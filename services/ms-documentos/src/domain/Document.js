@@ -7,7 +7,8 @@ const ESTADOS = ["temporal", "en autenticacion", "certificado"];
 const ESTADOS_DE_CARGA = ["temporal", "certificado"];
 // Quien puso el documento en la carpeta (HU-10). No es lo mismo que el DUENO: el dueno es siempre el ciudadano.
 // "transferencia" (HU-05c): llego desde otro operador junto con el ciudadano.
-const ORIGENES = ["ciudadano", "entidad", "transferencia"];
+// "registraduria" (HU-01, paso 13): la cedula firmada que se guarda al crear la carpeta.
+const ORIGENES = ["ciudadano", "entidad", "transferencia", "registraduria"];
 
 /**
  * Metadatos de un documento de la carpeta (RF-19, RF-20). El archivo NO esta aqui: vive en el object storage y
@@ -71,6 +72,9 @@ documentSchema.index(
   { transferenciaOrigenId: 1, claveTransferencia: 1 },
   { unique: true, partialFilterExpression: { transferenciaOrigenId: { $type: "string" }, claveTransferencia: { $type: "string" } } }
 );
+
+// HU-01: UNA sola cedula de la Registraduria por ciudadano, aunque el evento se entregue varias veces a la vez.
+documentSchema.index({ ciudadanoId: 1, origen: 1 }, { unique: true, partialFilterExpression: { origen: "registraduria" } });
 
 module.exports = mongoose.model("Document", documentSchema);
 module.exports.ESTADOS = ESTADOS;

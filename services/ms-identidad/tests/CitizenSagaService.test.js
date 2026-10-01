@@ -178,7 +178,7 @@ describe("CitizenSagaService.register()", () => {
     expect(dump).not.toContain(validInput.password);
     expect(dump).not.toContain("argon2");
     // `direccion` (HU-05c): ms-interoperabilidad la necesita para re-afiliar en GovCarpeta si una transferencia falla.
-    expect(Object.keys(payload).sort()).toEqual(["ciudadanoId", "correo", "direccion", "direccionUnica", "documento", "nombre", "telefono"]);
+    expect(Object.keys(payload).sort()).toEqual(["ciudadanoId", "correo", "direccion", "direccionUnica", "documento", "nombre", "origen", "telefono"]);
   });
 
   test("NO falla el registro si eventPublisher.publish() rechaza (evento no es camino critico, ADR-04)", async () => {
@@ -341,5 +341,69 @@ describe("CitizenSagaService.register()", () => {
       const [, payload] = publisher.publish.mock.calls[0];
       expect(payload.telefono).toBeNull();
     });
+  });
+});
+
+describe("Registraduria (HU-01, pasos 4-5): se verifica la identidad antes de afiliar", () => {
+  const { IdentityNotVerifiedError } = require("../src/application/CitizenSagaService");
+  const { SimulatedRegistraduriaClient } = require("../src/infrastructure/RegistraduriaClient");
+  const build = (registraduriaClient) => {
+    const repo = makeFakeRepo();
+    const gov = makeFakeGovCarpeta();
+    const publisher = makeFakePublisher();
+    const service = new CitizenSagaService({ citizenRepository: repo, govCarpetaClient: gov, eventPublisher: publisher, registraduriaClient });
+    return { repo, gov, publisher, service };
+  };
+
+  test("identidad vigente: se consulta ANTES que GovCarpeta y el registro sigue normal", async () => {
+    const registraduria = { verifyIdentity: jest.fn(async () => ({ estado: "vigente" })) };
+    const { gov, service } = build(registraduria);
+
+    await expect(service.register(validInput)).resolves.toHaveProperty("ciudadanoId");
+
+    expect(registraduria.verifyIdentity).toHaveBeenCalledWith({ documento: validInput.documento, nombre: validInput.nombre });
+    expect(registraduria.verifyIdentity.mock.invocationCallOrder[0]).toBeLessThan(gov.validateCitizen.mock.invocationCallOrder[0]);
+  });
+
+  test.each([
+    ["no_encontrada", /no confirmo/],
+    ["cancelada", /cancelada/],
+  ])("identidad %s: IdentityNotVerifiedError, sin consultar GovCarpeta ni persistir nada", async (estado, msg) => {
+    const { repo, gov, publisher, service } = build({ verifyIdentity: async () => ({ estado }) });
+
+    const err = await service.register(validInput).catch((e) => e);
+
+    expect(err).toBeInstanceOf(IdentityNotVerifiedError);
+    expect(err.message).toMatch(msg);
+    expect(gov.validateCitizen).not.toHaveBeenCalled();
+    expect(gov.registerCitizen).not.toHaveBeenCalled();
+    expect(repo.create).not.toHaveBeenCalled();
+    expect(publisher.publish).not.toHaveBeenCalled();
+  });
+
+  test("una respuesta inesperada (sin estado) se trata como NO verificada, nunca como vigente", async () => {
+    const { repo, service } = build({ verifyIdentity: async () => ({}) });
+    await expect(service.register(validInput)).rejects.toThrow(IdentityNotVerifiedError);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  test("Registraduria caida: ServiceUnavailableError (503) y nada se persiste", async () => {
+    const { repo, gov, service } = build(new SimulatedRegistraduriaClient({ noDisponible: true }));
+    await expect(service.register(validInput)).rejects.toThrow(ServiceUnavailableError);
+    expect(gov.validateCitizen).not.toHaveBeenCalled();
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  test("el adaptador simulado: vigente por defecto; no_encontrada y cancelada segun su configuracion", async () => {
+    const sim = new SimulatedRegistraduriaClient({ noEncontrados: ["1111111111"], cancelados: [2222222222] });
+    await expect(sim.verifyIdentity({ documento: 1234567890 })).resolves.toEqual({ estado: "vigente" });
+    await expect(sim.verifyIdentity({ documento: 1111111111 })).resolves.toEqual({ estado: "no_encontrada" });
+    await expect(sim.verifyIdentity({ documento: "2222222222" })).resolves.toEqual({ estado: "cancelada" });
+  });
+
+  test("el evento marca origen 'registro' (ms-documentos guarda la cedula firmada solo en ese caso)", async () => {
+    const { publisher, service } = build(new SimulatedRegistraduriaClient());
+    await service.register(validInput);
+    expect(publisher.publish.mock.calls[0][1].origen).toBe("registro");
   });
 });

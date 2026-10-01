@@ -20,6 +20,8 @@ const EventReconciler = require("./application/EventReconciler");
 const { DocumentAuthenticationService } = require("./application/DocumentAuthenticationService");
 const AuthenticationRequestReconciler = require("./application/AuthenticationRequestReconciler");
 const QuotaReconciler = require("./application/QuotaReconciler");
+const { IdentityDocumentService } = require("./application/IdentityDocumentService");
+const { SimulatedRegistraduriaDocumentClient } = require("./infrastructure/RegistraduriaDocumentClient");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { makeCitizenRegisteredHandler, makeAuthenticationResultHandlers, makeTransferHandlers, makeTransferImportHandlers, makePackageCreatedHandler, makeOfficialRequestResolvedHandler } = require("./interfaces/eventHandlers");
 const { OfficialRequestService } = require("./application/OfficialRequestService");
@@ -78,7 +80,10 @@ async function main() {
     uri: env.rabbitUri,
     queue: "ms-documentos.ciudadano-registrado",
     routingKey: "ciudadano.registrado",
-    handler: makeCitizenRegisteredHandler({ folderRepository }),
+    handler: makeCitizenRegisteredHandler({
+      folderRepository,
+      identityDocumentService: new IdentityDocumentService({ documentRepository, documentService, registraduria: new SimulatedRegistraduriaDocumentClient() }),
+    }),
   });
   citizenConsumer.start().catch((err) => {
     logger.error("consumidor.inicio_fallido", { queue: citizenConsumer.queue, err });
