@@ -39,20 +39,22 @@ class TransferRepository {
   /**
    * Pasa de `from` (uno o varios estados) a `to` con los campos de `set`. Devuelve la transferencia actualizada o
    * `null` si ya no estaba en `from` (otro proceso avanzo primero). Un estado terminal cierra la transferencia.
+   * `where` agrega condiciones al filtro (p. ej. que no se este compensando).
    */
-  async transition(id, from, to, set = {}, inc) {
+  async transition(id, from, to, set = {}, inc, where = {}) {
     const states = Array.isArray(from) ? from : [from];
     const update = { $set: { ...set, estado: to } };
     if (TERMINALES.includes(to)) Object.assign(update.$set, { activa: false, revisarEn: null, finalizadaEn: set.finalizadaEn || new Date() });
     if (inc) update.$inc = inc;
-    return Transfer.findOneAndUpdate({ _id: id, estado: { $in: states } }, update, { new: true }).lean();
+    return Transfer.findOneAndUpdate({ ...where, _id: id, estado: { $in: states } }, update, { new: true }).lean();
   }
 
-  /** Actualiza campos sin cambiar de estado, solo si sigue en `estado`. */
-  async update(id, estado, set, inc) {
+  /** Actualiza campos sin cambiar de estado, solo si sigue en `estado` (uno o varios) y cumple `where`. */
+  async update(id, estado, set, inc, where = {}) {
+    const states = Array.isArray(estado) ? estado : [estado];
     const update = { $set: set };
     if (inc) update.$inc = inc;
-    return Transfer.findOneAndUpdate({ _id: id, estado }, update, { new: true }).lean();
+    return Transfer.findOneAndUpdate({ ...where, _id: id, estado: { $in: states } }, update, { new: true }).lean();
   }
 
   /** Transferencias vivas cuyo plazo de revision ya paso (las reintenta o las da por vencidas el barrido). */

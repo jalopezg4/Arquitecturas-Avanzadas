@@ -16,6 +16,10 @@ class ConfirmacionInvalidaError extends Error {
 }
 
 const EXPORTAR = "transferencia.exportar_carpeta";
+// Estados en los que la transferencia saliente sigue abierta (todavia se puede confirmar o compensar).
+const ABIERTOS = ["exportando", "enviando", "esperando_confirmacion"];
+// Ni compensandose ni ya aceptada: solo asi se puede enviar al destino.
+const LIBRE = { fallando: { $ne: true }, confirmada: { $ne: true } };
 const CANCELADA = "transferencia.cancelada";
 const TRANSFERIDO = "ciudadano.transferido";
 
@@ -44,7 +48,10 @@ function sameToken(a, b) {
  *   compensar            re-afiliar en GovCarpeta (si ya se habia desafiliado) + desbloquear la carpeta
  *
  * Cada paso es una transicion condicional sobre el estado guardado: una confirmacion que llega mientras el barrido
- * reenvia, o dos replicas del servicio, nunca aplican el mismo paso dos veces.
+ * reenvia, o dos replicas del servicio, nunca aplican el mismo paso dos veces. Ningun paso sigue con una copia vieja:
+ * si la escritura condicional no prospera, otro camino ya resolvio la transferencia y el paso se abandona.
+ *
+ * Compensar (`fallando`) y aceptar la confirmacion (`confirmada`) se excluyen entre si: lo que se marque primero gana.
  */
 class TransferSagaService {
   constructor({ transferRepository, citizenRepository, directory, govCarpetaClient, peerClient, eventPublisher, auditLogger, publicBaseUrl, confirmTimeoutMs = 5 * 60 * 1000, maxSendAttempts = 3, stepTimeoutMs = 2 * 60 * 1000, eventPublishTimeoutMs = 3000, now = () => new Date() }) {
@@ -156,6 +163,7 @@ class TransferSagaService {
   }
 
   async _send(t) {
+    if (t.fallando || t.confirmada) return { ignored: true };
     // (a) Desafiliar en GovCarpeta, una sola vez: el destino no podria registrarlo mientras siga afiliado a nosotros.
     if (!t.desafiliadoEnGovCarpeta) {
       try {
@@ -163,8 +171,15 @@ class TransferSagaService {
       } catch (err) {
         return this._sendFailed(t, err, "govcarpeta_no_desafilio");
       }
-      t = (await this.transfers.update(t._id, "enviando", { desafiliadoEnGovCarpeta: true })) || t;
+      // Se registra aunque ya se este compensando: la compensacion necesita saber que hay que re-afiliar.
+      const marked = await this.transfers.update(t._id, "enviando", { desafiliadoEnGovCarpeta: true });
+      if (!marked) return { ignored: true };
+      t = marked;
     }
+    // Justo antes de enviar se comprueba que nadie la este compensando ni la haya dado por confirmada.
+    const live = await this.transfers.update(t._id, "enviando", { revisarEn: this._later(this.confirmTimeoutMs) }, undefined, LIBRE);
+    if (!live) return { ignored: true };
+    t = live;
     // (b) POST transferCitizen al destino.
     try {
       await this.peer.post(t.destinoUrl, this._body(t));
@@ -177,11 +192,11 @@ class TransferSagaService {
   }
 
   async _sendFailed(t, err, motivo) {
-    const updated = await this.transfers.update(t._id, "enviando", { revisarEn: this._later(Math.min(this.confirmTimeoutMs, 60000)) }, { enviosRealizados: 1 });
-    const envios = updated ? updated.enviosRealizados : t.enviosRealizados + 1;
-    logger.warn("transferencia.envio_fallido", { transferenciaId: String(t._id), envio: envios, motivo, err });
-    if (err && err.definitive) return this._fail(updated || t, motivo);
-    if (envios >= this.maxSendAttempts) return this._fail(updated || t, `${motivo}_reintentos_agotados`);
+    const updated = await this.transfers.update(t._id, "enviando", { revisarEn: this._later(Math.min(this.confirmTimeoutMs, 60000)) }, { enviosRealizados: 1 }, LIBRE);
+    if (!updated) return { ignored: true }; // ya la resolvio otro camino (confirmacion o compensacion)
+    logger.warn("transferencia.envio_fallido", { transferenciaId: String(t._id), envio: updated.enviosRealizados, motivo, err });
+    if (err && err.definitive) return this._fail(updated, motivo);
+    if (updated.enviosRealizados >= this.maxSendAttempts) return this._fail(updated, `${motivo}_reintentos_agotados`);
     return { estado: "enviando", reintentar: true };
   }
 
@@ -202,19 +217,32 @@ class TransferSagaService {
     if (!sameToken(token, active.confirmToken) || !["enviando", "esperando_confirmacion"].includes(active.estado)) throw new ConfirmacionInvalidaError();
 
     if (reqStatus !== 1) {
+      // Un 0 despues de haber aceptado un 1 se contradice: no se compensa lo ya aceptado.
+      if (active.confirmada) throw new ConfirmacionInvalidaError();
       await this._audit(active, "transferencia.confirmar", "rechazo", "destino_reporto_fallo");
-      await this._fail(active, "destino_reporto_fallo");
-      return { estado: "fallida" };
+      const r = await this._fail(active, "destino_reporto_fallo");
+      return { estado: r.ignored ? active.estado : r.estado };
     }
 
-    // Primero el evento (ms-documentos borra la carpeta, ms-identidad marca transferido): si el broker no lo confirma,
-    // se responde error y el destino reintenta la confirmacion; el estado no avanzo.
-    await this._publish(TRANSFERIDO, { transferenciaId: String(active._id), ciudadanoId: active.ciudadanoId, operadorDestinoId: active.operadorDestinoId });
-    const done = await this.transfers.transition(active._id, ["enviando", "esperando_confirmacion"], "completada", { motivo: null });
-    await this.citizens.remove(active.ciudadanoId);
-    await this._audit(active, "transferencia.confirmar", "exito");
-    logger.info("transferencia.completada", { transferenciaId: String(active._id) });
-    return { estado: done ? done.estado : "completada" };
+    // Se ACEPTA la confirmacion de forma condicional: si ya se esta compensando (p. ej. vencio el plazo), se rechaza
+    // y no se borra nada. Desde aqui ya no se compensa: solo se termina.
+    const claimed = await this.transfers.update(active._id, ["enviando", "esperando_confirmacion"], { confirmada: true, revisarEn: this._later(60000) }, undefined, { fallando: { $ne: true } });
+    if (!claimed) throw new ConfirmacionInvalidaError();
+    return this._complete(claimed);
+  }
+
+  /**
+   * Termina una transferencia ya aceptada: el evento (ms-documentos borra la carpeta, ms-identidad al ciudadano) y
+   * luego el estado. Si el broker no confirma, se lanza: el destino reintenta la confirmacion o, si no, el barrido.
+   */
+  async _complete(t) {
+    await this._publish(TRANSFERIDO, { transferenciaId: String(t._id), ciudadanoId: t.ciudadanoId, operadorDestinoId: t.operadorDestinoId });
+    const done = await this.transfers.transition(t._id, ABIERTOS, "completada", { motivo: null }, undefined, { confirmada: true });
+    if (!done) return { estado: "completada", repetida: true };
+    await this.citizens.remove(t.ciudadanoId);
+    await this._audit(t, "transferencia.confirmar", "exito");
+    logger.info("transferencia.completada", { transferenciaId: String(t._id) });
+    return { estado: "completada" };
   }
 
   // ---------------------------------------------------------------- compensacion
@@ -224,12 +252,18 @@ class TransferSagaService {
    * algo falla a mitad queda `fallando` y el barrido lo retoma.
    */
   async _fail(t, motivo) {
-    const marked = await this.transfers.update(t._id, t.estado, { fallando: true, motivo: t.motivo || motivo, revisarEn: this._later(60000) });
-    const cur = marked || t;
+    // Cualquier estado abierto (no solo el de la copia que trae quien llama): si la transferencia ya termino o el
+    // destino ya confirmo, no hay nada que compensar y se abandona.
+    const marked = await this.transfers.update(t._id, ABIERTOS, { fallando: true, motivo: t.motivo || motivo, revisarEn: this._later(60000) }, undefined, { confirmada: { $ne: true } });
+    if (!marked) {
+      logger.info("transferencia.compensacion_omitida", { transferenciaId: String(t._id), note: "ya la resolvio otro camino" });
+      return { ignored: true };
+    }
+    const cur = marked;
     if (cur.desafiliadoEnGovCarpeta && !cur.reafiliado) {
       try {
         await this.govCarpeta.registerCitizen({ id: cur.documento, name: cur.nombre, address: cur.direccion || "No informada", email: cur.correo });
-        await this.transfers.update(cur._id, cur.estado, { reafiliado: true });
+        await this.transfers.update(cur._id, ABIERTOS, { reafiliado: true });
       } catch (err) {
         if (!err.definitive) {
           logger.error("transferencia.compensacion_pendiente", { transferenciaId: String(cur._id), note: "GovCarpeta no respondio; la reintenta el barrido", err });
@@ -237,7 +271,7 @@ class TransferSagaService {
         }
         // 501 = ya esta afiliado (quiza el destino alcanzo a registrarlo): no se puede re-afiliar automaticamente.
         logger.error("transferencia.compensacion_incompleta", { transferenciaId: String(cur._id), note: "requiere revision manual en GovCarpeta", err });
-        await this.transfers.update(cur._id, cur.estado, { motivo: `${cur.motivo || motivo}; reafiliacion_fallida_${err.response ? err.response.status : "?"}` });
+        await this.transfers.update(cur._id, ABIERTOS, { motivo: `${cur.motivo || motivo}; reafiliacion_fallida_${err.response ? err.response.status : "?"}` });
       }
     }
     try {
@@ -246,7 +280,8 @@ class TransferSagaService {
       logger.error("transferencia.compensacion_pendiente", { transferenciaId: String(cur._id), note: "no se pudo desbloquear la carpeta; lo reintenta el barrido", err });
       return { estado: cur.estado, compensando: true };
     }
-    const failed = await this.transfers.transition(cur._id, ["exportando", "enviando", "esperando_confirmacion"], "fallida", { fallando: false });
+    const failed = await this.transfers.transition(cur._id, ABIERTOS, "fallida", { fallando: false });
+    if (!failed) return { ignored: true };
     await this._audit(cur, "transferencia.fallar", "fallo", (failed && failed.motivo) || motivo);
     logger.warn("transferencia.fallida", { transferenciaId: String(cur._id), motivo: (failed && failed.motivo) || motivo });
     return { estado: "fallida" };
@@ -256,13 +291,14 @@ class TransferSagaService {
 
   /** Revisa una transferencia SALIENTE vencida. Devuelve lo que hizo (para logs y pruebas). */
   async review(t) {
+    if (t.confirmada) return this._complete(t); // aceptada pero el evento no salio: se termina
     if (t.fallando) return this._fail(t, t.motivo || "compensacion");
     const age = this.now().getTime() - new Date(t.iniciadaEn).getTime();
     switch (t.estado) {
       case "exportando":
         // Sin respuesta de ms-documentos: se repite la orden (idempotente); tras 3 plazos se desiste.
         if (age > 3 * this.stepTimeoutMs) return this._fail(t, "exportacion_sin_respuesta");
-        await this.transfers.update(t._id, "exportando", { revisarEn: this._later(this.stepTimeoutMs) });
+        if (!(await this.transfers.update(t._id, "exportando", { revisarEn: this._later(this.stepTimeoutMs) }, undefined, LIBRE))) return { ignored: true };
         await this._publish(EXPORTAR, { transferenciaId: String(t._id), ciudadanoId: t.ciudadanoId });
         return { estado: "exportando", reenviada: true };
       case "enviando":
@@ -270,7 +306,7 @@ class TransferSagaService {
       case "esperando_confirmacion": {
         // 5 minutos sin confirmacion: se reenvia (el destino debe ser idempotente) hasta agotar los envios.
         if (t.enviosRealizados >= this.maxSendAttempts) return this._fail(t, "sin_confirmacion_del_destino");
-        const back = await this.transfers.transition(t._id, "esperando_confirmacion", "enviando", { revisarEn: this.now() });
+        const back = await this.transfers.transition(t._id, "esperando_confirmacion", "enviando", { revisarEn: this.now() }, undefined, LIBRE);
         return back ? this._send(back) : { ignored: true };
       }
       default:
@@ -298,4 +334,4 @@ class TransferSagaService {
   }
 }
 
-module.exports = { TransferSagaService, CiudadanoNoDisponibleError, ConfirmacionInvalidaError, EXPORTAR, CANCELADA, TRANSFERIDO };
+module.exports = { TransferSagaService, CiudadanoNoDisponibleError, ConfirmacionInvalidaError, EXPORTAR, CANCELADA, TRANSFERIDO, ABIERTOS };

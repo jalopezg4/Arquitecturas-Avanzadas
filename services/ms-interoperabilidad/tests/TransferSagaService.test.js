@@ -274,6 +274,71 @@ describe("Escenario: el destino reporta fallo o no confirma (compensacion)", () 
   });
 });
 
+// Revision del PR #90: ningun paso sigue con una copia vieja; compensar y aceptar la confirmacion se excluyen.
+describe("Carreras entre la confirmacion, el barrido y la compensacion", () => {
+  test("una compensacion con una copia vieja de una transferencia ya completada no hace nada", async () => {
+    const { t, confirmToken } = await iniciarYEnviar();
+    await confirmar({ id: CEDULA, req_status: 1 }, confirmToken).expect(200);
+    const auditAntes = await AuditEntry.countDocuments();
+
+    expect(await saga._fail(t, "sin_confirmacion_del_destino")).toEqual({ ignored: true });
+    expect(await saga.review({ ...t, fallando: true })).toEqual({ ignored: true });
+
+    expect(govCarpeta.registerCitizen).not.toHaveBeenCalled();
+    expect(published("transferencia.cancelada")).toHaveLength(0);
+    expect(await AuditEntry.countDocuments()).toBe(auditAntes);
+    expect((await Transfer.findById(t._id).lean()).estado).toBe("completada");
+  });
+
+  test("un req_status 1 que llega mientras se compensa se rechaza (404) y no borra nada", async () => {
+    const { id, confirmToken } = await iniciarYEnviar();
+    govCarpeta.registerCitizen.mockRejectedValueOnce(Object.assign(new Error("caido"), { code: "GOVCARPETA_UNAVAILABLE" }));
+    advance(3 * 5 * 60 * 1000 + 3); // vence todo: el barrido empieza a compensar y GovCarpeta no responde
+    await saga._fail(await Transfer.findById(id).lean(), "sin_confirmacion_del_destino");
+    expect(await Transfer.findById(id).lean()).toMatchObject({ fallando: true, estado: "esperando_confirmacion" });
+
+    await confirmar({ id: CEDULA, req_status: 1 }, confirmToken).expect(404);
+
+    expect(published("ciudadano.transferido")).toHaveLength(0);
+    expect(await Citizen.countDocuments({ ciudadanoId: ANA })).toBe(1);
+  });
+
+  test("aceptada la confirmacion, si el broker no publica, el barrido termina (sin compensar)", async () => {
+    const { id, confirmToken } = await iniciarYEnviar();
+    publisher.publish.mockRejectedValueOnce(new Error("broker caido"));
+    await confirmar({ id: CEDULA, req_status: 1 }, confirmToken).expect(500);
+    expect(await Transfer.findById(id).lean()).toMatchObject({ confirmada: true, estado: "esperando_confirmacion" });
+
+    advance(5 * 60 * 1000 + 1);
+    await sweeper.sweepOnce();
+
+    expect(await Transfer.findById(id).lean()).toMatchObject({ estado: "completada" });
+    expect(published("ciudadano.transferido")).toHaveLength(2); // el intento rechazado por el broker + el del barrido
+    expect(govCarpeta.registerCitizen).not.toHaveBeenCalled();
+    expect(peer.post).toHaveBeenCalledTimes(1); // no se reenvio al destino
+  });
+
+  test("req_status 0 y el barrido a la vez: termina fallida y no se reenvia al destino", async () => {
+    const { id, confirmToken } = await iniciarYEnviar();
+    advance(5 * 60 * 1000 + 1);
+    const vieja = await Transfer.findById(id).lean();
+
+    await Promise.all([confirmar({ id: CEDULA, req_status: 0 }, confirmToken), saga.review(vieja)]);
+
+    expect((await Transfer.findById(id).lean()).estado).toBe("fallida");
+    expect(published("transferencia.cancelada")).toHaveLength(1);
+    expect(peer.post.mock.calls.length).toBeLessThanOrEqual(2);
+  });
+
+  test("un envio fallido con una copia vieja de una transferencia ya confirmada no compensa", async () => {
+    const { t, confirmToken } = await iniciarYEnviar();
+    await confirmar({ id: CEDULA, req_status: 1 }, confirmToken).expect(200);
+
+    expect(await saga._sendFailed({ ...t, estado: "enviando" }, Object.assign(new Error("400"), { definitive: true }), "destino_no_recibio")).toEqual({ ignored: true });
+    expect(govCarpeta.registerCitizen).not.toHaveBeenCalled();
+  });
+});
+
 describe("Escenario: ms-documentos no responde a la exportacion", () => {
   test("el barrido repite la orden y, pasados 3 plazos, desiste sin tocar GovCarpeta", async () => {
     const res = await request(app).post("/api/v1/transfers").set("Authorization", `Bearer ${token()}`).send({ operadorDestinoId: DESTINO }).expect(202);

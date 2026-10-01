@@ -62,6 +62,9 @@ const transferSchema = new mongoose.Schema(
     // Compensacion: el ciudadano ya se volvio a afiliar a NOSOTROS en GovCarpeta.
     reafiliado: { type: Boolean, default: false },
     enviosRealizados: { type: Number, default: 0 },
+    // El destino confirmo con 1 y ESTE operador lo acepto: ya no se puede compensar, solo terminar (borrar aqui).
+    // Se marca antes de publicar `ciudadano.transferido`; si eso falla, el barrido termina el trabajo.
+    confirmada: { type: Boolean, default: false },
 
     // ENTRANTE
     confirmApi: { type: String, default: null }, // la del ORIGEN
