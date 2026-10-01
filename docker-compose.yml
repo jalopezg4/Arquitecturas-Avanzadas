@@ -77,6 +77,27 @@ services:
       - rabbitmq
       - minio
 
+  # Autenticacion de documentos con GovCarpeta (HU-04). Consume documento.autenticacion_solicitada, firma una URL de
+  # lectura de 15 min y llama PUT /apis/authenticateDocument; el resultado vuelve por evento. OJO: GovCarpeta tiene que
+  # poder ABRIR esa URL; con MinIO en localhost (S3_PUBLIC_ENDPOINT) el sandbox real no llega y la autenticacion falla.
+  ms-autenticacion:
+    build: ./services/ms-autenticacion
+    ports:
+      - "3007:3007"
+    environment:
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017/ms-autenticacion
+      RABBITMQ_URI: amqp://rabbitmq:5672
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}  # secret-scan:allow -- credencial de desarrollo local; fuera de local el servicio rechaza minioadmin
+      GOVCARPETA_BASE_URL: ${GOVCARPETA_BASE_URL:-https://govcarpeta-apis-4905ff3c005b.herokuapp.com}
+    depends_on:
+      - mongo
+      - rabbitmq
+      - minio
+
   # Avisos por correo (HU-03 confirmacion de carga; HU-01 bienvenida). Por defecto EMAIL_TRANSPORT=console: NO envia nada,
   # solo deja constancia del aviso en Mongo. Para enviar de verdad: EMAIL_TRANSPORT=smtp y SMTP_HOST/PORT/USER/PASS
   # (fuera de este compose el servicio exige smtp y credenciales que no sean las de un tutorial).
@@ -110,8 +131,15 @@ services:
       MONGO_URI: mongodb://mongo:27017/ms-interoperabilidad
       GOVCARPETA_BASE_URL: ${GOVCARPETA_BASE_URL:-https://govcarpeta-apis-4905ff3c005b.herokuapp.com}
       OPERATOR_ID: ${OPERATOR_ID:-}
+      # HU-05c: transferencia de ciudadanos. Afilia/desafilia con NUESTRO operador, recibe el token del ciudadano (misma
+      # llave que ms-identidad) y arma el confirmAPI con PUBLIC_BASE_URL (debe ser alcanzable por el otro operador).
+      OPERATOR_NAME: ${OPERATOR_NAME:-MiFolio}
+      RABBITMQ_URI: amqp://rabbitmq:5672
+      JWT_SECRET: ${JWT_SECRET:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
     depends_on:
       - mongo
+      - rabbitmq
 
   # Comparticion autorizada de documentos (HU-06.1: registro de entidades institucionales; ADR-07: autenticacion
   # institucional). REGISTRATION_TOKEN es opcional: si se define, POST /api/v1/institutions exige el encabezado
@@ -128,8 +156,13 @@ services:
       MONGO_URI: mongodb://mongo:27017/ms-comparticion
       REGISTRATION_TOKEN: ${REGISTRATION_TOKEN:-}
       ENTITY_JWT_SECRET: ${ENTITY_JWT_SECRET:-}
+      # HU-06.2 (paquetes documentales): aqui solo se VERIFICAN los tokens de ciudadano (misma llave que ms-identidad) y
+      # se publica paquete.creado para ms-documentos.
+      JWT_SECRET: ${JWT_SECRET:-}
+      RABBITMQ_URI: amqp://rabbitmq:5672
     depends_on:
       - mongo
+      - rabbitmq
 
   # Servicios Premium y analitica de metadatos (HU-07). HU-07.1 (analitica, REST sincrono hacia ms-documentos),
   # HU-07.2 (casos PQRS) y HU-07.3 (solicitud documental, implementacion PARCIAL: solo registro local, sin
@@ -161,6 +194,7 @@ services:
       IDENTIDAD_URL: http://ms-identidad:3001
       DOCUMENTOS_URL: http://ms-documentos:3002
       COMPARTICION_URL: http://ms-comparticion:3005
+      INTEROPERABILIDAD_URL: http://ms-interoperabilidad:3004
       JWT_SECRET: ${JWT_SECRET:-}
       # ADR-07: aqui solo se VERIFICAN los tokens institucionales; debe ser la misma que usa ms-comparticion
       # para firmarlos y distinta de JWT_SECRET (el gateway no arranca si son iguales).
@@ -169,6 +203,7 @@ services:
       - ms-identidad
       - ms-documentos
       - ms-comparticion
+      - ms-interoperabilidad
 
 volumes:
   minio-data:

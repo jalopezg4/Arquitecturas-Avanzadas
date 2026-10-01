@@ -1,5 +1,6 @@
 const axios = require("axios");
 const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
+const { isTransientStatus } = require("./httpStatus");
 
 /**
  * Cliente que MODIFICA el registro de NUESTRO operador en GovCarpeta: publica sus direcciones de recepcion.
@@ -38,11 +39,11 @@ class GovCarpetaEndpointClient {
         res = null;
       }
       if (res && (res.status === 200 || res.status === 201)) return { status: res.status };
-      if (res && res.status !== 500) {
+      if (res && !isTransientStatus(res.status)) {
         // 501 ("Wrong Parameters"), 4xx y otros: definitivos, reintentar no lo arregla
         throw Object.assign(new Error(`registerTransferEndPoint respondio ${res.status}`), { response: { status: res.status }, definitive: true });
       }
-      if (res) lastError = Object.assign(new Error("registerTransferEndPoint respondio 500"), { response: { status: 500 } });
+      if (res) lastError = Object.assign(new Error(`registerTransferEndPoint respondio ${res.status}`), { response: { status: res.status } });
       if (attempt < this.maxRetries) await new Promise((r) => setTimeout(r, this.baseDelayMs * 2 ** (attempt - 1)));
     }
     const err = new Error("GovCarpeta no respondio tras agotar reintentos");

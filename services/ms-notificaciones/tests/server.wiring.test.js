@@ -14,10 +14,20 @@ describe("HU-06.3 (RF-28), Paso 3.3-B: tercer consumidor solicitud.creada en ser
     expect(src).toContain("handler: handlers.solicitudCreada");
   });
 
-  test("son exactamente 3 consumidores (ciudadano.registrado, documento.cargado, solicitud.creada)", () => {
+  test("son exactamente 9 consumidores (ciudadano.registrado, documento.cargado, solicitud.creada, los 2 de HU-04, HU-06.2, HU-06.4 y los 2 de HU-05c: activacion y transferencia cancelada)", () => {
     const src = server();
     const count = (src.match(/new EventConsumer\(/g) || []).length;
-    expect(count).toBe(3);
+    expect(count).toBe(9);
+  });
+
+  test("HU-04: registra los consumidores del resultado de la autenticacion", () => {
+    const src = server();
+    expect(src).toContain('queue: "ms-notificaciones.documento-autenticado"');
+    expect(src).toContain('routingKey: "documento.autenticado"');
+    expect(src).toContain("handler: handlers.documentoAutenticado");
+    expect(src).toContain('queue: "ms-notificaciones.documento-autenticacion-fallida"');
+    expect(src).toContain('routingKey: "documento.autenticacion_fallida"');
+    expect(src).toContain("handler: handlers.documentoAutenticacionFallida");
   });
 
   test("el smsSender se inyecta a NotificationService (mismo patron que emailSender)", () => {

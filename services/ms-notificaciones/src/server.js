@@ -34,6 +34,17 @@ async function main() {
     new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.documento-cargado", routingKey: "documento.cargado", handler: handlers.documentoCargado }),
     // HU-06.3 (RF-28), Paso 3.3-B: ms-documentos ya predeclara esta cola (EventPublisher.js) desde el Paso 3.2.
     new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.solicitud-creada", routingKey: "solicitud.creada", handler: handlers.solicitudCreada }),
+    // HU-04: resultado de la autenticacion; ms-autenticacion predeclara estas colas.
+    new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.documento-autenticado", routingKey: "documento.autenticado", handler: handlers.documentoAutenticado }),
+    new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.documento-autenticacion-fallida", routingKey: "documento.autenticacion_fallida", handler: handlers.documentoAutenticacionFallida }),
+    // HU-06.2: ms-documentos predeclara esta cola.
+    new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.paquete-envio-correo", routingKey: "paquete.envio_correo", handler: handlers.paqueteEnvioCorreo }),
+    // HU-06.4: ms-documentos predeclara esta cola.
+    new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.solicitud-oficial-pendiente", routingKey: "solicitud_oficial.pendiente", handler: handlers.solicitudOficialPendiente }),
+    // HU-05c: codigo de activacion del ciudadano transferido (ms-identidad predeclara la cola).
+    new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.activacion-requerida", routingKey: "ciudadano.activacion_requerida", handler: handlers.activacionRequerida }),
+    // HU-05c: aviso al ciudadano cuando su transferencia a otro operador se cancela (con el motivo).
+    new EventConsumer({ uri: env.rabbitUri, queue: "ms-notificaciones.transferencia-cancelada", routingKey: "transferencia.cancelada", handler: handlers.transferenciaCancelada }),
   ];
   // Si RabbitMQ no esta disponible al arrancar, el servicio NO cae: el consumidor reconecta solo.
   for (const consumer of consumers) {

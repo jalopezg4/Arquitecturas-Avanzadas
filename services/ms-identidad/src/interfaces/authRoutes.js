@@ -6,6 +6,9 @@ function authRoutes(authController, secrets) {
   router.post("/auth/login", authController.login);
   router.post("/auth/refresh", authController.refresh);
   router.get("/auth/me", requireAuth(secrets), authController.me);
+  // Ciudadano transferido (HU-05c): fija su contrasena con el codigo de un solo uso que recibio por correo.
+  router.post("/auth/activate", authController.activate);
+  router.post("/auth/activate/resend", authController.resendActivation);
   return router;
 }
 

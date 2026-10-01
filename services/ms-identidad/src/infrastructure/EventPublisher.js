@@ -11,6 +11,12 @@ const EXCHANGE = "carpeta-ciudadana.events";
 const ANTICIPATED_BINDINGS = [
   { queue: "ms-documentos.ciudadano-registrado", routingKey: "ciudadano.registrado" },
   { queue: "ms-notificaciones.ciudadano-registrado", routingKey: "ciudadano.registrado" },
+  // HU-05c: ms-interoperabilidad guarda la copia local del ciudadano que necesita para transferirlo.
+  { queue: "ms-interoperabilidad.ciudadano-registrado", routingKey: "ciudadano.registrado" },
+  // HU-05c (destino): respuesta al registro de un ciudadano que llega transferido.
+  { queue: "ms-interoperabilidad.ciudadano-importado", routingKey: "transferencia.ciudadano_registrado" },
+  // Activacion de cuenta del ciudadano transferido: ms-notificaciones le envia el codigo.
+  { queue: "ms-notificaciones.activacion-requerida", routingKey: "ciudadano.activacion_requerida" },
 ];
 
 class EventPublisher {

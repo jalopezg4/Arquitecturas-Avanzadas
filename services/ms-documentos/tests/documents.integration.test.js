@@ -44,7 +44,9 @@ afterEach(async () => {
   await mongoose.connection.dropDatabase();
 });
 
-beforeEach(() => {
+beforeEach(async () => {
+  // dropDatabase borra los indices: sin el unico de Folder, cargas simultaneas crearian varias carpetas (cuota falsa).
+  await Promise.all([Folder.createIndexes(), Document.createIndexes()]);
   storage = makeFakeStorage();
   publisher = makeFakePublisher();
   const auditLogger = new AuditLogger({ auditRepository: new AuditRepository() });

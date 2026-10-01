@@ -43,6 +43,8 @@ const config = {
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   // Cuanto espera la confirmacion del broker antes de responder igual (el aviso no es camino critico, ADR-04).
   eventPublishTimeoutMs: toInt(process.env.EVENT_PUBLISH_TIMEOUT_MS, 3000),
+  // Vigencia del codigo de activacion del ciudadano transferido (HU-05c). 1 a 168 horas.
+  activationTtlHours: toInt(process.env.ACTIVATION_TTL_HOURS, 72),
   // Reconciliacion de registros (0 desactiva el proceso): resuelve pendientes ambiguos y reenvia ciudadano.registrado.
   reconcile: {
     intervalMs: toInt(process.env.RECONCILE_INTERVAL_MS, 60000),

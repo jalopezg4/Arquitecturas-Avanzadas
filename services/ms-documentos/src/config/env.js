@@ -70,6 +70,20 @@ const config = {
     intervalMs: toInt(process.env.RECONCILE_INTERVAL_MS, 60000),
     minAgeMs: toInt(process.env.RECONCILE_MIN_AGE_MS, 60000),
   },
+  // HU-04: plazo maximo de un documento `en autenticacion` sin resultado (luego vuelve a temporal y se avisa).
+  authenticationTimeoutMs: toInt(process.env.AUTHENTICATION_TIMEOUT_MS, 30 * 60 * 1000),
+  // HU-05c: maximo de documentos de una transferencia, en los dos sentidos (mismo valor que en ms-interoperabilidad).
+  transfer: {
+    maxDocuments: toInt(process.env.TRANSFER_MAX_DOCUMENTS, 500),
+  },
+  // HU-05c: descarga de los documentos de un ciudadano que llega transferido (URLs de OTRO operador).
+  transferImport: {
+    timeoutMs: toInt(process.env.TRANSFER_DOWNLOAD_TIMEOUT_MS, 30000),
+    // Mismo tope duro que la recepcion institucional: el archivo pasa entero por memoria.
+    maxBytes: toInt(process.env.TRANSFER_DOWNLOAD_MAX_BYTES, 50 * 1024 * 1024),
+    // Solo en local (p. ej. otro operador de prueba en localhost). Fuera de local el arranque lo prohibe (SSRF).
+    allowPrivateUrls: toBool(process.env.ALLOW_PRIVATE_OPERATOR_URLS),
+  },
   tls: {
     certPath: process.env.TLS_CERT_PATH || "",
     keyPath: process.env.TLS_KEY_PATH || "",

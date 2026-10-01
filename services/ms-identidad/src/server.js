@@ -13,6 +13,12 @@ const createServer = require("./transport/createServer");
 const { CitizenSagaService } = require("./application/CitizenSagaService");
 const { AuthService } = require("./application/AuthService");
 const PendingRegistrationReconciler = require("./application/PendingRegistrationReconciler");
+const { CitizenTransferService } = require("./application/CitizenTransferService");
+const { AccountActivationService } = require("./application/AccountActivationService");
+const ActivationReconciler = require("./application/ActivationReconciler");
+const Citizen = require("./domain/Citizen");
+const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
+const { makeTransferHandlers } = require("./interfaces/eventHandlers");
 
 async function main() {
   await mongoose.connect(env.mongoUri);
@@ -57,16 +63,44 @@ async function main() {
     new PendingRegistrationReconciler({ citizenRepository, govCarpetaClient, eventPublisher, auditLogger, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
   }
 
+  const refreshSessionRepository = new RefreshSessionRepository();
+
+  // HU-05c: primeros consumidores de este servicio (antes solo publicaba). Las colas las predeclara
+  // ms-interoperabilidad; reconectan solos y, si el broker no esta al arrancar, el servicio NO cae.
+  const activationService = new AccountActivationService({
+    citizenModel: Citizen,
+    eventPublisher,
+    auditLogger,
+    ttlMs: env.activationTtlHours * 3600 * 1000,
+    eventPublishTimeoutMs: env.eventPublishTimeoutMs,
+  });
+  if (env.reconcile.intervalMs > 0) {
+    new ActivationReconciler({ citizenModel: Citizen, activationService, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
+  }
+  const transferHandlers = makeTransferHandlers({
+    citizenTransferService: new CitizenTransferService({ citizenRepository, refreshSessionRepository, govCarpetaClient, eventPublisher, auditLogger, accountActivationService: activationService, eventPublishTimeoutMs: env.eventPublishTimeoutMs }),
+  });
+  for (const consumer of [
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-identidad.ciudadano-transferido", routingKey: "ciudadano.transferido", handler: transferHandlers.ciudadanoTransferido }),
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-identidad.transferencia-registrar", routingKey: "transferencia.registrar_ciudadano", handler: transferHandlers.registrarCiudadano }),
+    new BrokerConsumer({ uri: env.rabbitUri, queue: "ms-identidad.transferencia-revertir-registro", routingKey: "transferencia.revertir_registro", handler: transferHandlers.revertirRegistro }),
+  ]) {
+    consumer.start().catch((err) => {
+      logger.error("consumidor.inicio_fallido", { queue: consumer.queue, err });
+      consumer._scheduleReconnect();
+    });
+  }
+
   const authService = new AuthService({
     citizenRepository,
-    refreshSessionRepository: new RefreshSessionRepository(),
+    refreshSessionRepository,
     secrets,
     auditLogger,
     accessExpiresIn: env.jwtAccessExpiresIn,
     refreshExpiresIn: env.jwtRefreshExpiresIn,
   });
 
-  const app = buildApp({ citizenSagaService, authService, secrets });
+  const app = buildApp({ citizenSagaService, authService, secrets, activationService });
   const server = createServer(app, env.tls);
   server.listen(env.port, () => {
     const transport = env.tls.certPath ? (env.tls.caPath ? "mTLS" : "TLS") : "http";

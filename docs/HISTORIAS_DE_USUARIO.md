@@ -178,6 +178,8 @@ Como ciudadano quiero autenticar un documento que ya tengo en mi carpeta, para q
 - ✅ Solo pasa a `certificado` cuando GovCarpeta confirma explícitamente
 - ✅ Notificación asíncrona del resultado (éxito o fallo) al ciudadano
 
+**Estado (Fase 3):** implementada. `PUT /api/v1/documents/{id}/authenticate` en `ms-documentos` y el nuevo `ms-autenticacion`; decisiones y límites en `docs/SEGURIDAD.md`, sección 13. 🟡 Probada con GovCarpeta simulado: el `PUT` real exige una URL de storage alcanzable desde internet. La solicitud vive en `DocumentAuthenticationService` (no en `DocumentService`) y los reintentos en `GovCarpetaClient` de `ms-autenticacion`; si se agotan, además del resultado `documento.autenticacion_fallida` el mensaje va a la cola de fallidos.
+
 **Tests Unitarios a implementar:**
 ```
 ms-documentos: DocumentService.requestAuthentication() rechaza si el documento no está en temporal
@@ -251,6 +253,8 @@ Como ciudadano quiero que mi cambio de operador se ejecute como una transacción
 - ✅ Solo se borra al ciudadano del origen (RF-08) tras confirmación explícita del destino
 - ✅ La dirección única **no cambia** tras la transferencia (RF-10)
 
+**Estado de HU-05c (Fase 3):** implementada en `ms-interoperabilidad` (saga), `ms-documentos` (solo lectura, exportar, borrar, importar) y `ms-identidad` (borrar al que se va, importar al que llega). Contrato, decisiones y límites en `docs/SEGURIDAD.md`, sección 14. Diferencias con el texto de arriba: `req_status` es `1`/`0` (protocolo acordado), el origen también desafilia en GovCarpeta **antes** de enviar (sin eso el destino no puede registrarlo) y se compensa re-afiliando; la confirmación exige un token que viaja en nuestro `confirmAPI`. Como la contraseña no viaja, el ciudadano que llega **activa su cuenta** con un código de un solo uso que recibe por correo (`POST /api/v1/auth/activate`; `docs/SEGURIDAD.md`, sección 14.2).
+
 **Tests Unitarios a implementar:**
 ```
 ms-interoperabilidad: OperatorDirectoryService.findOperator() localiza destino vía getOperators (HU-05a)
@@ -292,6 +296,8 @@ Como ciudadano quiero seleccionar varios documentos de mi carpeta y enviarlos ju
 - ✅ Si la entidad tiene carpeta institucional (HU-06.1), la entrega es interna al ecosistema
 - ✅ Si no, se genera un envío por correo con enlace de descarga temporal
 
+- **Estado (Fase 3):** implementada — paquete en `ms-comparticion` (`POST /api/v1/packages`), acceso y envío en `ms-documentos`, correo en `ms-notificaciones`. Tope: `MAX_DOCUMENTOS_PAQUETE` (20). Solo entidades **verificadas** reciben en su carpeta. Detalle en `docs/SEGURIDAD.md`, sección 15.
+
 ### HU-06.3 — Solicitud de documentos por una entidad + autorización del ciudadano (RF-27, RF-28, RF-29)
 Como entidad receptora quiero solicitar documentos específicos de un ciudadano; como ciudadano quiero recibir la notificación (correo y SMS, RF-28) y autorizar explícitamente el envío antes de que se comparta nada. — 8 pts
 - ✅ Nada se comparte hasta que el ciudadano autoriza explícitamente (RF-29) — este es el punto de consentimiento explícito exigido por el caso de estudio
@@ -299,6 +305,8 @@ Como entidad receptora quiero solicitar documentos específicos de un ciudadano;
 
 ### HU-06.4 — Solicitud de documento definitivo a la entidad emisora (RF-31)
 Como ciudadano que cargó un documento temporal (HU-03, escenario RF-30) quiero solicitar a la entidad emisora el documento oficial definitivo, para reemplazar el temporal cuando esté disponible. — 5 pts
+
+- **Estado (Fase 3):** implementada en `ms-documentos` (`POST /api/v1/documents/{id}/request-official`, bandeja de la entidad y reemplazo al entregar por HU-10 con `solicitudOficialId`), con `ms-comparticion` resolviendo el NIT. Diferencia con los tests del issue: el servicio vive en `ms-documentos` (`OfficialRequestService`), no en `ms-comparticion`, porque es quien custodia el documento temporal y recibe el definitivo. Detalle en `docs/SEGURIDAD.md`, sección 16.
 
 ---
 
@@ -370,6 +378,8 @@ Como ciudadano quiero descargar un documento de mi carpeta, para usarlo fuera de
 - ✅ Reutiliza el mismo mecanismo de URL prefirmada que HU-04 (consistencia arquitectónica — ADR-06), pero con vigencia propia (se sugiere 1 hora, a diferencia de los 15 min de autenticación, por ser iniciada por el ciudadano y no expuesta a un tercero)
 - ✅ Respuesta 404 si el documento no existe; 403 si no es el dueño
 - ✅ Queda registro en bitácora de auditoría (RF-39 propuesto / RNF-07)
+
+**Estado (Fase 3):** implementada (`docs/SEGURIDAD.md`, sección 7). Ruta final `GET /api/v1/documents/{id}/download`; la respuesta trae además `expiraEn`, `titulo` y `mimeType`, con `Cache-Control: no-store`.
 
 **Tests Unitarios a implementar:**
 ```
@@ -482,6 +492,7 @@ Sin esto, RNF-07 no es *auditable* — es la pieza que falta para poder demostra
 ### HT-05: Suite de pruebas de contrato de interoperabilidad
 **Cubre:** RNF-11 (100% de casos válidos con un operador de referencia) · **Puntos:** 5
 Pruebas de contrato automatizadas contra el protocolo `confirmAPI`/`transferCitizenConfirm` acordado con los otros equipos del curso — necesarias antes de integrar con un operador real de otro grupo.
+**Estado (Fase 3):** implementada en `ms-interoperabilidad` (`ContractTestSuite`, operador de referencia y `npm run test:contract`); ver `docs/SEGURIDAD.md`, sección 14.1. Pendiente: correrla contra un operador real de otro equipo.
 
 ### HT-06: Trazabilidad distribuida entre microservicios
 **Cubre:** impacto tecnológico declarado en ADR-01 ("se requiere trazabilidad distribuida para depurar una petición que atraviesa varios servicios") · **Puntos:** 5

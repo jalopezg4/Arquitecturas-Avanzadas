@@ -50,7 +50,7 @@ async function seed(mongoUri) {
   const mongoose = Document.base; // misma instancia de mongoose con la que ms-documentos compilo estos modelos
   await mongoose.connect(mongoUri);
 
-  await Folder.updateOne({ ciudadanoId: CIUDADANO_ID }, { $setOnInsert: { noCertificados: 0 } }, { upsert: true });
+  await Folder.updateOne({ ciudadanoId: CIUDADANO_ID }, { $setOnInsert: { noCertificados: 0, cupos: [] } }, { upsert: true });
 
   const documentos = buildDocumentos();
   let creados = 0;

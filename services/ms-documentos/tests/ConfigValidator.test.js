@@ -108,4 +108,14 @@ describe("ConfigValidator de ms-documentos", () => {
     expect(validateConfig(prod({ tls: { caPath: "/ca" } })).join()).toContain("TLS_CA_PATH");
     expect(validateConfig(prod({ tls: { required: true } })).join()).toContain("REQUIRE_TLS");
   });
+
+  test("AUTHENTICATION_TIMEOUT_MS debe superar la vigencia de la URL de GovCarpeta (15 min)", () => {
+    expect(validateConfig(prod({ authenticationTimeoutMs: 15 * 60 * 1000 })).join()).toContain("AUTHENTICATION_TIMEOUT_MS");
+    expect(validateConfig(prod({ authenticationTimeoutMs: 30 * 60 * 1000 }))).toEqual([]);
+  });
+
+  test("TRANSFER_MAX_DOCUMENTS: entero entre 1 y 500 (mismo tope que ms-interoperabilidad)", () => {
+    for (const bad of [0, 501, 1.5]) expect(validateConfig(prod({ transfer: { maxDocuments: bad } })).join()).toContain("TRANSFER_MAX_DOCUMENTS");
+    expect(validateConfig(prod({ transfer: { maxDocuments: 500 } }))).toEqual([]);
+  });
 });

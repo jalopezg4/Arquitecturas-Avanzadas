@@ -1,5 +1,6 @@
 const axios = require("axios");
 const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
+const { isTransientStatus } = require("./httpStatus");
 
 const OPERATOR_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 
@@ -56,9 +57,9 @@ class GovCarpetaClient {
   }
 
   /**
-   * Reintenta solo fallas de RED o errores 500 (transitorios segun el propio Swagger:
-   * "500: failed Application Error"). NO reintenta 501 ("Wrong Parameters" / ya existe,
-   * segun el Swagger es un error de negocio definitivo, no transitorio) ni ningun 4xx.
+   * Reintenta lo transitorio (httpStatus.js): fallas de RED, 500 ("failed Application Error" segun el Swagger), los
+   * demas 5xx del router/dyno de Heroku (502/503/504) y 408/425/429. NO reintenta 501 ("Wrong Parameters" / ya existe,
+   * error de negocio definitivo) ni los demas 4xx.
    */
   async _withRetry(fn) {
     let lastError;
@@ -69,7 +70,7 @@ class GovCarpetaClient {
         if (err.nonRetryable) throw err; // error determinista (ej. cuerpo inesperado): reintentar no lo arregla
         lastError = err;
         const status = err.response && err.response.status;
-        const isTransient = status === undefined || status === 500;
+        const isTransient = isTransientStatus(status);
         if (!isTransient) throw err;
         if (attempt < this.maxRetries) {
           const backoffMs = 200 * 2 ** (attempt - 1);

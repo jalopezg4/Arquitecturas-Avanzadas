@@ -259,6 +259,12 @@ describe("GovCarpetaEndpointClient.registerTransferEndPoint()", () => {
     expect(put).toHaveBeenCalledTimes(3);
   });
 
+  test.each([502, 503, 429])("un %s es transitorio: se reintenta", async (status) => {
+    const put = jest.fn().mockResolvedValueOnce({ status }).mockResolvedValue({ status: 201 });
+    await expect(clientWith({ put }).registerTransferEndPoint(body)).resolves.toEqual({ status: 201 });
+    expect(put).toHaveBeenCalledTimes(2);
+  });
+
   test.each([400, 404, 501])("un %s es definitivo: NO se reintenta", async (status) => {
     const put = jest.fn(async () => ({ status, data: "failed : Wrong Parameters.." }));
     const err = await clientWith({ put }).registerTransferEndPoint(body).catch((e) => e);

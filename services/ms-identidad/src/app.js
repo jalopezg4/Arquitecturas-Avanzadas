@@ -6,7 +6,7 @@ const authRoutes = require("./interfaces/authRoutes");
 const makeAuthController = require("./interfaces/authController");
 
 /** Ensambla la app de Express inyectando dependencias -- facil de testear con supertest. */
-function buildApp({ citizenSagaService, authService, secrets }) {
+function buildApp({ citizenSagaService, authService, secrets, activationService }) {
   const app = express();
   app.use(tracingMiddleware);
   app.use(express.json());
@@ -16,7 +16,7 @@ function buildApp({ citizenSagaService, authService, secrets }) {
 
   const citizenController = makeCitizenController(citizenSagaService);
   app.use("/api/v1", citizenRoutes(citizenController));
-  if (authService) app.use("/api/v1", authRoutes(makeAuthController(authService), secrets));
+  if (authService) app.use("/api/v1", authRoutes(makeAuthController(authService, activationService), secrets));
 
   return app;
 }

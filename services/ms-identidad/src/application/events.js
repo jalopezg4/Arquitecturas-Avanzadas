@@ -32,6 +32,9 @@ async function publishCitizenRegistered(eventPublisher, citizen, { timeoutMs = D
       // HU-06.3 (RF-28): opcional. Viaja como `null` si el ciudadano no lo registro -- nunca se inventa un valor
       // (ms-notificaciones todavia no consume este campo; Paso 3.1 solo lo deja disponible en el evento).
       telefono: citizen.telefono || null,
+      // HU-05c: ms-interoperabilidad la necesita para volver a afiliar al ciudadano en GovCarpeta (registerCitizen la
+      // exige) si una transferencia a otro operador falla.
+      direccion: citizen.direccion || null,
     }), timeoutMs);
     return true;
   } catch (err) {

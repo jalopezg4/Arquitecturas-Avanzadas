@@ -9,6 +9,21 @@ function clean(value, max = 200) {
     .slice(0, max);
 }
 
+/** Motivo de una transferencia cancelada (codigo de ms-interoperabilidad) en palabras para el ciudadano. */
+const MOTIVOS_TRANSFERENCIA = [
+  ["demasiados_documentos", "Tu carpeta tiene mas documentos de los que se pueden trasladar de una vez (maximo 500)."],
+  ["destino_reporto_fallo", "El operador de destino no pudo recibir tus datos."],
+  ["sin_confirmacion_del_destino", "El operador de destino no confirmo que recibio tus datos."],
+  ["destino_no_recibio", "El operador de destino no respondio."],
+  ["govcarpeta", "El centralizador del Ministerio TIC no respondio."],
+  ["carpeta_en_otra_transferencia", "Ya habia otro traslado en curso."],
+  ["exportacion", "No pudimos preparar tus documentos para el envio."],
+];
+function motivoTransferencia(motivo) {
+  const found = typeof motivo === "string" && MOTIVOS_TRANSFERENCIA.find(([codigo]) => motivo.startsWith(codigo));
+  return found ? `${found[1]} Puedes intentarlo de nuevo mas tarde.` : "Puedes intentarlo de nuevo mas tarde.";
+}
+
 /**
  * Avisos por correo (RF-21). Cada aviso se manda UNA sola vez aunque el evento llegue repetido o en paralelo:
  *   1. se RECLAMA el aviso de forma atomica (clave unica por evento)   -> solo un proceso continua
@@ -84,6 +99,163 @@ class NotificationService {
         `Tu documento "${title}" (avalado por ${clean(entidadAvaladora, 120)}) se cargo en tu carpeta ciudadana.`,
         `Estado: ${estado === "certificado" ? "certificado" : "no certificado (temporal)"}. Puedes autenticarlo para certificarlo oficialmente.`,
         `Fecha de carga: ${clean(cargadoEn, 40)}`,
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
+  /** documento.autenticado (HU-04): avisa que GovCarpeta certifico el documento. Un aviso por intento (eventId). */
+  async onDocumentAuthenticated({ eventId, ciudadanoId, titulo, autenticadoEn }) {
+    const contact = await this.contacts.find(ciudadanoId);
+    if (!contact) throw new PermanentError("no hay contacto para el ciudadano (ciudadano.registrado no procesado)");
+
+    const title = clean(titulo, 120);
+    return this._deliver({
+      eventKey: `documento.autenticado:${eventId}`,
+      tipo: "documento_autenticado",
+      ciudadanoId,
+      to: contact.correo,
+      subject: `Tu documento "${title}" ya esta certificado`,
+      text: [
+        `Hola ${clean(contact.nombre, 120)},`,
+        "",
+        `Tu documento "${title}" fue autenticado ante el centralizador del Ministerio TIC y ya esta certificado en tu carpeta ciudadana.`,
+        ...(autenticadoEn ? [`Fecha de autenticacion: ${clean(autenticadoEn, 40)}`] : []),
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
+  /**
+   * documento.autenticacion_fallida (HU-04): avisa que la autenticacion no se pudo completar y que el documento sigue
+   * temporal. El `eventId` es por intento: si un documento falla dos veces, se avisa las dos (no es un duplicado).
+   */
+  async onDocumentAuthenticationFailed({ eventId, ciudadanoId, titulo, motivo }) {
+    const contact = await this.contacts.find(ciudadanoId);
+    if (!contact) throw new PermanentError("no hay contacto para el ciudadano (ciudadano.registrado no procesado)");
+
+    const title = clean(titulo, 120);
+    const porque =
+      motivo === "no_disponible"
+        ? "El centralizador del Ministerio TIC no respondio. Puedes intentarlo de nuevo mas tarde."
+        : "El centralizador del Ministerio TIC no pudo autenticarlo. Puedes intentarlo de nuevo o solicitar el documento oficial a la entidad que lo emite.";
+    return this._deliver({
+      eventKey: `documento.autenticacion_fallida:${eventId}`,
+      tipo: "documento_autenticacion_fallida",
+      ciudadanoId,
+      to: contact.correo,
+      subject: `No pudimos certificar tu documento "${title}"`,
+      text: [
+        `Hola ${clean(contact.nombre, 120)},`,
+        "",
+        `La autenticacion de tu documento "${title}" no se pudo completar. El documento sigue en tu carpeta como no certificado (temporal).`,
+        porque,
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
+  /**
+   * transferencia.cancelada (HU-05c): la transferencia a otro operador no se completo. Se le explica el motivo y que sus
+   * datos y documentos siguen aqui (la carpeta se desbloqueo). Una sola vez por transferencia, aunque el evento se repita.
+   */
+  async onTransferCancelled({ transferenciaId, ciudadanoId, motivo, operadorDestino }) {
+    const contact = await this.contacts.find(ciudadanoId);
+    if (!contact) throw new PermanentError("no hay contacto para el ciudadano (ciudadano.registrado no procesado)");
+
+    const destino = operadorDestino ? ` a ${clean(operadorDestino, 120)}` : "";
+    return this._deliver({
+      eventKey: `transferencia.cancelada:${transferenciaId}`,
+      tipo: "transferencia_cancelada",
+      ciudadanoId,
+      to: contact.correo,
+      subject: "Tu traslado de operador no se completo",
+      text: [
+        `Hola ${clean(contact.nombre, 120)},`,
+        "",
+        `Tu solicitud de traslado${destino} no se pudo completar. ${motivoTransferencia(motivo)}`,
+        "Tus datos y documentos siguen en tu carpeta ciudadana con nosotros y puedes usarla con normalidad.",
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
+  /**
+   * paquete.envio_correo (HU-06.2, RF-26): un ciudadano envio documentos a una entidad que NO recibe en carpeta
+   * institucional. El destinatario es EXTERNO (no hay Contact): viene en el evento, validado como UN solo correo. Los
+   * enlaces temporales van solo en el cuerpo: nunca en el asunto (se guarda en Mongo) ni en los logs.
+   */
+  async onPackageEmail({ eventId, ciudadanoId, correo, nombreDestino, remitenteDireccionUnica, documentos, vencenEn }) {
+    const lista = documentos.map((d) => `- ${clean(d.titulo, 120)}: ${d.url}`);
+    return this._deliver({
+      eventKey: `paquete.envio_correo:${eventId}`,
+      tipo: "paquete_documental",
+      ciudadanoId,
+      to: correo,
+      subject: `Un ciudadano te envio ${documentos.length} documento(s) desde su carpeta ciudadana`,
+      text: [
+        `Hola${nombreDestino ? ` ${clean(nombreDestino, 120)}` : ""},`,
+        "",
+        `A traves de ${this.operatorName}, un ciudadano${remitenteDireccionUnica ? ` (${clean(remitenteDireccionUnica, 120)})` : ""} te envio estos documentos de su carpeta ciudadana:`,
+        ...lista,
+        "",
+        `Los enlaces son personales y vencen el ${clean(vencenEn, 40)}. Descargalos antes de esa fecha.`,
+        `Si tu entidad se afilia y verifica en un operador de Carpeta Ciudadana, los recibira directamente en su carpeta institucional.`,
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
+  /**
+   * solicitud_oficial.pendiente (HU-06.4, RF-31): avisa a la ENTIDAD emisora (destinatario externo, no un ciudadano) que
+   * un ciudadano le pidio el documento oficial. No lleva enlaces: la entidad lo ve y lo entrega desde su bandeja.
+   */
+  async onOfficialRequestPending({ eventId, ciudadanoId, correo, nombreEntidad, tituloDocumento, descripcion, remitenteDireccionUnica }) {
+    return this._deliver({
+      eventKey: `solicitud_oficial.pendiente:${eventId}`,
+      tipo: "solicitud_documento_oficial",
+      ciudadanoId,
+      to: correo,
+      subject: "Un ciudadano solicita un documento oficial a tu entidad",
+      text: [
+        `Hola${nombreEntidad ? ` ${clean(nombreEntidad, 120)}` : ""},`,
+        "",
+        `A traves de ${this.operatorName}, un ciudadano${remitenteDireccionUnica ? ` (${clean(remitenteDireccionUnica, 120)})` : ""} solicita el documento oficial de: ${clean(tituloDocumento, 120)}.`,
+        ...(descripcion ? [`Detalle: ${clean(descripcion, 500)}`] : []),
+        "",
+        "Consulta la solicitud en la bandeja de tu entidad (GET /api/v1/official-requests, con el token institucional; la entidad debe estar verificada) y entrega el documento indicando la solicitud.",
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
+  /**
+   * ciudadano.activacion_requerida (HU-05c): el ciudadano llego transferido sin contrasena; se le envia el codigo de un
+   * solo uso para fijarla. El codigo es una credencial: va SOLO en el cuerpo (nunca en el asunto, que se guarda en
+   * Mongo, ni en los logs). Un evento por codigo emitido.
+   */
+  async onActivationRequired({ eventId, ciudadanoId, nombre, correo, codigo, venceEn }) {
+    return this._deliver({
+      eventKey: `ciudadano.activacion_requerida:${eventId}`,
+      tipo: "activacion_cuenta",
+      ciudadanoId,
+      to: correo,
+      subject: `Activa tu cuenta en ${this.operatorName}`,
+      text: [
+        `Hola ${clean(nombre, 120)},`,
+        "",
+        `Tu carpeta ciudadana ya esta en ${this.operatorName}. Para entrar, crea tu contrasena con este codigo de un solo uso:`,
+        "",
+        codigo,
+        "",
+        `Vence el ${clean(venceEn, 40)}. Envialo junto con tu numero de documento y tu nueva contrasena a POST /api/v1/auth/activate.`,
+        "Si no pediste cambiarte de operador, ignora este correo.",
         "",
         "Este es un aviso automatico; no respondas a este correo.",
       ].join("\n"),

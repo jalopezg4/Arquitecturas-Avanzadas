@@ -1,7 +1,9 @@
 const crypto = require("crypto");
 const logger = require("../tracing/logger");
 const { documentoCargadoPayload } = require("./events");
-const { ESTADOS } = require("../domain/Document");
+const mongoose = require("mongoose");
+const { ESTADOS_DE_CARGA } = require("../domain/Document");
+const { DocumentoNoEncontradoError, DocumentoAjenoError, CarpetaEnTransferenciaError } = require("../domain/errors");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -152,7 +154,7 @@ class DocumentService {
 
   _validate({ ciudadanoId, file, metadata, estado, maxBytes }) {
     if (typeof ciudadanoId !== "string" || !ciudadanoId) throw new ValidationError("ciudadanoId es requerido");
-    if (!ESTADOS.includes(estado)) throw new ValidationError(`estado debe ser uno de ${ESTADOS.join(", ")}`);
+    if (!ESTADOS_DE_CARGA.includes(estado)) throw new ValidationError(`estado debe ser uno de ${ESTADOS_DE_CARGA.join(", ")}`);
 
     // Limite del caso de uso: la carga del ciudadano usa el general; la recepcion institucional (HU-10) el suyo,
     // mas alto. Siempre hay un limite: el archivo entero se procesa en memoria (multer.memoryStorage).
@@ -193,14 +195,19 @@ class DocumentService {
   async upload({ ciudadanoId, file, metadata, estado = "temporal", extra, actor, maxBytes }) {
     // Datos invalidos no se auditan como intento (no hay nada que reconstruir); el resto de fallos si.
     const clean = this._validate({ ciudadanoId, file, metadata, estado, maxBytes });
+    // HU-05c: una carpeta en transferencia no admite documentos nuevos (tampoco los certificados de HU-10, que no
+    // pasan por la reserva de cupo). La reserva vuelve a comprobarlo de forma atomica.
+    await this.folderRepository.assertWritable(ciudadanoId);
 
     const consumesQuota = estado === "temporal";
+    // El id se genera antes de crear el documento: el cupo se reserva A NOMBRE de este documento.
+    const documentoId = new mongoose.Types.ObjectId();
     let reserved = false;
     let key = null;
     let stored = false;
     try {
       if (consumesQuota) {
-        reserved = await this.folderRepository.reserveNonCertified(ciudadanoId, this.quota);
+        reserved = await this.folderRepository.reserveNonCertified(ciudadanoId, documentoId, this.quota);
         if (!reserved) throw new QuotaExceededError(this.quota);
       }
 
@@ -217,6 +224,7 @@ class DocumentService {
       }
 
       const doc = await this.documentRepository.create({
+        _id: documentoId,
         ciudadanoId,
         ...clean,
         ...(extra || {}), // HU-10: procedencia (origen, emisorInstitutionId, envioId). Vacio en la carga del ciudadano.
@@ -227,6 +235,20 @@ class DocumentService {
         sha256: crypto.createHash("sha256").update(file.buffer).digest("hex"),
       });
 
+      // HU-05c: `assertWritable` se comprobo al principio, pero entre eso y crear el documento la carpeta pudo
+      // bloquearse y exportarse. Si la exportacion ya se fijo sin este documento, no viajaria al destino: se deshace.
+      const folder = await this.folderRepository.get(ciudadanoId);
+      if (folder && folder.transferenciaId && Array.isArray(folder.exportados) && !folder.exportados.includes(String(doc._id))) {
+        const removed = await this.documentRepository.deleteByIds([doc._id]).catch(() => 0);
+        // Si no se pudo borrar, el documento se queda (con su archivo y su cupo): el borrado de la transferencia no
+        // lo toca y la carpeta se conserva para revisarlo.
+        if (!removed) {
+          stored = false;
+          reserved = false;
+        }
+        throw new CarpetaEnTransferenciaError();
+      }
+
       await this._publish(doc);
       await this._audit(ciudadanoId, "exito", undefined, { estado, tamanoBytes: file.buffer.length }, doc._id.toString(), actor);
       return { documentoId: doc._id.toString(), url };
@@ -236,7 +258,8 @@ class DocumentService {
         await this.storage.delete(key).catch((e) => logger.error("documento.compensacion_fallo", { step: "delete_objeto", err: e }));
       }
       if (reserved) {
-        await this.folderRepository.releaseNonCertified(ciudadanoId).catch((e) => logger.error("documento.compensacion_fallo", { step: "liberar_cupo", err: e }));
+        // Si esto falla, el QuotaReconciler devuelve el cupo (el id quedo en `cupos` sin documento).
+        await this.folderRepository.releaseNonCertified(ciudadanoId, documentoId).catch((e) => logger.error("documento.compensacion_fallo", { step: "liberar_cupo", err: e }));
       }
       const reason = err instanceof QuotaExceededError ? "cuota_llena" : err.message;
       await this._audit(ciudadanoId, err instanceof QuotaExceededError ? "rechazo" : "fallo", reason, undefined, undefined, actor);
@@ -262,6 +285,34 @@ class DocumentService {
       currentPage,
       pageSize: size,
       totalPages: Math.ceil(total / size),
+    };
+  }
+
+  /**
+   * HU-09 (RF-23): URL prefirmada para que el ciudadano descargue un documento PROPIO. Mismo mecanismo que HU-04
+   * (ADR-06) con vigencia propia: `downloadTtlSeconds` (1 hora como maximo, validado al arrancar).
+   *
+   * Orden: id con forma valida y documento existente (404) -> es del ciudadano del token (403 y bitacora
+   * `no_es_dueno`) -> recien entonces se firma. Cada descarga queda en la bitacora (RF-39 / RNF-07). Es de solo
+   * lectura: funciona tambien con la carpeta en transferencia.
+   */
+  async download({ ciudadanoId, documentoId }) {
+    if (typeof documentoId !== "string" || !mongoose.isValidObjectId(documentoId)) throw new DocumentoNoEncontradoError();
+    const doc = await this.documentRepository.findById(documentoId);
+    if (!doc) throw new DocumentoNoEncontradoError();
+    const actor = { id: ciudadanoId, tipo: "ciudadano", delegated: false, action: "documento.descargar" };
+    if (doc.ciudadanoId !== ciudadanoId) {
+      await this._audit(doc.ciudadanoId, "rechazo", "no_es_dueno", undefined, documentoId, actor);
+      throw new DocumentoAjenoError("solo el dueno del documento puede descargarlo");
+    }
+    const downloadUrl = await this.storage.presignedGetUrl(doc.storageKey, this.downloadTtlSeconds);
+    await this._audit(ciudadanoId, "exito", undefined, undefined, documentoId, actor);
+    return {
+      documentoId,
+      titulo: doc.titulo,
+      mimeType: doc.mimeType,
+      downloadUrl,
+      expiraEn: new Date(this.now().getTime() + this.downloadTtlSeconds * 1000).toISOString(),
     };
   }
 

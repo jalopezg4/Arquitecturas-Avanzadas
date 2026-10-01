@@ -17,4 +17,26 @@ function documentoCargadoPayload(doc) {
   };
 }
 
-module.exports = { documentoCargadoPayload };
+/**
+ * Contenido del evento `documento.autenticacion_solicitada` (HU-04). Lo usan la solicitud y su reconciliador.
+ *
+ * `eventId` = `<documentoId>-auth-<intento>`: deterministico por intento (un reenvio del mismo intento es el mismo
+ * evento) pero distinto entre intentos (pedir de nuevo tras un fallo no se confunde con un duplicado).
+ * `documento` es la cedula (idCitizen de GovCarpeta) y `storageKey` la clave del objeto a exponer con URL prefirmada:
+ * datos internos del bus, nunca se devuelven al ciudadano.
+ */
+function autenticacionSolicitadaPayload(doc, documento) {
+  const documentoId = doc._id.toString();
+  return {
+    eventId: `${documentoId}-auth-${doc.autenticacionIntento}`,
+    documentoId,
+    ciudadanoId: doc.ciudadanoId,
+    documento,
+    titulo: doc.titulo,
+    storageKey: doc.storageKey,
+    intento: doc.autenticacionIntento,
+    solicitadaEn: new Date(doc.autenticacionSolicitadaEn).toISOString(),
+  };
+}
+
+module.exports = { documentoCargadoPayload, autenticacionSolicitadaPayload };

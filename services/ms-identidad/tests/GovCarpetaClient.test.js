@@ -29,6 +29,17 @@ describe("GovCarpetaClient", () => {
     expect(calls).toBe(3);
   });
 
+  // Revision del PR #90: 502/503/504 (router/dyno de Heroku) y 408/425/429 tambien son transitorios.
+  test.each([502, 503, 504, 408, 425, 429])("validateCitizen() reintenta ante %i", async (status) => {
+    const get = jest.fn(async () => {
+      throw Object.assign(new Error("fail"), { response: { status } });
+    });
+    const client = new GovCarpetaClient({ baseUrl: "http://fake", operatorId: "op1", operatorName: "Op", maxRetries: 3, http: makeFakeHttp({ getImpl: get }) });
+
+    await expect(client.validateCitizen(123)).rejects.toMatchObject({ code: "GOVCARPETA_UNAVAILABLE" });
+    expect(get).toHaveBeenCalledTimes(3);
+  });
+
   test("validateCitizen() responde con error GOVCARPETA_UNAVAILABLE tras agotar reintentos", async () => {
     const get = jest.fn(async () => {
       const err = new Error("fail");

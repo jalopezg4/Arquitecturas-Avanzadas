@@ -99,6 +99,12 @@ describe("reintentos (getOperators es idempotente)", () => {
     expect(http.get).toHaveBeenCalledTimes(1);
   });
 
+  test.each([502, 503, 504, 429])("reintenta un %s (router/dyno de Heroku)", async (status) => {
+    const http = { get: jest.fn(async () => { throw Object.assign(new Error("x"), { response: { status } }); }) };
+    await expect(clientWith(http, { maxRetries: 3 }).listOperators()).rejects.toMatchObject({ code: "GOVCARPETA_UNAVAILABLE" });
+    expect(http.get).toHaveBeenCalledTimes(3);
+  });
+
   test("agotados los reintentos -> GOVCARPETA_UNAVAILABLE, con la causa", async () => {
     const http = { get: jest.fn(async () => { throw Object.assign(new Error("boom"), { response: { status: 500 } }); }) };
     const err = await clientWith(http, { maxRetries: 3 }).listOperators().catch((e) => e);

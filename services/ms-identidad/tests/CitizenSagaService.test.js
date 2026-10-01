@@ -177,7 +177,8 @@ describe("CitizenSagaService.register()", () => {
     const dump = JSON.stringify(payload);
     expect(dump).not.toContain(validInput.password);
     expect(dump).not.toContain("argon2");
-    expect(Object.keys(payload).sort()).toEqual(["ciudadanoId", "correo", "direccionUnica", "documento", "nombre", "telefono"]);
+    // `direccion` (HU-05c): ms-interoperabilidad la necesita para re-afiliar en GovCarpeta si una transferencia falla.
+    expect(Object.keys(payload).sort()).toEqual(["ciudadanoId", "correo", "direccion", "direccionUnica", "documento", "nombre", "telefono"]);
   });
 
   test("NO falla el registro si eventPublisher.publish() rechaza (evento no es camino critico, ADR-04)", async () => {

@@ -76,6 +76,24 @@ function validateConfig(cfg) {
       const p = secretProblem(s);
       if (p) problems.push(`ENTITY_JWT_SECRET_PREVIOUS[${i}] ${p}`);
     });
+
+    // HU-06.2: verifica los tokens del ciudadano (misma llave que ms-identidad) y publica eventos por un broker con TLS.
+    if (cfg.jwtSecret !== undefined) {
+      const jwtProblem = secretProblem(cfg.jwtSecret);
+      if (jwtProblem) problems.push(`JWT_SECRET ${jwtProblem} (minimo ${MIN_SECRET_LENGTH} caracteres, la misma que usa ms-identidad)`);
+    }
+    if (cfg.rabbitUri !== undefined && !/^amqps:\/\//i.test(cfg.rabbitUri || "")) problems.push("RABBITMQ_URI debe usar amqps:// (RabbitMQ con TLS)");
+  }
+
+  // ADR-07, en TODO ambiente: si la llave de ciudadanos y la de entidades fueran la misma, un token valdria por el otro.
+  if (cfg.jwtSecret && cfg.entityJwtSecret && cfg.jwtSecret === cfg.entityJwtSecret) {
+    problems.push("ENTITY_JWT_SECRET no puede ser igual a JWT_SECRET (los tokens de entidad y de ciudadano se firman con llaves distintas, ADR-07)");
+  }
+  const pk = cfg.packages;
+  if (pk) {
+    if (!Number.isInteger(pk.maxDocumentos) || pk.maxDocumentos < 1 || pk.maxDocumentos > 100) problems.push("MAX_DOCUMENTOS_PAQUETE debe ser un entero entre 1 y 100");
+    if (!Number.isInteger(pk.reconcileIntervalMs) || pk.reconcileIntervalMs < 0) problems.push("RECONCILE_INTERVAL_MS debe ser un entero >= 0");
+    if (!Number.isInteger(pk.reconcileMinAgeMs) || pk.reconcileMinAgeMs < 0) problems.push("RECONCILE_MIN_AGE_MS debe ser un entero >= 0");
   }
 
   // La vigencia del token institucional es politica, no preferencia (igual que el access token del ciudadano).

@@ -1,5 +1,6 @@
 const axios = require("axios");
 const { getTraceId, TRACE_ID_HEADER } = require("../tracing/TraceContext");
+const { isTransientStatus } = require("./httpStatus");
 
 const MAX_OPERATORS = 5000; // el directorio real tiene ~70; una respuesta enorme es un error o un ataque de memoria
 const MAX_NAME = 200;
@@ -57,7 +58,7 @@ class GovCarpetaDirectoryClient {
         if (err.nonRetryable) throw err;
         lastError = err;
         const status = err.response && err.response.status;
-        if (!(status === undefined || status === 500)) throw err; // 4xx / 501: definitivo
+        if (!isTransientStatus(status)) throw err; // 3xx / 4xx / 501: definitivo
         if (attempt < this.maxRetries) await new Promise((r) => setTimeout(r, this.baseDelayMs * 2 ** (attempt - 1)));
       }
     }

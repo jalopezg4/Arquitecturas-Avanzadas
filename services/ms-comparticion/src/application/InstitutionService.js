@@ -276,16 +276,48 @@ class InstitutionService {
    * ecosistema); false si no (entonces se usa el envio por correo, RF-26). Un NIT invalido o inexistente es simplemente
    * "no tiene carpeta", no un error: quien entrega debe poder caer al correo.
    *
-   * NOTA PARA EL EQUIPO (HU-06.2, otro integrante): esta funcion NO mira `verificada`, y se deja asi a proposito.
-   * Con ADR-07 una entidad puede existir con carpeta activa y NO estar verificada; habra que decidir si, para
-   * entregar un paquete documental, una entidad sin verificar "tiene carpeta" (entrega interna) o debe caer al
-   * envio por correo (RF-26). Es una decision de HU-06.2, no de la verificacion.
+   * Esta funcion NO mira `verificada` (solo dice si existe la carpeta). La decision de HU-06.2 esta en
+   * `resolveDeliveryTarget()`: para ENTREGAR un paquete en la carpeta, la entidad ademas debe estar verificada.
    */
   async hasInstitutionalFolder({ nit } = {}) {
     const parsed = parseNit(nit);
     if (!parsed.ok) return false;
     const institution = await this.institutionRepository.findByNit(parsed.nit);
     return Boolean(institution && institution.carpeta && institution.carpeta.estado === "activa");
+  }
+
+  /**
+   * HU-06.2: a donde va un paquete documental dirigido a ese NIT. Decision del equipo (Fase 3): la entrega INTERNA
+   * (RF-25) exige carpeta activa **y** entidad VERIFICADA por el operador (ADR-07): una entidad autodeclarada no recibe
+   * documentos de ciudadanos en su carpeta. En cualquier otro caso se cae al correo (RF-26): al de contacto de la
+   * entidad si esta registrada, o al que indique el ciudadano si no lo esta.
+   * @returns {Promise<{canal: "carpeta_institucional"|"correo", institutionId?: string, correo?: string, nombre?: string, registrada: boolean}>}
+   */
+  async resolveDeliveryTarget({ nit } = {}) {
+    const parsed = parseNit(nit);
+    const institution = parsed.ok ? await this.institutionRepository.findByNit(parsed.nit) : null;
+    if (!institution) return { canal: "correo", registrada: false };
+    if (institution.verificada === true && institution.carpeta && institution.carpeta.estado === "activa") {
+      return { canal: "carpeta_institucional", institutionId: String(institution._id), nombre: institution.nombre, registrada: true };
+    }
+    return { canal: "correo", correo: institution.correoContacto, nombre: institution.nombre, registrada: true };
+  }
+
+  /**
+   * HU-06.4: a que institucion de este operador corresponde un NIT (para dirigirle una solicitud del documento oficial).
+   * `null` si el NIT es invalido o no esta registrado. No exige `verificada`: la solicitud queda en su bandeja, y ver la
+   * bandeja o entregar SI lo exigen (ms-documentos).
+   */
+  async resolveByNit(nit) {
+    const parsed = parseNit(nit);
+    const institution = parsed.ok ? await this.institutionRepository.findByNit(parsed.nit) : null;
+    return institution ? { institutionId: String(institution._id), nombre: institution.nombre, correoContacto: institution.correoContacto } : null;
+  }
+
+  /** HU-06.2: la entidad sigue verificada AHORA (se lee de la base propia, sin esperar a que venza su token). */
+  async isVerified(institutionId) {
+    const institution = await this.institutionRepository.findById(institutionId).catch(() => null);
+    return Boolean(institution && institution.verificada === true);
   }
 }
 

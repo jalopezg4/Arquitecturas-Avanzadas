@@ -2,6 +2,7 @@ const argon2 = require("argon2");
 const crypto = require("crypto");
 const { publishCitizenRegistered } = require("./events");
 const logger = require("../tracing/logger");
+const { isTransientStatus } = require("../infrastructure/httpStatus");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -48,10 +49,13 @@ function isValidDocumento(v) {
  * -> marca ACTIVO -> publica evento. Si falla despues de confirmar en GovCarpeta,
  * compensa con unregisterCitizen (el ciudadano NO debe quedar huerfano).
  */
-/** GovCarpeta respondio y dijo que no (4xx o 501). Sin respuesta, o un 5xx que no es 501, es ambiguo. */
+/**
+ * GovCarpeta respondio y dijo que no (4xx o 501). Sin respuesta, un 5xx que no es 501, o un 408/425/429 (pudo
+ * cortarse en un gateway despues de procesar) es AMBIGUO: misma clasificacion que httpStatus.js.
+ */
 function isDefinitiveRejection(err) {
   const status = err && err.response && err.response.status;
-  return Number.isInteger(status) && ((status >= 400 && status < 500) || status === 501);
+  return Number.isInteger(status) && !isTransientStatus(status);
 }
 
 class CitizenSagaService {

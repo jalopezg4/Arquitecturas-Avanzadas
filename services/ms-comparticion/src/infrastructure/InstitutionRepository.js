@@ -22,6 +22,10 @@ class InstitutionRepository {
     return Institution.findOne({ nit }).lean();
   }
 
+  async findById(id) {
+    return Institution.findById(id).lean();
+  }
+
   /**
    * ADR-07: registra un intento fallido de autenticacion y, al alcanzar `maxAttempts`, fija el bloqueo, todo en UNA
    * operacion atomica (pipeline de actualizacion). Con un leer-modificar-guardar, N intentos en paralelo contarian

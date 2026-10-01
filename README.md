@@ -25,12 +25,12 @@ Microservicios (ADR-01 del expediente), cada uno dueño exclusivo de su base de 
 |---|---|---|---|
 | `services/ms-gateway` | 3000 | Único punto de entrada: valida el token y enruta por lista blanca | HU-02 |
 | `services/ms-identidad` | 3001 | Registro, login, sesiones, registro del operador | HU-01, HU-02, HU-11 |
-| `services/ms-documentos` | 3002 | Carga y consulta de documentos; recepción de documentos enviados por entidades emisoras | HU-03, HU-08, HU-10 (HU-09 pendiente) |
-| `services/ms-notificaciones` | 3003 | Correos por eventos (confirmación de carga, bienvenida) | HU-03, HU-01 |
-| `services/ms-interoperabilidad` | 3004 | Directorio de operadores y publicación del endpoint de transferencia | HU-05a, HU-05b (HU-05c pendiente) |
-| `services/ms-comparticion` | 3005 | Registro **y autenticación** de entidades institucionales | HU-06.1, ADR-07 (HU-06.2 a 06.4 pendientes) |
+| `services/ms-documentos` | 3002 | Carga, consulta y descarga de documentos; recepción de documentos enviados por entidades emisoras; solicitud de autenticación y su resultado; carpeta en transferencia | HU-03, HU-04, HU-05c, HU-06.2, HU-06.4, HU-08, HU-09, HU-10 |
+| `services/ms-notificaciones` | 3003 | Correos por eventos (confirmación de carga, bienvenida, resultado de la autenticación) | HU-03, HU-01, HU-04 |
+| `services/ms-interoperabilidad` | 3004 | Directorio de operadores, publicación del endpoint y transferencia de ciudadanos entre operadores (origen y destino) | HU-05a, HU-05b, HU-05c |
+| `services/ms-comparticion` | 3005 | Registro **y autenticación** de entidades institucionales; paquetes documentales | HU-06.1, HU-06.2, HU-06.4 (resolver NIT), ADR-07 |
 | `services/ms-analitica` | 3006 | Analítica de metadatos y casos PQRS, protegidos con token institucional (ADR-07) | HU-07.1, HU-07.2, HU-07.3 (parcial: solo registro local, multioperador completo pendiente de HU-05c/HU-06.3) |
-| `services/ms-autenticacion` | — | Por empezar | HU-04 |
+| `services/ms-autenticacion` | 3007 | Autenticación de documentos con GovCarpeta: URL prefirmada de 15 min, `authenticateDocument` con reintentos, resultado por evento | HU-04 |
 
 Infraestructura local (Docker): MongoDB `27017`, RabbitMQ `5672` (consola `15672`), MinIO `9000` (consola `9001`).
 
@@ -96,6 +96,16 @@ Devuelve `accessToken` (15 minutos) y `refreshToken`. Con el `accessToken` y el 
 ```bash
 # Cargar un PDF (HU-03)
 curl -X POST http://localhost:3000/api/v1/citizens/<ciudadanoId>/documents   -H "Authorization: Bearer <accessToken>"   -F "titulo=Diploma de grado" -F "entidadAvaladora=Universidad EAFIT" -F "fecha=2026-03-15"   -F "archivo=@diploma.pdf;type=application/pdf"
+
+# Pedir la autenticacion de un documento temporal en GovCarpeta (HU-04): responde 202 y el resultado llega por correo.
+# Con MinIO en localhost el sandbox real NO puede abrir la URL del documento: la autenticacion termina en fallo.
+curl -X PUT http://localhost:3000/api/v1/documents/<documentoId>/authenticate -H "Authorization: Bearer <accessToken>"
+
+# Ciudadano que llego TRANSFERIDO desde otro operador (HU-05c): fija su contrasena con el codigo que recibio por correo
+curl -X POST http://localhost:3000/api/v1/auth/activate -H "Content-Type: application/json" -d '{"documento":"1000000001","codigo":"<codigo del correo>","password":"Clave-segura-123"}'
+
+# Descargar un documento propio (HU-09): devuelve una URL temporal de 1 hora
+curl http://localhost:3000/api/v1/documents/<documentoId>/download -H "Authorization: Bearer <accessToken>"
 
 # Consultar la carpeta, paginada (HU-08)
 curl "http://localhost:3000/api/v1/citizens/<ciudadanoId>/documents?page=1&pageSize=10"   -H "Authorization: Bearer <accessToken>"

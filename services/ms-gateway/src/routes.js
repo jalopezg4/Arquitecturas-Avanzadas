@@ -15,6 +15,9 @@ const ROUTES = [
   { method: "POST", path: "/api/v1/citizens", upstream: "IDENTIDAD_URL", public: true },
   { method: "POST", path: "/api/v1/auth/login", upstream: "IDENTIDAD_URL", public: true },
   { method: "POST", path: "/api/v1/auth/refresh", upstream: "IDENTIDAD_URL", public: true },
+  // HU-05c: el ciudadano transferido fija su contrasena con el codigo recibido por correo (aun no tiene token).
+  { method: "POST", path: "/api/v1/auth/activate", upstream: "IDENTIDAD_URL", public: true },
+  { method: "POST", path: "/api/v1/auth/activate/resend", upstream: "IDENTIDAD_URL", public: true },
   // ms-identidad -- protegidas
   { method: "GET", path: "/api/v1/auth/me", upstream: "IDENTIDAD_URL" },
   // ms-comparticion -- HU-06.1: registro de una entidad institucional. Publica (la entidad aun no tiene cuenta con nosotros);
@@ -40,6 +43,31 @@ const ROUTES = [
   // de CIUDADANO (por defecto); "me" es literal -- el servicio saca al ciudadano del token, nunca de la ruta.
   { method: "GET", path: "/api/v1/citizens/me/document-requests", upstream: "DOCUMENTOS_URL" },
   { method: "PATCH", pattern: /^\/api\/v1\/citizens\/me\/document-requests\/[A-Za-z0-9_-]{1,64}\/decision$/, upstream: "DOCUMENTOS_URL" },
+  // ms-documentos -- HU-04: el ciudadano pide autenticar un documento propio en GovCarpeta (responde 202; el resultado
+  // llega por evento). Token de CIUDADANO; el servicio comprueba que el documento sea suyo.
+  { method: "PUT", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/authenticate$/, upstream: "DOCUMENTOS_URL" },
+  // ms-documentos -- HU-09: URL de descarga (1 h) de un documento propio. Token de CIUDADANO; el servicio comprueba el dueno.
+  { method: "GET", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/download$/, upstream: "DOCUMENTOS_URL" },
+  // ms-documentos -- HU-06.4: documento oficial. El ciudadano lo pide sobre un temporal suyo y ve sus solicitudes...
+  { method: "POST", pattern: /^\/api\/v1\/documents\/[A-Za-z0-9_-]{1,64}\/request-official$/, upstream: "DOCUMENTOS_URL" },
+  { method: "GET", path: "/api/v1/citizens/me/official-requests", upstream: "DOCUMENTOS_URL" },
+  // ...y la entidad VERIFICADA ve su bandeja (la entrega va por POST /api/v1/documents/inbound con solicitudOficialId).
+  { method: "GET", path: "/api/v1/official-requests", upstream: "DOCUMENTOS_URL", actor: "entidad" },
+  // ms-comparticion -- HU-06.2: paquetes documentales. El ciudadano los arma y consulta con SU token...
+  { method: "POST", path: "/api/v1/packages", upstream: "COMPARTICION_URL" },
+  { method: "GET", path: "/api/v1/citizens/me/packages", upstream: "COMPARTICION_URL" },
+  { method: "GET", pattern: /^\/api\/v1\/citizens\/me\/packages\/[A-Za-z0-9_-]{1,64}$/, upstream: "COMPARTICION_URL" },
+  // ...y la entidad VERIFICADA ve los que le entregaron en su carpeta y descarga cada documento (token INSTITUCIONAL).
+  { method: "GET", path: "/api/v1/institutions/me/packages", upstream: "COMPARTICION_URL", actor: "entidad" },
+  { method: "GET", pattern: /^\/api\/v1\/packages\/[A-Za-z0-9_-]{1,64}\/documents\/[A-Za-z0-9_-]{1,64}\/download$/, upstream: "DOCUMENTOS_URL", actor: "entidad" },
+  // ms-interoperabilidad -- HU-05c: el ciudadano inicia su transferencia a otro operador y consulta la que esta en curso.
+  { method: "POST", path: "/api/v1/transfers", upstream: "INTEROPERABILIDAD_URL" },
+  { method: "GET", path: "/api/v1/citizens/me/transfer", upstream: "INTEROPERABILIDAD_URL" },
+  // ms-interoperabilidad -- HU-05c: protocolo ENTRE OPERADORES (acordado por los equipos del curso; rutas fijas, sin
+  // /v1). Publicas: el protocolo no define autenticacion entre operadores. La confirmacion solo se acepta con el token
+  // aleatorio que viaja en NUESTRO confirmAPI (?t=...), que el gateway reenvia intacto; el servicio valida todo.
+  { method: "POST", path: "/api/transferCitizen", upstream: "INTEROPERABILIDAD_URL", public: true },
+  { method: "POST", path: "/api/transferCitizenConfirm", upstream: "INTEROPERABILIDAD_URL", public: true },
 ];
 
 function findRoute(method, path, routes = ROUTES) {

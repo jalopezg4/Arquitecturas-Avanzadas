@@ -145,3 +145,35 @@ describe("La direccion unica es UNICA entre carpetas", () => {
     expect(await Folder.countDocuments()).toBe(2);
   });
 });
+
+describe("ciudadano.registrado guarda la cedula en la carpeta (HU-04)", () => {
+  test("guarda el documento del evento: es el idCitizen que GovCarpeta necesita para autenticar", async () => {
+    await handler({ ciudadanoId: ANA, documento: 1000000001, direccionUnica: DIR_ANA });
+
+    expect((await Folder.findOne({ ciudadanoId: ANA }).lean()).documento).toBe(1000000001);
+  });
+
+  test("rellena la cedula de una carpeta creada por una carga anterior, sin pisar su contador", async () => {
+    await Folder.create({ ciudadanoId: ANA, noCertificados: 2 });
+
+    await handler({ ciudadanoId: ANA, documento: 1000000001 });
+
+    expect(await Folder.findOne({ ciudadanoId: ANA }).lean()).toMatchObject({ noCertificados: 2, documento: 1000000001 });
+  });
+
+  test("un evento sin cedula no borra la que ya estaba guardada", async () => {
+    await handler({ ciudadanoId: ANA, documento: 1000000001 });
+    await handler({ ciudadanoId: ANA, direccionUnica: DIR_ANA });
+
+    expect((await Folder.findOne({ ciudadanoId: ANA }).lean()).documento).toBe(1000000001);
+  });
+
+  test.each([["1000000001"], [-5], [0], [1.5], [Number.MAX_SAFE_INTEGER + 2], [{ $gt: 0 }]])(
+    "una cedula invalida (%p) se descarta pero la carpeta se crea igual",
+    async (documento) => {
+      await handler({ ciudadanoId: ANA, documento, direccionUnica: DIR_ANA });
+
+      expect(await Folder.findOne({ ciudadanoId: ANA }).lean()).toMatchObject({ documento: null, direccionUnica: DIR_ANA });
+    }
+  );
+});

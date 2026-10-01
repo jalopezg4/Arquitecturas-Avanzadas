@@ -2,6 +2,7 @@ const { PermanentError } = require("../infrastructure/EventConsumer");
 
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const SINGLE_EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 
 function need(condition, message) {
   if (!condition) throw new PermanentError(message);
@@ -29,6 +30,71 @@ function makeEventHandlers({ notificationService }) {
       need(text(payload.titulo, 300), "titulo invalido");
       need(text(payload.entidadAvaladora, 300), "entidadAvaladora invalida");
       await notificationService.onDocumentUploaded(payload);
+    },
+
+    // HU-04: resultado de la autenticacion (lo publica ms-autenticacion). eventId por intento y resultado.
+    async documentoAutenticado(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido (sin el no hay idempotencia)");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      need(text(payload.titulo, 300), "titulo invalido");
+      await notificationService.onDocumentAuthenticated(payload);
+    },
+
+    async documentoAutenticacionFallida(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido (sin el no hay idempotencia)");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      need(text(payload.titulo, 300), "titulo invalido");
+      await notificationService.onDocumentAuthenticationFailed(payload);
+    },
+
+    // HU-05c: la transferencia a otro operador se cancelo (lo publica ms-interoperabilidad).
+    async transferenciaCancelada(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.transferenciaId === "string" && ID_RE.test(payload.transferenciaId), "transferenciaId invalido");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      need(payload.motivo === undefined || payload.motivo === null || (typeof payload.motivo === "string" && payload.motivo.length <= 200), "motivo invalido");
+      need(payload.operadorDestino === undefined || payload.operadorDestino === null || text(payload.operadorDestino, 200), "operadorDestino invalido");
+      await notificationService.onTransferCancelled(payload);
+    },
+
+    // HU-06.2 (RF-26): correo a una entidad EXTERNA con los enlaces temporales de un paquete documental.
+    async paqueteEnvioCorreo(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido (sin el no hay idempotencia)");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      // UN solo destinatario: sin comas ni punto y coma (el transporte trataria "a@x.co,b@y.co" como dos).
+      need(typeof payload.correo === "string" && payload.correo.length <= 200 && SINGLE_EMAIL_RE.test(payload.correo), "correo invalido (un solo destinatario)");
+      need(Array.isArray(payload.documentos) && payload.documentos.length >= 1 && payload.documentos.length <= 100, "documentos invalidos");
+      for (const d of payload.documentos) {
+        need(d && text(d.titulo, 300), "titulo de documento invalido");
+        need(typeof d.url === "string" && d.url.length <= 4096 && /^https?:\/\/[^\s]+$/.test(d.url), "url de documento invalida");
+      }
+      need(text(payload.vencenEn, 40), "vencenEn invalido");
+      await notificationService.onPackageEmail(payload);
+    },
+
+    // HU-06.4 (RF-31): aviso a la ENTIDAD emisora de una solicitud del documento oficial.
+    async solicitudOficialPendiente(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.eventId === "string" && ID_RE.test(payload.eventId), "eventId invalido (sin el no hay idempotencia)");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      need(typeof payload.correo === "string" && payload.correo.length <= 200 && SINGLE_EMAIL_RE.test(payload.correo), "correo invalido (un solo destinatario)");
+      need(text(payload.tituloDocumento, 300), "tituloDocumento invalido");
+      await notificationService.onOfficialRequestPending(payload);
+    },
+
+    // HU-05c: codigo de activacion del ciudadano transferido (trae su correo: puede llegar antes que su contacto).
+    async activacionRequerida(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.eventId === "string" && /^[A-Za-z0-9_-]{1,80}$/.test(payload.eventId), "eventId invalido (sin el no hay idempotencia)");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      need(text(payload.nombre, 200), "nombre invalido");
+      need(typeof payload.correo === "string" && payload.correo.length <= 200 && SINGLE_EMAIL_RE.test(payload.correo), "correo invalido (un solo destinatario)");
+      need(typeof payload.codigo === "string" && /^[A-Za-z0-9_-]{20,100}$/.test(payload.codigo), "codigo invalido");
+      need(text(payload.venceEn, 40), "venceEn invalido");
+      await notificationService.onActivationRequired(payload);
     },
 
     async solicitudCreada(payload) {
