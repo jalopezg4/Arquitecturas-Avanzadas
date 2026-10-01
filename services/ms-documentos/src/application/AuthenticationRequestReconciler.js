@@ -11,8 +11,11 @@ const logger = require("../tracing/logger");
  * hace DocumentAuthenticationService.publish(), la misma que usa la solicitud: el mensaje es identico.
  */
 class AuthenticationRequestReconciler {
-  constructor({ documentRepository, folderRepository, authenticationService, minAgeMs = 60000, batchSize = 50, now = () => new Date() }) {
+  // `timeoutMs`: cuanto puede seguir un documento `en autenticacion` con la solicitud ya publicada. Mas que la vigencia
+  // de la URL (15 min): pasado ese tiempo GovCarpeta ya no puede leer el documento, asi que no hay resultado en camino.
+  constructor({ documentRepository, folderRepository, authenticationService, minAgeMs = 60000, timeoutMs = 30 * 60 * 1000, batchSize = 50, now = () => new Date() }) {
     this.documentRepository = documentRepository;
+    this.timeoutMs = timeoutMs;
     this.folderRepository = folderRepository;
     this.authenticationService = authenticationService;
     this.minAgeMs = minAgeMs;
@@ -33,8 +36,19 @@ class AuthenticationRequestReconciler {
       if (folder && folder.documento && (await this.authenticationService.publish(doc, folder.documento))) republished++;
       else failed++;
     }
-    if (republished || failed) logger.info("documento.autenticacion_reconciliacion", { reenviados: republished, fallidos: failed });
-    return { republished, failed };
+    // Solicitudes publicadas que nunca tuvieron resultado: vuelven a temporal y el ciudadano recibe el aviso.
+    let expired = 0;
+    const vencidas = await this.documentRepository.findStaleAuthentications({ olderThan: new Date(this.now().getTime() - this.timeoutMs), limit: this.batchSize });
+    for (const doc of vencidas) {
+      try {
+        if (await this.authenticationService.expire(doc)) expired++;
+      } catch (err) {
+        failed++;
+        logger.error("documento.autenticacion_vencida_no_aplicada", { documentoId: String(doc._id), note: "se reintenta en la siguiente pasada", err });
+      }
+    }
+    if (republished || failed || expired) logger.info("documento.autenticacion_reconciliacion", { reenviados: republished, vencidos: expired, fallidos: failed });
+    return { republished, failed, expired };
   }
 
   start(intervalMs) {

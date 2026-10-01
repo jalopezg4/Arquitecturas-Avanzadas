@@ -11,7 +11,7 @@ const GovCarpetaClient = require("./infrastructure/GovCarpetaClient");
 const EventPublisher = require("./infrastructure/EventPublisher");
 const { BrokerConsumer } = require("./infrastructure/BrokerConsumer");
 const { PresignedUrlService } = require("./application/PresignedUrlService");
-const { AuthenticationService } = require("./application/AuthenticationService");
+const { AuthenticationService, staleClaimMsFor } = require("./application/AuthenticationService");
 const { makeEventHandlers } = require("./interfaces/eventHandlers");
 
 async function main() {
@@ -27,6 +27,7 @@ async function main() {
     eventPublisher: new EventPublisher(env.rabbitUri),
     auditLogger: new AuditLogger({ auditRepository: new AuditRepository() }),
     eventPublishTimeoutMs: env.eventPublishTimeoutMs,
+    staleClaimMs: staleClaimMsFor(env.govCarpeta),
   });
   const handlers = makeEventHandlers({ authenticationService });
 

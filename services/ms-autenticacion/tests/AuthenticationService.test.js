@@ -12,7 +12,7 @@ const AuditLogger = require("../src/infrastructure/AuditLogger");
 const AuditRepository = require("../src/infrastructure/AuditRepository");
 const { PermanentError } = require("../src/infrastructure/BrokerConsumer");
 const { PresignedUrlService } = require("../src/application/PresignedUrlService");
-const { AuthenticationService } = require("../src/application/AuthenticationService");
+const { AuthenticationService, IntentoEnCursoError, staleClaimMsFor } = require("../src/application/AuthenticationService");
 const { makeEventHandlers, parseSolicitud } = require("../src/interfaces/eventHandlers");
 const logger = require("../src/tracing/logger");
 
@@ -164,9 +164,53 @@ describe("Idempotencia (el bus entrega al menos una vez)", () => {
   test("8 entregas simultaneas: una sola llamada a GovCarpeta", async () => {
     build({ govImpl: () => new Promise((r) => setTimeout(() => r({ status: 200, mensaje: "ok", intentos: 1 }), 50)) });
 
-    await Promise.all(Array.from({ length: 8 }, () => handlers.autenticacionSolicitada(SOLICITUD)));
+    const results = await Promise.allSettled(Array.from({ length: 8 }, () => handlers.autenticacionSolicitada(SOLICITUD)));
 
     expect(govCarpeta.authenticateDocument).toHaveBeenCalledTimes(1);
+    // Las otras 7 NO se confirman como duplicadas mientras el intento sigue en curso: se reintentan (revision PR #90).
+    const rechazos = results.filter((r) => r.status === "rejected").map((r) => r.reason);
+    expect(rechazos).toHaveLength(7);
+    for (const err of rechazos) expect(err).toBeInstanceOf(IntentoEnCursoError);
+    // Ya resuelto, una reentrega si es un duplicado y se confirma sin llamar otra vez.
+    await handlers.autenticacionSolicitada(SOLICITUD);
+    expect(govCarpeta.authenticateDocument).toHaveBeenCalledTimes(1);
+  });
+
+  // Revision del PR #90: un intento `procesando` reentregado no se pierde.
+  test("si el proceso murio con el intento en curso, la reentrega se reintenta y lo retoma al vencer el reclamo", async () => {
+    build();
+    const ahora = NOW;
+    await AuthenticationAttempt.create({ eventId: SOLICITUD.eventId, documentoId: SOLICITUD.documentoId, ciudadanoId: SOLICITUD.ciudadanoId, intento: SOLICITUD.intento, reclamadoEn: ahora });
+
+    await expect(handlers.autenticacionSolicitada(SOLICITUD)).rejects.toBeInstanceOf(IntentoEnCursoError);
+    expect(govCarpeta.authenticateDocument).not.toHaveBeenCalled();
+
+    await AuthenticationAttempt.updateOne({ eventId: SOLICITUD.eventId }, { reclamadoEn: new Date(ahora.getTime() - 10 * 60 * 1000) });
+    await handlers.autenticacionSolicitada(SOLICITUD);
+
+    expect(govCarpeta.authenticateDocument).toHaveBeenCalledTimes(1);
+    expect(publisher.publish).toHaveBeenCalledWith("documento.autenticado", expect.objectContaining({ documentoId: SOLICITUD.documentoId }));
+  });
+
+  test("si guardar el resultado falla tras responder GovCarpeta, se libera el reclamo y la reentrega termina el trabajo", async () => {
+    build();
+    const real = AttemptRepository.prototype.resolve;
+    const spy = jest.spyOn(AttemptRepository.prototype, "resolve").mockImplementationOnce(async () => {
+      throw new Error("mongo no disponible");
+    });
+
+    await expect(handlers.autenticacionSolicitada(SOLICITUD)).rejects.toThrow("mongo no disponible");
+    spy.mockImplementation(real);
+    await handlers.autenticacionSolicitada(SOLICITUD);
+
+    expect(publisher.publish).toHaveBeenCalledWith("documento.autenticado", expect.objectContaining({ documentoId: SOLICITUD.documentoId }));
+    expect((await AuthenticationAttempt.findOne({ eventId: SOLICITUD.eventId }).lean()).estado).toBe("autenticado");
+    spy.mockRestore();
+  });
+
+  test("staleClaimMs se deriva de la configuracion: cubre todas las llamadas con su timeout y las esperas", () => {
+    expect(staleClaimMsFor({ timeoutMs: 10000, maxAttempts: 3, baseDelayMs: 1000 })).toBe(30000 + 10000 + 15000);
+    expect(staleClaimMsFor({ timeoutMs: 30000, maxAttempts: 3, baseDelayMs: 1000 })).toBeGreaterThan(3 * 30000);
   });
 
   test("si el broker no confirma el resultado, el reintento REPUBLICA el mismo resultado sin volver a llamar a GovCarpeta", async () => {

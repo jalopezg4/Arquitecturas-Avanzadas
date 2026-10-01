@@ -29,7 +29,8 @@ function parseSolicitud(payload) {
  * `documento.autenticacion_solicitada` (HU-04). Si GovCarpeta no respondio tras los 3 intentos, el resultado
  * (`documento.autenticacion_fallida`) ya se publico, y ademas el mensaje original va a la cola de fallidos para que
  * quede la evidencia de la falla del centralizador (criterio de la HU). Un rechazo definitivo (p. ej. 501) es un
- * resultado procesado: se confirma normalmente.
+ * resultado procesado: se confirma normalmente. Si otra entrega tiene el intento en curso, el servicio lanza un error
+ * transitorio y el consumidor reintenta (nunca se confirma un intento que podria no terminar).
  */
 function makeEventHandlers({ authenticationService }) {
   return {

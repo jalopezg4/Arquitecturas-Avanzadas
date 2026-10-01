@@ -121,6 +121,12 @@ function validateConfig(cfg) {
   if (!isPositiveInt(ttl)) problems.push("PRESIGNED_URL_DOWNLOAD_TTL_SECONDS debe ser un entero positivo");
   else if (ttl > MAX_DOWNLOAD_TTL_SECONDS) problems.push(`PRESIGNED_URL_DOWNLOAD_TTL_SECONDS no puede superar ${MAX_DOWNLOAD_TTL_SECONDS}s (politica de expiracion, ADR-06)`);
 
+  // HU-04: el plazo debe superar la vigencia de la URL que recibe GovCarpeta (15 min) o se revertiria un documento que
+  // GovCarpeta aun puede estar leyendo.
+  if (cfg.authenticationTimeoutMs !== undefined && (!isPositiveInt(cfg.authenticationTimeoutMs) || cfg.authenticationTimeoutMs <= 15 * 60 * 1000)) {
+    problems.push("AUTHENTICATION_TIMEOUT_MS debe ser un entero mayor que 900000 (15 min, vigencia de la URL de GovCarpeta)");
+  }
+
   if (cfg.transfer && (!isPositiveInt(cfg.transfer.maxDocuments) || cfg.transfer.maxDocuments > MAX_TRANSFER_DOCUMENTS)) {
     problems.push(`TRANSFER_MAX_DOCUMENTS debe ser un entero entre 1 y ${MAX_TRANSFER_DOCUMENTS} (cuerpo de 1 MB del protocolo)`);
   }

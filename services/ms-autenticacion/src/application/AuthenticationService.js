@@ -11,6 +11,28 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+/**
+ * Otro proceso tiene el intento `procesando` y su reclamo aun es reciente. NO es un duplicado que se pueda confirmar:
+ * si ese proceso murio, confirmar perderia el resultado para siempre. Se lanza como error transitorio: el consumidor
+ * reintenta con espera creciente y, cuando el reclamo vence (`staleClaimMs`), esta entrega lo retoma.
+ */
+class IntentoEnCursoError extends Error {
+  constructor() {
+    super("el intento lo esta procesando otra entrega; se reintentara");
+    this.name = "IntentoEnCursoError";
+  }
+}
+
+/**
+ * Cuanto puede tardar, como maximo, un intento vivo: todas las llamadas a GovCarpeta con su timeout, las esperas entre
+ * ellas (Retry-After acotado a 5 s) y un margen para firmar la URL y publicar. Un reclamo mas viejo que esto es de un
+ * proceso que murio. Deriva de la configuracion para que subir el timeout no deje reclamos "vencidos" en curso.
+ */
+function staleClaimMsFor({ timeoutMs, maxAttempts, baseDelayMs }) {
+  const esperas = Array.from({ length: Math.max(0, maxAttempts - 1) }, (_, i) => Math.max(5000, baseDelayMs * 2 ** i));
+  return maxAttempts * timeoutMs + esperas.reduce((a, b) => a + b, 0) + 15000;
+}
+
 /** Contenido de los eventos de resultado. `eventId` deterministico por intento y resultado (idempotencia aguas abajo). */
 function resultPayload(req, attempt) {
   const base = { documentoId: req.documentoId, ciudadanoId: req.ciudadanoId, titulo: req.titulo, intento: req.intento };
@@ -51,8 +73,12 @@ class AuthenticationService {
         await this._publish(req, attempt);
         return { estado: attempt.estado, motivo: attempt.motivo, republicado: true };
       }
+      if (!attempt || attempt.estado === "procesando") {
+        logger.info("autenticacion.intento_en_curso", { documentoId: req.documentoId, intento: req.intento, note: "se reintenta; si el otro proceso murio, se retoma al vencer su reclamo" });
+        throw new IntentoEnCursoError();
+      }
       logger.info("autenticacion.duplicado", { documentoId: req.documentoId, intento: req.intento });
-      return { estado: attempt ? attempt.estado : "procesando", motivo: attempt ? attempt.motivo : null, duplicado: true };
+      return { estado: attempt.estado, motivo: attempt.motivo, duplicado: true };
     }
 
     let estado;
@@ -79,7 +105,15 @@ class AuthenticationService {
       }
     }
 
-    const resolved = await this.attempts.resolve(req.eventId, { estado, motivo, llamadasGovCarpeta: llamadas, resueltoEn: this.now() });
+    let resolved;
+    try {
+      resolved = await this.attempts.resolve(req.eventId, { estado, motivo, llamadasGovCarpeta: llamadas, resueltoEn: this.now() });
+    } catch (err) {
+      // GovCarpeta ya respondio pero no se pudo guardar: se libera el reclamo para que el reintento lo retome (volvera
+      // a llamar; es un PUT sobre el mismo documento). Sin esto, el reintento lo veria `procesando` y lo perderia.
+      await this.attempts.release(req.eventId).catch((e) => logger.error("autenticacion.no_se_pudo_liberar", { err: e }));
+      throw err;
+    }
     logger.info("autenticacion.resultado", { documentoId: req.documentoId, intento: req.intento, estado, motivo, llamadas });
     await this._audit(req, estado, motivo, llamadas);
     await this._publish(req, resolved);
@@ -113,4 +147,4 @@ class AuthenticationService {
   }
 }
 
-module.exports = { AuthenticationService, resultPayload, AUTENTICADO, FALLIDA };
+module.exports = { AuthenticationService, IntentoEnCursoError, staleClaimMsFor, resultPayload, AUTENTICADO, FALLIDA };

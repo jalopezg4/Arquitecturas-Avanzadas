@@ -171,7 +171,7 @@ async function main() {
   }
   if (env.reconcile.intervalMs > 0) {
     new OfficialRequestReconciler({ officialRequestService, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
-    new AuthenticationRequestReconciler({ documentRepository, folderRepository, authenticationService: documentAuthenticationService, minAgeMs: env.reconcile.minAgeMs }).start(env.reconcile.intervalMs);
+    new AuthenticationRequestReconciler({ documentRepository, folderRepository, authenticationService: documentAuthenticationService, minAgeMs: env.reconcile.minAgeMs, timeoutMs: env.authenticationTimeoutMs }).start(env.reconcile.intervalMs);
     quotaReconciler.start(env.reconcile.intervalMs);
   }
 

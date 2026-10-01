@@ -17,6 +17,7 @@ class CedulaNoRegistradaError extends Error {
 }
 
 const ROUTING_KEY = "documento.autenticacion_solicitada";
+const FALLIDA = "documento.autenticacion_fallida";
 
 function withTimeout(promise, ms) {
   let timer;
@@ -120,6 +121,29 @@ class DocumentAuthenticationService {
     await this.folderRepository.releaseNonCertified(doc.ciudadanoId, doc._id);
     logger.info("documento.certificado", { documentoId, intento });
     return { applied: true };
+  }
+
+  /**
+   * Plazo vencido sin resultado (p. ej. ms-autenticacion perdio el mensaje o lo mando a la cola de fallidos): el
+   * documento no puede quedarse `en autenticacion` para siempre, porque el ciudadano ni siquiera podria reintentar.
+   * Se publica el MISMO `documento.autenticacion_fallida` que publicaria ms-autenticacion (mismo eventId: si llegara
+   * tambien el suyo, el ciudadano recibe un solo aviso) y este servicio lo aplica al consumirlo. Si el broker no lo
+   * confirma no se cambia nada y la siguiente pasada lo reintenta.
+   */
+  async expire(doc) {
+    const payload = {
+      eventId: `${doc._id}-auth-${doc.autenticacionIntento}-fallo`,
+      documentoId: String(doc._id),
+      ciudadanoId: doc.ciudadanoId,
+      titulo: doc.titulo,
+      intento: doc.autenticacionIntento,
+      motivo: "no_disponible",
+      fallidoEn: this.now().toISOString(),
+    };
+    await withTimeout(this.eventPublisher.publish(FALLIDA, payload), this.eventPublishTimeoutMs);
+    const reverted = await this.documentRepository.revertAuthentication(doc._id, doc.autenticacionIntento);
+    if (reverted) logger.warn("documento.autenticacion_vencida", { documentoId: payload.documentoId, intento: payload.intento });
+    return Boolean(reverted);
   }
 
   /** `documento.autenticacion_fallida`: vuelve a `temporal` (no queda colgado en "en autenticacion"); conserva su cupo. */

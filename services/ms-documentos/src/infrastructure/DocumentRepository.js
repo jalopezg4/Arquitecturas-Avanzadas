@@ -98,6 +98,14 @@ class DocumentRepository {
       .lean();
   }
 
+  /** HU-04: documentos `en autenticacion` cuya solicitud SI se publico pero no tuvo resultado antes de `olderThan`. */
+  async findStaleAuthentications({ olderThan, limit }) {
+    return Document.find({ estado: "en autenticacion", autenticacionEventoPublicado: true, autenticacionSolicitadaEn: { $lte: olderThan } })
+      .sort({ autenticacionSolicitadaEn: 1 })
+      .limit(limit)
+      .lean();
+  }
+
   /** Marca publicado el evento del intento `intento` (si entretanto hubo otro intento, no toca su bandera). */
   async markAuthRequestPublished(id, intento) {
     await Document.updateOne({ _id: id, autenticacionIntento: intento }, { autenticacionEventoPublicado: true });

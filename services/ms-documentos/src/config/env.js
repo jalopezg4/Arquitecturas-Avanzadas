@@ -70,6 +70,8 @@ const config = {
     intervalMs: toInt(process.env.RECONCILE_INTERVAL_MS, 60000),
     minAgeMs: toInt(process.env.RECONCILE_MIN_AGE_MS, 60000),
   },
+  // HU-04: plazo maximo de un documento `en autenticacion` sin resultado (luego vuelve a temporal y se avisa).
+  authenticationTimeoutMs: toInt(process.env.AUTHENTICATION_TIMEOUT_MS, 30 * 60 * 1000),
   // HU-05c: maximo de documentos de una transferencia, en los dos sentidos (mismo valor que en ms-interoperabilidad).
   transfer: {
     maxDocuments: toInt(process.env.TRANSFER_MAX_DOCUMENTS, 500),

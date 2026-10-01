@@ -209,11 +209,11 @@ describe("AuthenticationRequestReconciler", () => {
     const primerEventId = publisher.publish.mock.calls[0][1].eventId;
 
     fallar = false;
-    expect(await reconciler().reconcileOnce()).toEqual({ republished: 1, failed: 0 });
+    expect(await reconciler().reconcileOnce()).toEqual({ republished: 1, failed: 0, expired: 0 });
 
     expect(publisher.publish.mock.calls[1][1].eventId).toBe(primerEventId);
     expect((await Document.findById(doc._id).lean()).autenticacionEventoPublicado).toBe(true);
-    expect(await reconciler().reconcileOnce()).toEqual({ republished: 0, failed: 0 });
+    expect(await reconciler().reconcileOnce()).toEqual({ republished: 0, failed: 0, expired: 0 });
   });
 
   test("no toca una solicitud mas reciente que minAgeMs", async () => {
@@ -224,6 +224,44 @@ describe("AuthenticationRequestReconciler", () => {
     const doc = await documentoDe(ANA);
     await authenticate(doc._id).expect(202);
 
-    expect(await reconciler({ now: () => NOW }).reconcileOnce()).toEqual({ republished: 0, failed: 0 });
+    expect(await reconciler({ now: () => NOW }).reconcileOnce()).toEqual({ republished: 0, failed: 0, expired: 0 });
+  });
+
+  // Revision del PR #90: un documento no puede quedarse `en autenticacion` para siempre.
+  describe("plazo sin resultado", () => {
+    const despues = (ms) => () => new Date(NOW.getTime() + ms);
+    async function pedidaYPublicada() {
+      await conCedula();
+      const doc = await documentoDe(ANA);
+      await authenticate(doc._id).expect(202);
+      return doc;
+    }
+    const fallidas = () => publisher.publish.mock.calls.filter(([rk]) => rk === "documento.autenticacion_fallida").map(([, p]) => p);
+
+    test("pasado el plazo vuelve a temporal y se publica el aviso (mismo eventId que usaria ms-autenticacion)", async () => {
+      const doc = await pedidaYPublicada();
+
+      expect(await reconciler({ now: despues(31 * 60 * 1000) }).reconcileOnce()).toMatchObject({ expired: 1 });
+
+      expect((await Document.findById(doc._id).lean()).estado).toBe("temporal");
+      expect(fallidas()).toEqual([expect.objectContaining({ eventId: `${doc._id}-auth-1-fallo`, documentoId: String(doc._id), ciudadanoId: ANA, intento: 1, motivo: "no_disponible" })]);
+      await authenticate(doc._id).expect(202); // puede reintentar
+    });
+
+    test("antes del plazo no se toca", async () => {
+      const doc = await pedidaYPublicada();
+      expect(await reconciler({ now: despues(20 * 60 * 1000) }).reconcileOnce()).toMatchObject({ expired: 0 });
+      expect((await Document.findById(doc._id).lean()).estado).toBe("en autenticacion");
+    });
+
+    test("si el broker no confirma el aviso, no se cambia nada y la siguiente pasada lo reintenta", async () => {
+      const doc = await pedidaYPublicada();
+      publisher.publish.mockRejectedValueOnce(new Error("broker caido"));
+
+      expect(await reconciler({ now: despues(31 * 60 * 1000) }).reconcileOnce()).toMatchObject({ expired: 0, failed: 1 });
+      expect((await Document.findById(doc._id).lean()).estado).toBe("en autenticacion");
+
+      expect(await reconciler({ now: despues(32 * 60 * 1000) }).reconcileOnce()).toMatchObject({ expired: 1 });
+    });
   });
 });
