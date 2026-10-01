@@ -49,6 +49,16 @@ function makeEventHandlers({ notificationService }) {
       await notificationService.onDocumentAuthenticationFailed(payload);
     },
 
+    // HU-05c: la transferencia a otro operador se cancelo (lo publica ms-interoperabilidad).
+    async transferenciaCancelada(payload) {
+      need(payload && typeof payload === "object", "payload invalido");
+      need(typeof payload.transferenciaId === "string" && ID_RE.test(payload.transferenciaId), "transferenciaId invalido");
+      need(typeof payload.ciudadanoId === "string" && ID_RE.test(payload.ciudadanoId), "ciudadanoId invalido");
+      need(payload.motivo === undefined || payload.motivo === null || (typeof payload.motivo === "string" && payload.motivo.length <= 200), "motivo invalido");
+      need(payload.operadorDestino === undefined || payload.operadorDestino === null || text(payload.operadorDestino, 200), "operadorDestino invalido");
+      await notificationService.onTransferCancelled(payload);
+    },
+
     // HU-06.2 (RF-26): correo a una entidad EXTERNA con los enlaces temporales de un paquete documental.
     async paqueteEnvioCorreo(payload) {
       need(payload && typeof payload === "object", "payload invalido");

@@ -279,7 +279,8 @@ class TransferSagaService {
       }
     }
     try {
-      await this._publish(CANCELADA, { transferenciaId: String(cur._id), ciudadanoId: cur.ciudadanoId });
+      // `motivo`: solo el codigo (sin el detalle de la compensacion), para que ms-notificaciones le explique al ciudadano.
+      await this._publish(CANCELADA, { transferenciaId: String(cur._id), ciudadanoId: cur.ciudadanoId, motivo: String(cur.motivo || motivo).split(";")[0].trim(), operadorDestino: cur.operadorDestinoNombre || null });
     } catch (err) {
       logger.error("transferencia.compensacion_pendiente", { transferenciaId: String(cur._id), note: "no se pudo desbloquear la carpeta; lo reintenta el barrido", err });
       return { estado: cur.estado, compensando: true };

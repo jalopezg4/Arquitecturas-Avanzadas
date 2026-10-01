@@ -9,6 +9,21 @@ function clean(value, max = 200) {
     .slice(0, max);
 }
 
+/** Motivo de una transferencia cancelada (codigo de ms-interoperabilidad) en palabras para el ciudadano. */
+const MOTIVOS_TRANSFERENCIA = [
+  ["demasiados_documentos", "Tu carpeta tiene mas documentos de los que se pueden trasladar de una vez (maximo 500)."],
+  ["destino_reporto_fallo", "El operador de destino no pudo recibir tus datos."],
+  ["sin_confirmacion_del_destino", "El operador de destino no confirmo que recibio tus datos."],
+  ["destino_no_recibio", "El operador de destino no respondio."],
+  ["govcarpeta", "El centralizador del Ministerio TIC no respondio."],
+  ["carpeta_en_otra_transferencia", "Ya habia otro traslado en curso."],
+  ["exportacion", "No pudimos preparar tus documentos para el envio."],
+];
+function motivoTransferencia(motivo) {
+  const found = typeof motivo === "string" && MOTIVOS_TRANSFERENCIA.find(([codigo]) => motivo.startsWith(codigo));
+  return found ? `${found[1]} Puedes intentarlo de nuevo mas tarde.` : "Puedes intentarlo de nuevo mas tarde.";
+}
+
 /**
  * Avisos por correo (RF-21). Cada aviso se manda UNA sola vez aunque el evento llegue repetido o en paralelo:
  *   1. se RECLAMA el aviso de forma atomica (clave unica por evento)   -> solo un proceso continua
@@ -137,6 +152,32 @@ class NotificationService {
         "",
         `La autenticacion de tu documento "${title}" no se pudo completar. El documento sigue en tu carpeta como no certificado (temporal).`,
         porque,
+        "",
+        "Este es un aviso automatico; no respondas a este correo.",
+      ].join("\n"),
+    });
+  }
+
+  /**
+   * transferencia.cancelada (HU-05c): la transferencia a otro operador no se completo. Se le explica el motivo y que sus
+   * datos y documentos siguen aqui (la carpeta se desbloqueo). Una sola vez por transferencia, aunque el evento se repita.
+   */
+  async onTransferCancelled({ transferenciaId, ciudadanoId, motivo, operadorDestino }) {
+    const contact = await this.contacts.find(ciudadanoId);
+    if (!contact) throw new PermanentError("no hay contacto para el ciudadano (ciudadano.registrado no procesado)");
+
+    const destino = operadorDestino ? ` a ${clean(operadorDestino, 120)}` : "";
+    return this._deliver({
+      eventKey: `transferencia.cancelada:${transferenciaId}`,
+      tipo: "transferencia_cancelada",
+      ciudadanoId,
+      to: contact.correo,
+      subject: "Tu traslado de operador no se completo",
+      text: [
+        `Hola ${clean(contact.nombre, 120)},`,
+        "",
+        `Tu solicitud de traslado${destino} no se pudo completar. ${motivoTransferencia(motivo)}`,
+        "Tus datos y documentos siguen en tu carpeta ciudadana con nosotros y puedes usarla con normalidad.",
         "",
         "Este es un aviso automatico; no respondas a este correo.",
       ].join("\n"),

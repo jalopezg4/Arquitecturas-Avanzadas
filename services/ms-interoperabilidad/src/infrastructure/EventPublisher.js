@@ -15,6 +15,8 @@ const ANTICIPATED_BINDINGS = [
   { queue: "ms-documentos.transferencia-importar", routingKey: "transferencia.importar_documentos" },
   { queue: "ms-documentos.transferencia-revertir", routingKey: "transferencia.revertir_importacion" },
   { queue: "ms-identidad.transferencia-registrar", routingKey: "transferencia.registrar_ciudadano" },
+  { queue: "ms-identidad.transferencia-revertir-registro", routingKey: "transferencia.revertir_registro" },
+  { queue: "ms-notificaciones.transferencia-cancelada", routingKey: "transferencia.cancelada" },
 ];
 
 class EventPublisher {

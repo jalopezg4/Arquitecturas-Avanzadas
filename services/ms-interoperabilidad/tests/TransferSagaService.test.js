@@ -197,7 +197,8 @@ describe("Escenario: el destino reporta fallo o no confirma (compensacion)", () 
     await confirmar({ id: CEDULA, req_status: 0 }, confirmToken).expect(200);
 
     expect(govCarpeta.registerCitizen).toHaveBeenCalledWith({ id: CEDULA, name: "Ana Gomez", address: "Calle 1 # 2-3", email: "ana@example.com" });
-    expect(published("transferencia.cancelada")).toEqual([{ transferenciaId: id, ciudadanoId: ANA }]);
+    // Lleva el motivo (codigo) y el operador destino: ms-notificaciones le explica al ciudadano (revision PR #90).
+    expect(published("transferencia.cancelada")).toEqual([{ transferenciaId: id, ciudadanoId: ANA, motivo: "destino_reporto_fallo", operadorDestino: "Operador Destino" }]);
     expect(published("ciudadano.transferido")).toHaveLength(0);
     expect(await Transfer.findById(id).lean()).toMatchObject({ estado: "fallida", activa: false, reafiliado: true, motivo: "destino_reporto_fallo" });
   });
