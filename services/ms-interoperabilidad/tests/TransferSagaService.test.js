@@ -26,7 +26,9 @@ const DESTINO = "690d4e0e8502c8000221a5a7";
 const CEDULA = 1000000001;
 const DIRECCION_UNICA = "1000000001-3f9c2ab7@carpetacolombia.co";
 const secrets = new SecretsManager({ active: SECRET });
-const token = (sub = ANA) => secrets.sign({ typ: "access" }, { issuer: "ms-identidad", subject: sub, expiresIn: 900 });
+// Por defecto REFORZADO (ADR-06: cambiar de operador exige haber confirmado la contrasena).
+const token = (sub = ANA, reauth = Math.floor(Date.now() / 1000)) => secrets.sign({ typ: "access", reauth }, { issuer: "ms-identidad", subject: sub, expiresIn: 900 });
+const plainToken = (sub = ANA) => secrets.sign({ typ: "access" }, { issuer: "ms-identidad", subject: sub, expiresIn: 900 });
 
 let mongoServer;
 let clock;
@@ -468,5 +470,25 @@ describe("Un 429 del destino no compensa: se reintenta respetando Retry-After (a
     await sweeper.sweepOnce();
 
     expect(await Transfer.findById(res.body.transferenciaId).lean()).toMatchObject({ estado: "fallida", motivo: "destino_no_recibio_reintentos_agotados" });
+  });
+});
+
+describe("ADR-06: iniciar un cambio de operador exige confirmar la contrasena", () => {
+  test("con una sesion normal -> 401 insufficient_user_authentication y no se inicia nada", async () => {
+    const Transfer = require("../src/domain/Transfer");
+    const res = await request(app).post("/api/v1/transfers").set("Authorization", `Bearer ${plainToken()}`).send({ operadorDestinoId: DESTINO });
+
+    expect(res.status).toBe(401);
+    expect(res.headers["www-authenticate"]).toMatch(/insufficient_user_authentication/);
+    expect(await Transfer.countDocuments()).toBe(0);
+  });
+
+  test("con una confirmacion de hace mas de 5 minutos -> 401", async () => {
+    await request(app).post("/api/v1/transfers").set("Authorization", `Bearer ${token(ANA, Math.floor(Date.now() / 1000) - 301)}`).send({ operadorDestinoId: DESTINO }).expect(401);
+  });
+
+  test("consultar el estado de la propia transferencia NO es sensible", async () => {
+    const res = await request(app).get("/api/v1/citizens/me/transfer").set("Authorization", `Bearer ${plainToken()}`);
+    expect(res.status).not.toBe(401);
   });
 });

@@ -18,7 +18,8 @@ function requireAuth(secrets, { issuer = "ms-identidad" } = {}) {
     }
     if (payload.typ !== "access" || payload.iss !== issuer || !payload.sub) return reject(res);
 
-    req.auth = { ciudadanoId: payload.sub, tokenId: payload.jti };
+    // `reauthAt`: si el token es REFORZADO (el ciudadano confirmo su contrasena, ADR-06), cuando lo hizo.
+    req.auth = { ciudadanoId: payload.sub, tokenId: payload.jti, reauthAt: Number.isSafeInteger(payload.reauth) ? payload.reauth : null };
     return next();
   };
 }

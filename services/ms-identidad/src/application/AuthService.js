@@ -69,6 +69,7 @@ class AuthService {
     refreshExpiresIn = "7d",
     maxAttempts = 5,
     lockMs = 15 * 60 * 1000,
+    stepUpExpiresIn = "5m",
     now = () => new Date(),
   }) {
     this.citizenRepository = citizenRepository;
@@ -77,7 +78,9 @@ class AuthService {
     this.auditLogger = auditLogger;
     this.accessSeconds = parseDuration(accessExpiresIn);
     this.refreshSeconds = parseDuration(refreshExpiresIn);
-    if (!this.accessSeconds || !this.refreshSeconds) throw new Error("AuthService: vigencia de tokens invalida");
+    // ADR-06, autenticacion escalonada: vigencia del token REFORZADO que emite `reauthenticate`.
+    this.stepUpSeconds = parseDuration(stepUpExpiresIn);
+    if (!this.accessSeconds || !this.refreshSeconds || !this.stepUpSeconds) throw new Error("AuthService: vigencia de tokens invalida");
     this.maxAttempts = maxAttempts;
     this.lockMs = lockMs;
     this.now = now;
@@ -100,6 +103,58 @@ class AuthService {
       // Igual que en el registro: un fallo de auditoria se reporta, no tumba el login.
       logger.error("audit.write_failed", { action, err: auditErr });
     }
+  }
+
+  /**
+   * ADR-06 / RNF-06: autenticacion ESCALONADA. Las operaciones sensibles (autorizar el envio de documentos a un
+   * tercero, cambiar de operador) exigen que el ciudadano confirme su contrasena aunque ya tenga sesion: un token de
+   * acceso robado, o un dispositivo desbloqueado, no basta para sacar sus documentos ni para llevarse su carpeta.
+   *
+   * Con un access token valido (la ruta lo exige) y la contrasena correcta, emite un access token REFORZADO de vigencia
+   * corta (`stepUpExpiresIn`, 5 min) con el claim `reauth` (segundos epoch de la confirmacion). Cada servicio lo exige
+   * en sus operaciones sensibles (requireRecentAuth). Mismas protecciones que el login: Argon2id en tiempo uniforme,
+   * los fallos cuentan para el bloqueo de la cuenta (no sirve para adivinar la contrasena por fuerza bruta) y la
+   * decision final es atomica.
+   */
+  async reauthenticate({ ciudadanoId, password } = {}) {
+    if (typeof password !== "string" || password.length === 0 || password.length > MAX_PASSWORD_LENGTH) {
+      throw new ValidationError("password es requerido");
+    }
+    const ACCION = "ciudadano.reautenticar";
+    const citizen = typeof ciudadanoId === "string" ? await this.citizenRepository.findById(ciudadanoId).catch(() => null) : null;
+    const supportedHash = citizen && isArgon2id(citizen.passwordHash) ? citizen.passwordHash : null;
+    const verified = await argon2.verify(supportedHash || (await dummyHash()), password).catch(() => false);
+    const passwordOk = Boolean(supportedHash) && verified;
+
+    if (!citizen) throw new InvalidCredentialsError(); // token de un ciudadano que ya no existe (p. ej. transferido)
+    const doc = citizen.documento;
+    const now = this.now();
+    if (citizen.bloqueadoHasta && citizen.bloqueadoHasta > now) {
+      await this._audit(doc, "rechazo", "cuenta_bloqueada", undefined, ACCION);
+      throw new InvalidCredentialsError();
+    }
+    if (!passwordOk) {
+      const updated = await this.citizenRepository.registerFailedAttempt(citizen._id, {
+        maxAttempts: this.maxAttempts,
+        lockUntil: new Date(now.getTime() + this.lockMs),
+      });
+      const locked = Boolean(updated && updated.bloqueadoHasta && updated.bloqueadoHasta > now);
+      await this._audit(doc, "fallo", "password_incorrecto", { intentosFallidos: updated ? updated.intentosFallidos : undefined, bloqueada: locked }, ACCION); // secret-scan:allow
+      throw new InvalidCredentialsError();
+    }
+    const accepted = await this.citizenRepository.acceptLogin(citizen._id, now);
+    if (!accepted) {
+      await this._audit(doc, "rechazo", citizen.estado !== "activo" ? `estado_${citizen.estado}` : "cuenta_bloqueada", undefined, ACCION);
+      throw new InvalidCredentialsError();
+    }
+
+    const reauth = Math.floor(now.getTime() / 1000);
+    const accessToken = this.secrets.sign(
+      { typ: "access", reauth },
+      { issuer: ISSUER, subject: String(accepted._id), expiresIn: this.stepUpSeconds, jwtid: crypto.randomUUID() }
+    );
+    await this._audit(doc, "exito", undefined, undefined, ACCION);
+    return { accessToken, expiresIn: this.stepUpSeconds, reautenticadoEn: now.toISOString() };
   }
 
   /** Firma el par de tokens. El refresh lleva `fam` (la sesion) y su `jti`, que es el unico vigente de esa sesion. */

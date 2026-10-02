@@ -1,6 +1,7 @@
 const express = require("express");
 const logger = require("../tracing/logger");
 const requireAuth = require("../security/requireAuth");
+const requireRecentAuth = require("../security/requireRecentAuth");
 const { CiudadanoNoDisponibleError, ConfirmacionInvalidaError } = require("../application/TransferSagaService");
 const { TransferConflictError } = require("../infrastructure/TransferRepository");
 const { OperatorNotFoundError, NoTransferEndpointError, SelfTransferError, DirectoryUnavailableError, ValidationError } = require("../application/OperatorDirectoryService");
@@ -51,7 +52,8 @@ function transferRoutes({ sagaService, receiverService, secrets, issuer }) {
     });
   }
 
-  router.post("/v1/transfers", requireAuth(secrets, { issuer }), jsonOnly, json, async (req, res, next) => {
+  // ADR-06: cambiar de operador es sensible (se lleva la carpeta entera): exige haber confirmado la contrasena hace poco.
+  router.post("/v1/transfers", requireAuth(secrets, { issuer }), requireRecentAuth(), jsonOnly, json, async (req, res, next) => {
     try {
       const { operadorDestinoId } = req.body || {};
       if (typeof operadorDestinoId !== "string" || !OPERATOR_ID_RE.test(operadorDestinoId)) return res.status(400).json({ error: "operadorDestinoId invalido" });

@@ -1,5 +1,5 @@
 const logger = require("../tracing/logger");
-const { ValidationError, ConflictError, ServiceUnavailableError } = require("../application/CitizenSagaService");
+const { ValidationError, ConflictError, ServiceUnavailableError, IdentityNotVerifiedError } = require("../application/CitizenSagaService");
 
 function makeCitizenController(citizenSagaService) {
   return {
@@ -10,6 +10,7 @@ function makeCitizenController(citizenSagaService) {
       } catch (err) {
         if (err instanceof ValidationError) return res.status(400).json({ error: err.message });
         if (err instanceof ConflictError) return res.status(409).json({ error: err.message });
+        if (err instanceof IdentityNotVerifiedError) return res.status(422).json({ error: err.message });
         if (err instanceof ServiceUnavailableError) return res.status(503).json({ error: err.message });
         logger.error("registro.error_inesperado", { err });
         return res.status(500).json({ error: "Error interno" });

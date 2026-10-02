@@ -20,7 +20,7 @@ const MAX_DIRECCION = 200;
  * Una direccion ausente o con forma extrana NO invalida el evento: la carpeta se crea igual (los eventos anteriores a
  * HU-10 no la traian) y se deja constancia en el log, sin escribir la direccion.
  */
-function makeCitizenRegisteredHandler({ folderRepository }) {
+function makeCitizenRegisteredHandler({ folderRepository, identityDocumentService }) {
   return async function onCitizenRegistered(payload) {
     if (!payload || typeof payload !== "object" || typeof payload.ciudadanoId !== "string" || !ID_RE.test(payload.ciudadanoId)) {
       throw new PermanentError("ciudadanoId invalido");
@@ -38,6 +38,13 @@ function makeCitizenRegisteredHandler({ folderRepository }) {
     else if (payload.documento !== undefined && payload.documento !== null) logger.warn("carpeta.documento_descartado", { note: "el evento trae un documento con formato inesperado" });
 
     await folderRepository.ensure(payload.ciudadanoId, direccion, documento);
+
+    // HU-01, paso 13: la cedula firmada por la Registraduria, solo para un registro NUEVO (quien llega por
+    // transferencia trae sus documentos del operador de origen). Si falla, el error sube y el evento se reintenta.
+    const nombre = typeof payload.nombre === "string" ? payload.nombre.trim() : "";
+    if (identityDocumentService && payload.origen === "registro" && documento && nombre && nombre.length <= 200) {
+      await identityDocumentService.issueSignedIdCard({ ciudadanoId: payload.ciudadanoId, documento, nombre });
+    }
   };
 }
 

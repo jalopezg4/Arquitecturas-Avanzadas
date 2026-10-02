@@ -28,7 +28,9 @@ const D2 = "6ab68fddb64d2aa730b415b2";
 const EAFIT = "890.901.389-5";
 const secrets = new SecretsManager({ active: "k9Xv2mQ7pL4wZ8rT1nB6yH3jD5fG0sAe" });
 const entitySecrets = new SecretsManager({ active: "Wd6nK2pR8vZ4tQ1yB7mX3jL5hG9sCe0A" });
-const citizenToken = (sub = ANA) => secrets.sign({ typ: "access" }, { issuer: "ms-identidad", subject: sub, expiresIn: 900 });
+// Por defecto REFORZADO (ADR-06: enviar documentos a un tercero exige haber confirmado la contrasena).
+const citizenToken = (sub = ANA, reauth = Math.floor(Date.now() / 1000)) => secrets.sign({ typ: "access", reauth }, { issuer: "ms-identidad", subject: sub, expiresIn: 900 });
+const plainCitizenToken = (sub = ANA) => secrets.sign({ typ: "access" }, { issuer: "ms-identidad", subject: sub, expiresIn: 900 });
 const entityToken = (sub, ver = true) => entitySecrets.sign({ typ: "access", act: "entidad", ver }, { issuer: "ms-comparticion", subject: sub, expiresIn: 900 });
 
 let mongoServer;
@@ -170,5 +172,25 @@ describe("Broker caido al crear", () => {
     const reconciler = new PackageEventReconciler({ packageRepository: new PackageRepository(), packageService: service, minAgeMs: 0 });
     expect(await reconciler.reconcileOnce()).toEqual({ republished: 1, failed: 0 });
     expect((await Package.findById(body.paqueteId).lean()).eventoPublicado).toBe(true);
+  });
+});
+
+describe("ADR-06: crear un paquete (enviar documentos a un tercero) exige confirmar la contrasena", () => {
+  test("con una sesion normal -> 401 insufficient_user_authentication y no se crea nada", async () => {
+    const Package = require("../src/domain/Package");
+    const res = await crear({ documentoIds: [D1], destinatario: { correo: "a@b.co" } }, plainCitizenToken());
+
+    expect(res.status).toBe(401);
+    expect(res.headers["www-authenticate"]).toMatch(/insufficient_user_authentication/);
+    expect(await Package.countDocuments()).toBe(0);
+  });
+
+  test("con una confirmacion de hace mas de 5 minutos -> 401", async () => {
+    const res = await crear({ documentoIds: [D1], destinatario: { correo: "a@b.co" } }, citizenToken(ANA, Math.floor(Date.now() / 1000) - 301));
+    expect(res.status).toBe(401);
+  });
+
+  test("consultar los propios paquetes NO es sensible: basta la sesion normal", async () => {
+    await request(app).get("/api/v1/citizens/me/packages").set("Authorization", `Bearer ${plainCitizenToken()}`).expect(200);
   });
 });

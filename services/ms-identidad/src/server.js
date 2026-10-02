@@ -11,6 +11,7 @@ const AuditRepository = require("./infrastructure/AuditRepository");
 const SecretsManager = require("./security/SecretsManager");
 const createServer = require("./transport/createServer");
 const { CitizenSagaService } = require("./application/CitizenSagaService");
+const { SimulatedRegistraduriaClient } = require("./infrastructure/RegistraduriaClient");
 const { AuthService } = require("./application/AuthService");
 const PendingRegistrationReconciler = require("./application/PendingRegistrationReconciler");
 const { CitizenTransferService } = require("./application/CitizenTransferService");
@@ -57,6 +58,7 @@ async function main() {
     eventPublisher,
     auditLogger,
     eventPublishTimeoutMs: env.eventPublishTimeoutMs,
+    registraduriaClient: new SimulatedRegistraduriaClient(env.registraduria),
   });
 
   if (env.reconcile.intervalMs > 0) {
@@ -98,6 +100,7 @@ async function main() {
     auditLogger,
     accessExpiresIn: env.jwtAccessExpiresIn,
     refreshExpiresIn: env.jwtRefreshExpiresIn,
+    stepUpExpiresIn: env.jwtStepUpExpiresIn,
   });
 
   const app = buildApp({ citizenSagaService, authService, secrets, activationService });

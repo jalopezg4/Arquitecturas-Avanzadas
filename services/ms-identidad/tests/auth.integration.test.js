@@ -228,3 +228,74 @@ describe("Revalidacion independiente en cada microservicio (ADR-06)", () => {
     await request(otherService(rotated)).get("/documentos").set("Authorization", `Bearer ${tokens.accessToken}`).expect(200);
   });
 });
+
+describe("POST /api/v1/auth/reauthenticate (ADR-06: autenticacion escalonada)", () => {
+  const reauth = (token, password) => {
+    const r = request(app).post("/api/v1/auth/reauthenticate");
+    return (token ? r.set("Authorization", `Bearer ${token}`) : r).send(password === undefined ? {} : { password });
+  };
+  const sesion = async () => {
+    await register().expect(201);
+    return (await login({ documento: body.documento, password: body.password }).expect(200)).body.accessToken;
+  };
+
+  test("200 con la contrasena correcta: access token REFORZADO de 5 min con el claim reauth, sin cachear", async () => {
+    const t = await sesion();
+    const antes = Math.floor(Date.now() / 1000);
+
+    const res = await reauth(t, body.password).expect(200);
+
+    expect(res.headers["cache-control"]).toBe("no-store");
+    expect(res.body.expiresIn).toBe(300);
+    const claims = jwt.decode(res.body.accessToken);
+    expect(claims).toMatchObject({ typ: "access", iss: "ms-identidad", sub: jwt.decode(t).sub });
+    expect(claims.reauth).toBeGreaterThanOrEqual(antes);
+    expect(claims.exp - claims.iat).toBe(300);
+    // el token reforzado sirve como sesion normal y otro servicio lo valida con la misma llave
+    await request(app).get("/api/v1/auth/me").set("Authorization", `Bearer ${res.body.accessToken}`).expect(200);
+  });
+
+  test("el token de login normal NO lleva el claim reauth (no vale para operaciones sensibles)", async () => {
+    const t = await sesion();
+    expect(jwt.decode(t).reauth).toBeUndefined();
+  });
+
+  test("401 generico con la contrasena incorrecta, y queda en la bitacora como reautenticacion fallida", async () => {
+    const t = await sesion();
+    const res = await reauth(t, "otraClave123").expect(401);
+    expect(res.body).toEqual({ error: "credenciales invalidas" });
+    const entry = await AuditEntry.findOne({ action: "ciudadano.reautenticar", outcome: "fallo" }).lean();
+    expect(entry).toMatchObject({ reason: "password_incorrecto" });
+    expect(JSON.stringify(entry)).not.toContain("otraClave123");
+  });
+
+  test("los fallos cuentan para el bloqueo: con un token robado no se puede adivinar la contrasena", async () => {
+    const t = await sesion();
+    for (let i = 0; i < 5; i++) await reauth(t, `mala-${i}-clave`).expect(401);
+
+    await reauth(t, body.password).expect(401); // cuenta bloqueada: ni la correcta
+    await login({ documento: body.documento, password: body.password }).expect(401);
+  });
+
+  test("401 sin sesion o con un refresh token; 400 sin contrasena", async () => {
+    const t = await sesion();
+    await reauth(null, body.password).expect(401);
+    const refresh = (await login({ documento: body.documento, password: body.password })).body.refreshToken;
+    await reauth(refresh, body.password).expect(401);
+    await reauth(t, undefined).expect(400);
+  });
+
+  test("un ciudadano que ya no esta activo (p. ej. transferido) no obtiene token reforzado aunque su sesion siga viva", async () => {
+    const t = await sesion();
+    await Citizen.updateOne({ documento: body.documento }, { estado: "transferido" });
+    await reauth(t, body.password).expect(401);
+  });
+
+  test("un exito queda en la bitacora y el password nunca aparece en ella", async () => {
+    const t = await sesion();
+    await reauth(t, body.password).expect(200);
+    const entry = await AuditEntry.findOne({ action: "ciudadano.reautenticar", outcome: "exito" }).lean();
+    expect(entry).toBeTruthy();
+    expect(JSON.stringify(await AuditEntry.find().lean())).not.toContain(body.password);
+  });
+});

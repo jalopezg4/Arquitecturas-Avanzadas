@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const { publishCitizenRegistered } = require("./events");
 const logger = require("../tracing/logger");
 const { isTransientStatus } = require("../infrastructure/httpStatus");
+const { SimulatedRegistraduriaClient } = require("../infrastructure/RegistraduriaClient");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -20,6 +21,13 @@ class ServiceUnavailableError extends Error {
   constructor(message) {
     super(message);
     this.name = "ServiceUnavailableError";
+  }
+}
+/** La Registraduria no confirmo la identidad (persona inexistente o cedula cancelada): 422, nada se persiste. */
+class IdentityNotVerifiedError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "IdentityNotVerifiedError";
   }
 }
 
@@ -59,8 +67,11 @@ function isDefinitiveRejection(err) {
 }
 
 class CitizenSagaService {
-  constructor({ citizenRepository, govCarpetaClient, eventPublisher, auditLogger, eventPublishTimeoutMs }) {
+  constructor({ citizenRepository, govCarpetaClient, eventPublisher, auditLogger, eventPublishTimeoutMs, registraduriaClient = new SimulatedRegistraduriaClient() }) {
     this.eventPublishTimeoutMs = eventPublishTimeoutMs;
+    // Pasos 4-5 de HU-01. Por defecto la simulada con todas las cedulas vigentes (supuesto 9.4 de la arquitectura);
+    // server.js la configura desde el entorno.
+    this.registraduriaClient = registraduriaClient;
     this.citizenRepository = citizenRepository;
     this.govCarpetaClient = govCarpetaClient;
     this.eventPublisher = eventPublisher;
@@ -129,7 +140,7 @@ class CitizenSagaService {
       await this._audit(documento, "exito");
       return result;
     } catch (err) {
-      await this._audit(documento, err instanceof ConflictError ? "rechazo" : "fallo", err.message);
+      await this._audit(documento, err instanceof ConflictError || err instanceof IdentityNotVerifiedError ? "rechazo" : "fallo", err.message);
       throw err;
     }
   }
@@ -141,6 +152,25 @@ class CitizenSagaService {
       logger.warn("saga.registro.rechazado", { step: "documento_local", reason: "ya_registrado" });
       throw new ConflictError("El documento ya esta registrado");
     }
+
+    // Paso 0 (pasos 4-5 de la arquitectura): la Registraduria confirma que la identidad existe y esta vigente. Va
+    // ANTES de consultar a GovCarpeta: no se gasta una interaccion con el centralizador (RNF-12) en alguien que no
+    // existe, y nada se persiste si falla.
+    let identidad;
+    try {
+      identidad = await this.registraduriaClient.verifyIdentity({ documento, nombre });
+    } catch (err) {
+      logger.error("saga.paso_fallido", { step: "registraduria.verificar", err });
+      throw new ServiceUnavailableError("La Registraduria no esta disponible; intenta mas tarde");
+    }
+    if (!identidad || identidad.estado !== "vigente") {
+      const motivo = identidad && identidad.estado === "cancelada" ? "cedula_cancelada" : "identidad_no_encontrada";
+      logger.warn("saga.registro.rechazado", { step: "registraduria.verificar", reason: motivo });
+      throw new IdentityNotVerifiedError(
+        motivo === "cedula_cancelada" ? "La Registraduria reporta la cedula como cancelada" : "La Registraduria no confirmo la identidad del documento"
+      );
+    }
+    logger.info("saga.paso_ok", { step: "registraduria.verificar" });
 
     // Paso 1: validar disponibilidad en GovCarpeta ANTES de persistir nada
     let validation;
@@ -217,4 +247,4 @@ class CitizenSagaService {
   }
 }
 
-module.exports = { CitizenSagaService, ValidationError, ConflictError, ServiceUnavailableError };
+module.exports = { CitizenSagaService, ValidationError, ConflictError, ServiceUnavailableError, IdentityNotVerifiedError };

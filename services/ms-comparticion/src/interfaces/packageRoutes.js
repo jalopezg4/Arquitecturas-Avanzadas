@@ -1,6 +1,7 @@
 const express = require("express");
 const logger = require("../tracing/logger");
 const requireAuth = require("../security/requireAuth");
+const requireRecentAuth = require("../security/requireRecentAuth");
 const requireEntityAuth = require("../security/requireEntityAuth");
 const { PackageValidationError, PackageNotFoundError, EntidadNoVerificadaError } = require("../application/PackageService");
 
@@ -23,7 +24,8 @@ function packageRoutes({ packageService, secrets, issuer, entitySecrets, entityI
   const citizen = requireAuth(secrets, { issuer });
   const jsonOnly = (req, res, next) => (req.is("application/json") ? next() : res.status(415).json({ error: "el cuerpo debe ser application/json" }));
 
-  router.post("/packages", citizen, jsonOnly, express.json({ limit: BODY_LIMIT }), async (req, res, next) => {
+  // ADR-06: enviar documentos a un tercero es sensible: exige haber confirmado la contrasena hace poco.
+  router.post("/packages", citizen, requireRecentAuth(), jsonOnly, express.json({ limit: BODY_LIMIT }), async (req, res, next) => {
     try {
       return res.status(202).json(await packageService.create({ ciudadanoId: req.auth.ciudadanoId, body: req.body }));
     } catch (err) {

@@ -16,6 +16,11 @@ class DocumentRepository {
   }
 
   /** HU-10: el documento que esa institucion ya entrego con ese `envioId`, si lo hay (clave de idempotencia). */
+  /** HU-01: la cedula firmada por la Registraduria que se guardo al crear la carpeta (o null). */
+  async findIdCard(ciudadanoId) {
+    return Document.findOne({ ciudadanoId, origen: "registraduria" }).lean();
+  }
+
   async findByEnvio(emisorInstitutionId, envioId) {
     return Document.findOne({ emisorInstitutionId, envioId }).lean();
   }

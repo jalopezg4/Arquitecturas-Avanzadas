@@ -17,7 +17,7 @@ Implementación del Operador de Carpeta Ciudadana. Curso: Arquitecturas Avanzada
 
 Microservicios (ADR-01 del expediente), cada uno dueño exclusivo de su base de datos, comunicación síncrona REST para el camino crítico y eventos (RabbitMQ) para el resto.
 
-> **Nota de alcance de implementación:** el expediente documenta PostgreSQL + MongoDB políglota y un clúster de RabbitMQ de 3 nodos como arquitectura objetivo. Para el alcance de esta entrega académica, todos los servicios usan **MongoDB** (simplifica sin perder la garantía de unicidad — se logra con índices únicos) y **una sola instancia de RabbitMQ**, para que el equipo pueda desplegar y probar de verdad en el tiempo disponible. La arquitectura objetivo (documentada) no cambia; el despliegue de curso es un subconjunto reducido, igual que ya se hizo con Compartición/Analítica/Premium en el propio expediente.
+> **Nota de alcance de implementación:** el expediente documenta PostgreSQL + MongoDB políglota y un clúster de RabbitMQ de 3 nodos como arquitectura objetivo. Para el alcance de esta entrega académica, todos los servicios usan **MongoDB** (simplifica sin perder la garantía de unicidad — se logra con índices únicos) y **una sola instancia de RabbitMQ**, para que el equipo pueda desplegar y probar de verdad en el tiempo disponible. Del mismo modo, el despliegue objetivo es un clúster de Kubernetes en nube (ADR-02), pero **el del curso es local con Docker Compose**, como autorizó el docente (ver `docs/ARQUITECTURA.md`). La Registraduría, que no expone un servicio accesible, está **simulada** con un adaptador de contrato equivalente. La arquitectura objetivo (documentada) no cambia; el despliegue de curso es un subconjunto reducido, igual que ya se hizo con Compartición/Analítica/Premium en el propio expediente.
 
 ## Servicios
 
@@ -138,6 +138,11 @@ Para correr un servicio fuera de Docker (`npm run dev`) necesita MongoDB, y seg�
 | El registro responde `409` | El documento ya está afiliado en GovCarpeta o ya existe aquí |
 | Las pruebas fallan o se quedan sin memoria | Cierre otros programas; los suites levantan un MongoDB en memoria cada uno |
 | `docker compose` no conecta con el motor | Reinicie Docker Desktop |
+
+## Demostración y sustentación
+
+- `node demo-web/server.js` y abrir http://localhost:5173: cliente web de demostración (registro, login, carga, consulta, descarga y autenticación) con un **panel de resiliencia** que apaga, borra o vuelve a encender contenedores y prueba todas las operaciones (matriz de degradación). Escucha solo en `127.0.0.1`.
+- [`docs/SUSTENTACION.md`](docs/SUSTENTACION.md): guion, granularidad, decisiones y tecnologías, resultados medidos y preguntas probables.
 
 ## Documentación de seguridad y operación
 

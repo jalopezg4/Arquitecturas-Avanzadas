@@ -40,12 +40,20 @@ const config = {
   // Llaves anteriores que siguen VERIFICANDO tokens durante una rotacion (separadas por coma).
   jwtSecretPrevious: list(process.env.JWT_SECRET_PREVIOUS),
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
+  // ADR-06: vigencia del token reforzado tras confirmar la contrasena (operaciones sensibles).
+  jwtStepUpExpiresIn: process.env.JWT_STEP_UP_EXPIRES_IN || "5m",
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   // Cuanto espera la confirmacion del broker antes de responder igual (el aviso no es camino critico, ADR-04).
   eventPublishTimeoutMs: toInt(process.env.EVENT_PUBLISH_TIMEOUT_MS, 3000),
   // Vigencia del codigo de activacion del ciudadano transferido (HU-05c). 1 a 168 horas.
   activationTtlHours: toInt(process.env.ACTIVATION_TTL_HOURS, 72),
   // Reconciliacion de registros (0 desactiva el proceso): resuelve pendientes ambiguos y reenvia ciudadano.registrado.
+  // Registraduria SIMULADA (HU-01, supuesto 9.4): cedulas que responde como inexistentes o canceladas, para poder
+  // demostrar el rechazo. Vacio = todas vigentes.
+  registraduria: {
+    noEncontrados: list(process.env.REGISTRADURIA_SIMULADA_NO_ENCONTRADOS),
+    cancelados: list(process.env.REGISTRADURIA_SIMULADA_CANCELADOS),
+  },
   reconcile: {
     intervalMs: toInt(process.env.RECONCILE_INTERVAL_MS, 60000),
     minAgeMs: toInt(process.env.RECONCILE_MIN_AGE_MS, 5 * 60000),

@@ -112,7 +112,7 @@ describe("trazabilidad de punta a punta en el registro (HU-01)", () => {
     expect(failure).toMatchObject({ msg: "saga.paso_fallido", step: "govcarpeta.registerCitizen" });
 
     const okSteps = agg.byTraceId("gateway-fail-0001").filter((e) => e.msg === "saga.paso_ok").map((e) => e.step);
-    expect(okSteps).toEqual(["persistir_pendiente"]); // llego hasta persistir, y fallo al confirmar
+    expect(okSteps).toEqual(["registraduria.verificar", "persistir_pendiente"]); // verifico identidad, persistio y fallo al confirmar
   });
 
   test("los logs no contienen datos personales (documento, correo, password)", async () => {

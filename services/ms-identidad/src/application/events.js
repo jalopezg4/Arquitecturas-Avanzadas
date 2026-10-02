@@ -35,6 +35,9 @@ async function publishCitizenRegistered(eventPublisher, citizen, { timeoutMs = D
       // HU-05c: ms-interoperabilidad la necesita para volver a afiliar al ciudadano en GovCarpeta (registerCitizen la
       // exige) si una transferencia a otro operador falla.
       direccion: citizen.direccion || null,
+      // HU-01, paso 13: ms-documentos guarda la cedula firmada por la Registraduria SOLO para un registro nuevo; un
+      // ciudadano que llega por transferencia (HU-05c) ya trae sus documentos del operador de origen.
+      origen: citizen.transferenciaOrigenId ? "transferencia" : "registro",
     }), timeoutMs);
     return true;
   } catch (err) {
