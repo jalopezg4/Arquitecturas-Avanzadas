@@ -13,21 +13,22 @@ node demo-web/server.js             # cliente web de demostración en http://loc
 
 El `.env` de la raíz debe tener `JWT_SECRET` y `OPERATOR_ID` (ver README, paso 3). Esperar ~1 minuto a que RabbitMQ arranque.
 
-La página tiene dos partes:
-- **Flujo del ciudadano** (las 4 funcionalidades de la Entrega 2): registro, login, carga y autenticación.
-- **Panel de resiliencia**: apaga, borra o vuelve a encender cualquier contenedor y prueba todas las operaciones en un clic, con lo que la matriz de degradación de la arquitectura dice que debe pasar escrito junto a cada servicio.
+La página tiene dos pestañas y un panel lateral:
+- **Mi carpeta** (las 4 funcionalidades de la Entrega 2): primero *Crear cuenta* o *Iniciar sesión*. Luego la carpeta, con *+ Cargar documento* y, en cada documento, *Autenticar* y *Descargar*. Los chips de arriba marcan el avance: Registro → Login → Carga → Autenticación.
+- **Resiliencia**: apaga, borra o vuelve a encender cualquier contenedor y prueba todas las operaciones en un clic. Junto a cada servicio dice lo que la matriz de degradación espera que pase.
+- **Actividad** (botón arriba a la derecha): las llamadas reales al gateway, con su código y tiempo. Útil para mostrar que todo es una petición real.
 
 ---
 
 ## 2. Guion sugerido (≈10 minutos)
 
 1. **Contexto (1 min).** Operador de Carpeta Ciudadana: custodia los documentos del ciudadano y se integra con el centralizador del MinTIC (GovCarpeta) y con otros operadores. El atributo de calidad dominante es la **disponibilidad** ("disponibilidad prácticamente total" en el caso de estudio), seguido de la escalabilidad.
-2. **Las 4 operaciones (3 min), en la página:**
+2. **Las 4 operaciones (3 min), en la pestaña *Mi carpeta*:**
    - **Registro:** consulta la Registraduría (simulada), valida contra GovCarpeta real que no esté afiliado y lo registra; responde con la dirección única @carpetacolombia.co.
    - **Login:** Argon2id y un token firmado de 15 minutos.
    - **Carga de un PDF:** queda **temporal**.
-   - **Autenticar:** el documento pasa a *en autenticación* y, unos segundos después, a **✓ certificado**. Señalar el panel de llamadas: cada botón es una petición real al gateway.
-3. **Resiliencia (4 min), en el panel.** Borrar contenedores en vivo (ver sección 3), uno a la vez, pulsando **Probar operaciones** después de cada uno y **Encender** antes del siguiente.
+   - **Autenticar:** el documento pasa a *en autenticación* y, unos segundos después, a **✓ certificado**. Abrir *Actividad* para mostrar que cada botón es una petición real al gateway.
+3. **Resiliencia (4 min), en la pestaña *Resiliencia*.** Borrar contenedores en vivo (ver sección 3), uno a la vez, pulsando **Probar operaciones** después de cada uno y **Encender** antes del siguiente.
 4. **Cierre (2 min).** Granularidad y decisiones (secciones 4 y 5), y límites conocidos (sección 7).
 
 ---
