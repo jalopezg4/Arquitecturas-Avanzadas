@@ -302,7 +302,12 @@ async function loadServices() {
   const lista = await fetch("/demo/servicios").then((r) => r.json()).catch(() => []);
   $("svc").innerHTML = lista.map((s) => {
     const on = s.estado === "running";
-    const rep = s.servicio === "ms-documentos" ? `<button class="small ghost" data-act="${s.replicas >= 3 ? "replicas1" : "replicas3"}" data-svc="${s.servicio}">${s.replicas >= 3 ? "1 réplica" : "3 réplicas"}</button>` : "";
+    let rep = "";
+    if (s.servicio === "ms-documentos") {
+      rep = s.replicas >= 2
+        ? `<button class="small" data-act="apagar1" data-svc="${s.servicio}">Apagar 1 réplica</button><button class="small ghost" data-act="replicas1" data-svc="${s.servicio}">Volver a 1</button>`
+        : `<button class="small ghost" data-act="replicas3" data-svc="${s.servicio}">3 réplicas</button>`;
+    }
     const badgeTxt = on ? (s.replicas > 1 ? s.replicas + " réplicas" : "corriendo") : esc(s.estado);
     const btns = on
       ? `<button class="small" data-act="apagar" data-svc="${s.servicio}">Apagar</button><button class="small ghost" data-act="borrar" data-svc="${s.servicio}">Borrar contenedor</button>`

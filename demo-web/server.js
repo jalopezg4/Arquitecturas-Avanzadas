@@ -12,6 +12,14 @@ const PORT = Number(process.env.DEMO_PORT || 5173);
 const PAGE = path.join(__dirname, "public", "index.html");
 const ROOT = path.join(__dirname, ".."); // donde esta docker-compose.yml (y el .env local)
 
+function docker(args) {
+  return new Promise((resolve) => {
+    execFile("docker", args, { cwd: ROOT, timeout: 120000, windowsHide: true }, (err, stdout, stderr) => {
+      resolve({ ok: !err, stdout: String(stdout), stderr: String(stderr) });
+    });
+  });
+}
+
 function compose(args) {
   return new Promise((resolve) => {
     execFile("docker", ["compose", ...args], { cwd: ROOT, timeout: 120000, windowsHide: true }, (err, stdout, stderr) => {
@@ -44,6 +52,7 @@ const ACCIONES = {
   borrar: (s) => ["rm", "-s", "-f", s],
   replicas3: (s) => ["up", "-d", "--no-deps", "--scale", `${s}=3`, s],
   replicas1: (s) => ["up", "-d", "--no-deps", "--scale", `${s}=1`, s],
+  apagar1: () => null, // se resuelve aparte: docker stop de una sola replica
 };
 
 function json(res, status, body) {
@@ -71,8 +80,16 @@ http
       if (!ACCIONES[accion]) return json(res, 404, { error: "accion desconocida" });
       const lista = await servicios();
       if (!lista.some((s) => s.servicio === servicio)) return json(res, 404, { error: "servicio desconocido" });
-      if ((accion === "replicas3" || accion === "replicas1") && servicio !== "ms-documentos") return json(res, 400, { error: "solo ms-documentos se escala" });
-      const r = await compose(ACCIONES[accion](servicio));
+      if ((accion === "replicas3" || accion === "replicas1" || accion === "apagar1") && servicio !== "ms-documentos") return json(res, 400, { error: "solo ms-documentos se escala" });
+      let r;
+      if (accion === "apagar1") {
+        // Apaga UNA sola replica (la primera que este corriendo): demuestra la redundancia del servicio critico.
+        const ids = (await compose(["ps", "-q", servicio])).stdout.split(/\s+/).filter(Boolean);
+        if (ids.length < 2) return json(res, 400, { error: "se necesitan al menos 2 replicas corriendo" });
+        r = await docker(["stop", ids[0]]);
+      } else {
+        r = await compose(ACCIONES[accion](servicio));
+      }
       return json(res, r.ok ? 200 : 500, { ok: r.ok, detalle: (r.stderr || r.stdout).trim().split(/\r?\n/).slice(-2).join(" ") });
     }
     if (req.url === "/" || req.url === "/index.html") {

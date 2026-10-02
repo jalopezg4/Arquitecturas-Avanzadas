@@ -53,7 +53,7 @@ Prueba automatizada sobre el sistema completo: se apaga cada elemento y se ejecu
 Las autenticaciones que quedaron "en cola" terminaron certificadas solas al restablecerse el servicio: al final de la prueba los 13 documentos estaban certificados. Qué decir en cada caso:
 - **Notificaciones o autenticación caídas:** el ciudadano no lo percibe. Los mensajes esperan en su cola durable de RabbitMQ y se procesan al volver (ADR-04).
 - **Identidad caída:** nadie nuevo entra, pero quien ya tiene sesión sigue operando. Cada servicio **valida el token por sí mismo** (ADR-06), así que no depende de identidad en cada petición.
-- **Documentos caído:** es el servicio crítico, por eso la arquitectura le da 3 réplicas. Demostrarlo con el botón **3 réplicas** y luego borrando uno de los contenedores.
+- **Documentos caído:** es el servicio crítico, por eso la arquitectura le da 3 réplicas. Demostrarlo con el botón **3 réplicas**, luego **Apagar 1 réplica** y **Probar operaciones**: todo sigue en verde.
 - **Bus caído:** carga y autenticación responden igual. Lo diferido se acumula, los publicadores se reconectan solos y un reconciliador reenvía lo que no alcanzó a publicarse.
 
 **Fallar rápido (cortacircuitos en el gateway).** Medido: al borrar `ms-documentos`, el primer intento antes tardaba **24 s** en devolver error, porque el gateway esperaba la conexión. Ahora tarda **2,7 s** (plazos de DNS y de conexión) y los siguientes **0,05 s** (`503` inmediato, circuito abierto). Al volver el servicio, una petición de prueba lo detecta y el circuito se cierra solo. `GET /ready` del gateway muestra qué circuitos están abiertos.
