@@ -19,6 +19,70 @@ Microservicios (ADR-01 del expediente), cada uno dueño exclusivo de su base de 
 
 > **Nota de alcance de implementación:** el expediente documenta PostgreSQL + MongoDB políglota y un clúster de RabbitMQ de 3 nodos como arquitectura objetivo. Para el alcance de esta entrega académica, todos los servicios usan **MongoDB** (simplifica sin perder la garantía de unicidad — se logra con índices únicos) y **una sola instancia de RabbitMQ**, para que el equipo pueda desplegar y probar de verdad en el tiempo disponible. Del mismo modo, el despliegue objetivo es un clúster de Kubernetes en nube (ADR-02), pero **el del curso es local con Docker Compose**, como autorizó el docente (ver `docs/ARQUITECTURA.md`). La Registraduría, que no expone un servicio accesible, está **simulada** con un adaptador de contrato equivalente. La arquitectura objetivo (documentada) no cambia; el despliegue de curso es un subconjunto reducido, igual que ya se hizo con Compartición/Analítica/Premium en el propio expediente.
 
+## Arquitectura (vista actual)
+
+Así está implementado hoy, servicio por servicio. Las flechas continuas son llamadas **síncronas** (REST/HTTPS); las punteadas, **eventos** por RabbitMQ (la tabla de abajo dice quién publica y quién consume cada uno) y el acceso directo de las entidades a `ms-analitica`. Las vistas lógica, de secuencia y de despliegue objetivo están en el documento de arquitectura del curso; las diferencias con lo implementado, en la nota de alcance de arriba.
+
+```mermaid
+flowchart TB
+  CL["Ciudadanos · Entidades · Otros operadores"]
+  GW["<b>ms-gateway</b> :3000<br/>valida el token · lista blanca · cortacircuitos"]
+  CL -->|HTTPS| GW
+
+  subgraph Servicios["Microservicios: cada uno dueño de su base"]
+    ID["<b>ms-identidad</b><br/>registro · login"]
+    DOC["<b>ms-documentos</b><br/>carga · consulta · descarga<br/>(1 a 3 réplicas)"]
+    AUT["<b>ms-autenticacion</b><br/>certificación"]
+    INT["<b>ms-interoperabilidad</b><br/>transferencias"]
+    COM["<b>ms-comparticion</b><br/>entidades · paquetes"]
+    NOT["<b>ms-notificaciones</b><br/>correo · SMS"]
+    AN["<b>ms-analitica</b> :3006<br/>analítica · PQRS"]
+  end
+
+  GW --> ID & DOC & INT & COM
+  CL -.->|entidades| AN
+
+  BUS[["<b>RabbitMQ</b><br/>eventos"]]
+  DB[("<b>MongoDB</b><br/>una base por servicio")]
+  S3[("<b>MinIO / S3</b><br/>archivos")]
+  Servicios <-.->|publican y consumen| BUS
+  Servicios --- DB
+  DOC & AUT --> S3
+
+  GOV["<b>GovCarpeta</b><br/>MinTIC"]
+  REG["<b>Registraduría</b><br/>(simulada)"]
+  MAIL["Correo / SMS"]
+  ID & AUT & INT -->|REST| GOV
+  ID & DOC --> REG
+  NOT --> MAIL
+```
+
+**Eventos** (exchange `carpeta-ciudadana.events`; cada consumidor tiene su cola durable con reintentos y cola de fallidos):
+
+| Flujo | Publica | Evento | Lo consumen |
+|---|---|---|---|
+| Registro (HU-01) | ms-identidad | `ciudadano.registrado` | ms-documentos (crea la carpeta y guarda la cédula), ms-notificaciones (bienvenida), ms-interoperabilidad (copia local) |
+| Carga (HU-03) | ms-documentos | `documento.cargado` | ms-notificaciones |
+| Autenticación (HU-04) | ms-documentos | `documento.autenticacion_solicitada` | ms-autenticacion |
+| | ms-autenticacion | `documento.autenticado` · `documento.autenticacion_fallida` | ms-documentos (certifica o devuelve a temporal), ms-notificaciones |
+| Transferencia (HU-05c) | ms-interoperabilidad | `transferencia.exportar_carpeta` · `importar_documentos` · `revertir_importacion` | ms-documentos |
+| | ms-interoperabilidad | `transferencia.registrar_ciudadano` · `revertir_registro` | ms-identidad |
+| | ms-documentos / ms-identidad | `transferencia.carpeta_exportada` · `documentos_importados` · `ciudadano_registrado` | ms-interoperabilidad |
+| | ms-interoperabilidad | `ciudadano.transferido` · `transferencia.cancelada` | ms-documentos, ms-identidad · ms-notificaciones |
+| Paquetes (HU-06.2) | ms-comparticion | `paquete.creado` | ms-documentos |
+| | ms-documentos | `paquete.procesado` · `paquete.envio_correo` | ms-comparticion · ms-notificaciones |
+| Solicitudes (HU-06.3, HU-06.4) | ms-documentos | `solicitud.creada` · `solicitud_oficial.creada` · `solicitud_oficial.pendiente` | ms-notificaciones · ms-comparticion · ms-notificaciones |
+| | ms-comparticion | `solicitud_oficial.resuelta` | ms-documentos |
+| Activación (HU-05c) | ms-identidad | `ciudadano.activacion_requerida` | ms-notificaciones |
+
+**Si un servicio se cae, qué sigue funcionando.** Matriz de degradación (sección 4.5), verificada en ejecución real:
+
+- **Sin ms-notificaciones, ms-autenticacion o RabbitMQ:** todo opera, y lo pendiente se completa al volver.
+- **Sin ms-identidad:** no hay login nuevo, pero las sesiones vigentes siguen.
+- **Sin ms-documentos:** solo queda el login, por eso es el servicio que se replica.
+
+Los resultados medidos y cómo demostrarlo en vivo están en [`docs/SUSTENTACION.md`](docs/SUSTENTACION.md).
+
 ## Servicios
 
 | Servicio | Puerto | Estado | Historias |
