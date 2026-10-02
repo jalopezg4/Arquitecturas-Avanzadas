@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiFolio · Carpeta Ciudadana</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --ink: #1c2333; --muted: #5d6679; --line: #e2e6ef;
+    --brand: #2f5bd8; --brand-ink: #ffffff; --ok: #1f8a4c; --ok-bg: #e5f5ec; --warn: #a86400; --warn-bg: #fff3dc;
+    --err: #b42318; --err-bg: #fde8e7; --info: #2f5bd8; --info-bg: #e8eefc; --mono: ui-monospace, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 14px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; }
+  header h1 span { color: var(--muted); font-weight: 500; }
+  .session { margin-left: auto; font-size: 13px; color: var(--muted); }
+  .session b { color: var(--ink); }
+  .steps { display: flex; gap: 8px; padding: 16px 24px 0; flex-wrap: wrap; }
+  .step { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .step i { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-weight: 700; background: var(--line); color: var(--muted); font-size: 12px; }
+  .step.done { color: var(--ok); border-color: #b7e2c7; }
+  .step.done i { background: var(--ok); color: #fff; }
+  main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; padding: 16px 24px 32px; }
+  @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+  .card h2 small { font-weight: 500; color: var(--muted); font-size: 12px; }
+  .card p.hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: var(--card); color: var(--ink); }
+  button { font: inherit; border: 0; border-radius: 8px; padding: 9px 14px; cursor: pointer; background: var(--brand); color: var(--brand-ink); font-weight: 600; }
+  button.ghost { background: transparent; color: var(--brand); border: 1px solid var(--line); }
+  button.small { padding: 5px 10px; font-size: 13px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .msg { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 14px; display: none; }
+  .msg.show { display: block; }
+  .msg.ok { background: var(--ok-bg); color: var(--ok); }
+  .msg.err { background: var(--err-bg); color: var(--err); }
+  .msg code { font-family: var(--mono); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .b-temporal { background: var(--warn-bg); color: var(--warn); }
+  .b-certificado { background: var(--ok-bg); color: var(--ok); }
+  .b-autenticacion { background: var(--info-bg); color: var(--info); }
+  .spin { width: 10px; height: 10px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: s 0.8s linear infinite; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .empty { color: var(--muted); font-size: 14px; padding: 12px 0 0; }
+  .log { font-family: var(--mono); font-size: 12px; max-height: 70vh; overflow: auto; }
+  .log div { padding: 6px 0; border-bottom: 1px dashed var(--line); display: grid; grid-template-columns: 54px 1fr auto; gap: 8px; }
+  .log .m { font-weight: 700; }
+  .log .s2 { color: var(--ok); } .log .s4 { color: var(--warn); } .log .s5 { color: var(--err); }
+  .locked { opacity: .55; pointer-events: none; }
+
+  .wide { padding: 16px 24px 0; }
+  .svc { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 10px; }
+  .svc > div { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--card); }
+  .svc .name { font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .svc .exp { color: var(--muted); font-size: 12px; margin: 6px 0 8px; min-height: 32px; }
+  .svc .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .st-run { background: var(--ok-bg); color: var(--ok); }
+  .st-off { background: var(--err-bg); color: var(--err); }
+  .res { margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .res > div { border-radius: 10px; padding: 10px; border: 1px solid var(--line); }
+  .res .op { font-size: 12px; color: var(--muted); }
+  .res .val { font-weight: 700; margin-top: 2px; }
+  .res .ok { background: var(--ok-bg); border-color: #b7e2c7; }
+  .res .ok .val { color: var(--ok); }
+  .res .bad { background: var(--err-bg); border-color: #f3c3bf; }
+  .res .bad .val { color: var(--err); }
+  .res .wait { background: var(--info-bg); }
+  .res .wait .val { color: var(--info); }
+</style>
+</head>
+<body>
+<header>
+  <h1>MiFolio <span>· Operador de Carpeta Ciudadana</span></h1>
+  <div class="session" id="session">Sin sesión</div>
+</header>
+
+<div class="steps">
+  <div class="step" id="st1"><i>1</i> Registro</div>
+  <div class="step" id="st2"><i>2</i> Login</div>
+  <div class="step" id="st3"><i>3</i> Cargar documento</div>
+  <div class="step" id="st4"><i>4</i> Autenticar en GovCarpeta</div>
+</div>
+
+
+<div class="wide">
+  <div class="card" style="margin-bottom:0">
+    <h2>Resiliencia · apaga o borra un servicio y comprueba <small>matriz de degradación, sección 4.5</small></h2>
+    <p class="hint">Cada servicio es un contenedor independiente con su propia base. Apaga uno, pulsa <b>Probar operaciones</b> y compara con lo que dice la arquitectura. Necesita una sesión iniciada (paso 2).</p>
+    <div class="row" style="margin-top:0">
+      <button id="b-probar">Probar operaciones</button>
+      <button class="ghost" id="b-refresh-svc">Actualizar estado</button>
+      <label style="display:flex;gap:6px;align-items:center;margin:0;font-size:13px;color:var(--muted)"><input type="checkbox" id="chk-reg" style="width:auto"> incluir registro (crea un ciudadano real en el sandbox de GovCarpeta)</label>
+    </div>
+    <div class="res" id="res"></div>
+    <div class="svc" id="svc"></div>
+  </div>
+</div>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>1 · Registro del ciudadano <small>POST /api/v1/citizens</small></h2>
+      <p class="hint">Valida la identidad, consulta a GovCarpeta (real) que no esté afiliado y lo registra con MiFolio.</p>
+      <div class="grid">
+        <div><label>Cédula</label><input id="r-doc"></div>
+        <div><label>Nombre</label><input id="r-nombre" value="Ana Gomez"></div>
+        <div><label>Dirección</label><input id="r-dir" value="Calle 10 # 43-20, Medellin"></div>
+        <div><label>Correo</label><input id="r-correo" value="ana.gomez@ejemplo.com"></div>
+        <div><label>Contraseña</label><input id="r-pass" type="password" value="Clave-segura-123"></div>
+      </div>
+      <div class="row"><button id="b-reg">Registrarme</button></div>
+      <div class="msg" id="m-reg"></div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Iniciar sesión <small>POST /api/v1/auth/login</small></h2>
+      <p class="hint">Contraseña verificada con Argon2id; entrega un token firmado de 15 minutos.</p>
+      <div class="grid">
+        <div><label>Cédula</label><input id="l-doc"></div>
+        <div><label>Contraseña</label><input id="l-pass" type="password" value="Clave-segura-123"></div>
+      </div>
+      <div class="row"><button id="b-login">Entrar</button><button class="ghost" id="b-logout">Cerrar sesión</button></div>
+      <div class="msg" id="m-login"></div>
+    </div>
+
+    <div class="card locked" id="c-carpeta">
+      <h2>3 · Mi carpeta <small>POST / GET /api/v1/citizens/:id/documents</small></h2>
+      <p class="hint">Sube un PDF: el archivo va al almacenamiento de objetos y queda como <b>temporal</b>. Luego puedes autenticarlo.</p>
+      <div class="grid">
+        <div><label>Título</label><input id="u-titulo" value="Diploma de grado"></div>
+        <div><label>Entidad que lo avala</label><input id="u-entidad" value="Universidad EAFIT"></div>
+        <div><label>Fecha</label><input id="u-fecha" type="date" value="2026-03-15"></div>
+        <div><label>Archivo PDF</label><input id="u-file" type="file" accept="application/pdf"></div>
+      </div>
+      <div class="row">
+        <button id="b-upload">Cargar documento</button>
+        <button class="ghost" id="b-sample">Usar un PDF de ejemplo</button>
+        <span class="hint" id="sample-name" style="font-size:13px;color:var(--muted)"></span>
+      </div>
+      <div class="msg" id="m-upload"></div>
+      <table>
+        <thead><tr><th>Documento</th><th>Entidad</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="docs"></tbody>
+      </table>
+      <div class="empty" id="docs-empty">Tu carpeta está vacía.</div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <h2>Llamadas al operador <small>vía ms-gateway :3000</small></h2>
+      <p class="hint">Cada acción de la página es una petición real al gateway.</p>
+      <div class="log" id="log"></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const state = { token: null, ciudadanoId: null, sample: null, poll: null };
+
+const rnd = () => "19" + String(Math.floor(Math.random() * 1e8)).padStart(8, "0");
+$("r-doc").value = rnd();
+$("l-doc").value = $("r-doc").value;
+$("r-doc").addEventListener("input", () => ($("l-doc").value = $("r-doc").value));
+
+function done(n) { $("st" + n).classList.add("done"); }
+function show(id, kind, html) { const m = $(id); m.className = "msg show " + kind; m.innerHTML = html; }
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+async function call(method, path, { body, form, quiet } = {}) {
+  const headers = {};
+  if (state.token) headers.Authorization = "Bearer " + state.token;
+  if (body) headers["Content-Type"] = "application/json";
+  const t0 = performance.now();
+  const res = await fetch(path, { method, headers, body: form || (body ? JSON.stringify(body) : undefined) });
+  const data = await res.json().catch(() => null);
+  if (!quiet || res.status >= 400) log(method, path, res.status, Math.round(performance.now() - t0));
+  return { status: res.status, data };
+}
+function log(method, path, status, ms) {
+  const row = document.createElement("div");
+  row.innerHTML = `<span class="m">${method}</span><span>${esc(path.replace(/[0-9a-f]{24}/g, (x) => x.slice(0, 6) + "…"))}</span><span class="s${String(status)[0]}">${status} · ${ms} ms</span>`;
+  $("log").prepend(row);
+}
+const errText = (r) => esc((r.data && r.data.error) || "error " + r.status);
+
+$("b-reg").onclick = async () => {
+  const r = await call("POST", "/api/v1/citizens", { body: { documento: $("r-doc").value.trim(), nombre: $("r-nombre").value, direccion: $("r-dir").value, correo: $("r-correo").value, password: $("r-pass").value } });
+  if (r.status === 201) {
+    done(1);
+    show("m-reg", "ok", `Registrado en GovCarpeta. Dirección única: <b>${esc(r.data.direccionUnica)}</b><br><code>ciudadanoId ${esc(r.data.ciudadanoId)}</code>`);
+    $("l-doc").value = $("r-doc").value; $("l-pass").value = $("r-pass").value;
+  } else show("m-reg", "err", `${r.status} · ${errText(r)}`);
+};
+
+$("b-login").onclick = async () => {
+  state.token = null;
+  const r = await call("POST", "/api/v1/auth/login", { body: { documento: $("l-doc").value.trim(), password: $("l-pass").value } });
+  if (r.status !== 200) return show("m-login", "err", `${r.status} · ${errText(r)}`);
+  state.token = r.data.accessToken;
+  const me = await call("GET", "/api/v1/auth/me");
+  state.ciudadanoId = me.data.ciudadanoId;
+  done(2);
+  show("m-login", "ok", `Sesión iniciada. Token firmado válido por ${r.data.expiresIn / 60} minutos.`);
+  $("session").innerHTML = `Sesión de <b>cédula ${esc($("l-doc").value)}</b>`;
+  $("c-carpeta").classList.remove("locked");
+  refresh();
+};
+$("b-logout").onclick = () => { state.token = null; state.ciudadanoId = null; $("session").textContent = "Sin sesión"; $("c-carpeta").classList.add("locked"); $("docs").innerHTML = ""; clearInterval(state.poll); };
+
+// PDF minimo valido generado en el navegador, por si no hay un archivo a mano
+function samplePdf(text) {
+  const content = `BT /F1 20 Tf 72 720 Td (${text}) Tj ET`;
+  const objs = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", `<< /Length ${content.length} >>\nstream\n${content}\nendstream`];
+  let out = "%PDF-1.4\n"; const off = [];
+  objs.forEach((o, i) => { off.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+  const x = out.length;
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + off.map((o) => String(o).padStart(10, "0") + " 00000 n \n").join("");
+  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${x}\n%%EOF\n`;
+  return new Blob([out], { type: "application/pdf" });
+}
+$("b-sample").onclick = () => { state.sample = samplePdf($("u-titulo").value.replace(/[()\\]/g, "")); $("sample-name").textContent = "Se usará diploma-ejemplo.pdf"; };
+
+$("b-upload").onclick = async () => {
+  const file = $("u-file").files[0] || state.sample;
+  if (!file) return show("m-upload", "err", "Elige un PDF o usa el de ejemplo.");
+  const form = new FormData();
+  form.append("titulo", $("u-titulo").value); form.append("entidadAvaladora", $("u-entidad").value); form.append("fecha", $("u-fecha").value);
+  form.append("archivo", file, file.name || "diploma-ejemplo.pdf");
+  const r = await call("POST", `/api/v1/citizens/${state.ciudadanoId}/documents`, { form });
+  if (r.status === 201) { done(3); show("m-upload", "ok", "Documento cargado como <b>temporal</b>. Te llegó un correo de confirmación."); refresh(); }
+  else show("m-upload", "err", `${r.status} · ${errText(r)}`);
+};
+
+const badge = (e) => e === "certificado" ? `<span class="badge b-certificado">✓ certificado</span>`
+  : e === "en autenticacion" ? `<span class="badge b-autenticacion"><span class="spin"></span> en autenticación</span>`
+  : `<span class="badge b-temporal">temporal</span>`;
+
+async function refresh(quiet) {
+  if (!state.ciudadanoId) return;
+  const r = await call("GET", `/api/v1/citizens/${state.ciudadanoId}/documents?page=1&pageSize=50`, { quiet });
+  if (r.status !== 200) return;
+  const docs = r.data.documentos;
+  $("docs-empty").style.display = docs.length ? "none" : "block";
+  $("docs").innerHTML = docs.map((d) => `<tr>
+      <td><b>${esc(d.titulo)}</b><br><span style="color:var(--muted);font-size:12px">${esc(String(d.fecha).slice(0, 10))}</span></td>
+      <td>${esc(d.entidadAvaladora)}</td>
+      <td>${badge(d.estado)}</td>
+      <td style="text-align:right;white-space:nowrap">
+        ${d.estado === "temporal" ? `<button class="small" data-auth="${d.documentoId}">Autenticar</button>` : ""}
+        <button class="small ghost" data-dl="${d.documentoId}">Descargar</button>
+      </td></tr>`).join("");
+  if (docs.some((d) => d.estado === "certificado" && d.titulo !== "Cedula de ciudadania")) done(4);
+  const pending = docs.some((d) => d.estado === "en autenticacion");
+  clearInterval(state.poll);
+  if (pending) state.poll = setInterval(() => refresh(true), 2000);
+}
+
+$("docs").onclick = async (ev) => {
+  const auth = ev.target.dataset.auth, dl = ev.target.dataset.dl;
+  if (auth) {
+    ev.target.disabled = true;
+    const r = await call("PUT", `/api/v1/documents/${auth}/authenticate`);
+    if (r.status !== 202) show("m-upload", "err", `${r.status} · ${errText(r)}`);
+    else show("m-upload", "ok", "Solicitud enviada: ms-autenticacion le pide a GovCarpeta que lo autentique con una URL prefirmada de 15 minutos…");
+    refresh();
+  }
+  if (dl) {
+    const r = await call("GET", `/api/v1/documents/${dl}/download`);
+    if (r.status === 200) window.open(r.data.downloadUrl, "_blank");
+    else show("m-upload", "err", `${r.status} · ${errText(r)}`);
+  }
+};
+
+// ---------------------------------------------------------------- panel de resiliencia
+const ESPERADO = {
+  "ms-notificaciones": "Todo opera; los correos llegan cuando vuelve.",
+  "ms-autenticacion": "Todo opera; la autenticación queda en cola y se completa al volver.",
+  "ms-interoperabilidad": "Todo lo del ciudadano opera; no hay transferencias.",
+  "ms-comparticion": "Todo lo del ciudadano opera; sin paquetes ni entidades.",
+  "ms-analitica": "Todo opera; sin analítica ni PQRS.",
+  "ms-identidad": "Sin registro ni login; la sesión vigente sigue consultando, cargando y descargando.",
+  "ms-documentos": "Servicio crítico: login sí; carga, consulta y descarga no. Con 3 réplicas, apagar una no afecta.",
+  "rabbitmq": "Todo opera; correos y autenticaciones se acumulan y se completan al volver.",
+  "minio": "Consulta sí; no se pueden cargar ni descargar archivos.",
+  "mongo": "Infraestructura común en local: todo cae (en producción cada servicio tiene su base gestionada).",
+  "ms-gateway": "Punto único de entrada: nada es accesible (en producción va con réplicas).",
+};
+async function loadServices() {
+  const lista = await fetch("/demo/servicios").then((r) => r.json()).catch(() => []);
+  $("svc").innerHTML = lista.map((s) => {
+    const on = s.estado === "running";
+    const rep = s.servicio === "ms-documentos" ? `<button class="small ghost" data-act="${s.replicas >= 3 ? "replicas1" : "replicas3"}" data-svc="${s.servicio}">${s.replicas >= 3 ? "1 réplica" : "3 réplicas"}</button>` : "";
+    const badgeTxt = on ? (s.replicas > 1 ? s.replicas + " réplicas" : "corriendo") : esc(s.estado);
+    const btns = on
+      ? `<button class="small" data-act="apagar" data-svc="${s.servicio}">Apagar</button><button class="small ghost" data-act="borrar" data-svc="${s.servicio}">Borrar contenedor</button>`
+      : `<button class="small" data-act="encender" data-svc="${s.servicio}">Encender</button>`;
+    return `<div><div class="name">${esc(s.servicio)} <span class="badge ${on ? "st-run" : "st-off"}">${badgeTxt}</span></div>
+      <div class="exp">${esc(ESPERADO[s.servicio] || "")}</div>
+      <div class="btns">${btns}${rep}</div></div>`;
+  }).join("");
+}
+$("svc").onclick = async (ev) => {
+  const b = ev.target.closest("button[data-act]");
+  if (!b) return;
+  b.disabled = true; b.textContent = "…";
+  const t0 = performance.now();
+  const r = await fetch(`/demo/servicios/${b.dataset.svc}/${b.dataset.act}`, { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false }));
+  log("DOCKER", `${b.dataset.act} ${b.dataset.svc}`, r.ok ? 200 : 500, Math.round(performance.now() - t0));
+  await loadServices();
+};
+$("b-refresh-svc").onclick = loadServices;
+
+function tile(op, cls, val) { return `<div class="${cls}"><div class="op">${op}</div><div class="val">${val}</div></div>`; }
+async function timed(fn) { const t0 = performance.now(); const r = await fn().catch(() => ({ status: 0 })); return { r, ms: Math.round(performance.now() - t0) }; }
+const fmt = (r, ms) => `${r.status || "sin respuesta"} · ${ms < 1000 ? ms + " ms" : (ms / 1000).toFixed(1) + " s"}`;
+
+$("b-probar").onclick = async () => {
+  if (!state.token) { $("res").innerHTML = tile("Sesión", "bad", "Inicia sesión primero (paso 2)"); return; }
+  $("b-probar").disabled = true;
+  const tiles = [];
+  const paint = () => ($("res").innerHTML = tiles.join(""));
+  try {
+    if ($("chk-reg").checked) {
+      const { r, ms } = await timed(() => call("POST", "/api/v1/citizens", { body: { documento: rnd(), nombre: "Prueba Resiliencia", direccion: "Calle 1", correo: "res@ejemplo.com", password: "Clave-segura-123" } }));
+      tiles.push(tile("Registro", r.status === 201 ? "ok" : "bad", fmt(r, ms))); paint();
+    }
+    const prev = state.token;
+    const lg = await timed(() => call("POST", "/api/v1/auth/login", { body: { documento: $("l-doc").value.trim(), password: $("l-pass").value } }));
+    state.token = lg.r.status === 200 ? lg.r.data.accessToken : prev; // sin login, sigue la sesion vigente
+    tiles.push(tile("Login", lg.r.status === 200 ? "ok" : "bad", fmt(lg.r, lg.ms))); paint();
+    const q = await timed(() => call("GET", `/api/v1/citizens/${state.ciudadanoId}/documents?pageSize=50`));
+    tiles.push(tile("Consulta", q.r.status === 200 ? "ok" : "bad", fmt(q.r, q.ms))); paint();
+    const any = q.r.status === 200 && q.r.data.documentos[0];
+    if (any) {
+      const d = await timed(() => call("GET", `/api/v1/documents/${any.documentoId}/download`));
+      let ok = d.r.status === 200;
+      if (ok) ok = await fetch(d.r.data.downloadUrl).then((x) => x.ok).catch(() => false);
+      tiles.push(tile("Descarga", ok ? "ok" : "bad", d.r.status === 200 && !ok ? "URL sí, archivo no" : fmt(d.r, d.ms))); paint();
+    } else { tiles.push(tile("Descarga", "bad", "sin consulta")); paint(); }
+    const form = new FormData();
+    form.append("titulo", "Prueba de resiliencia"); form.append("entidadAvaladora", "EAFIT"); form.append("fecha", "2026-03-15");
+    form.append("archivo", samplePdf("Prueba de resiliencia"), "resiliencia.pdf");
+    const up = await timed(() => call("POST", `/api/v1/citizens/${state.ciudadanoId}/documents`, { form }));
+    tiles.push(tile("Carga", up.r.status === 201 ? "ok" : "bad", fmt(up.r, up.ms))); paint();
+    if (up.r.status === 201) {
+      const a = await timed(() => call("PUT", `/api/v1/documents/${up.r.data.documentoId}/authenticate`));
+      let estado = a.r.status === 202 ? "en autenticacion" : null;
+      tiles.push(tile("Autenticación", a.r.status === 202 ? "wait" : "bad", a.r.status === 202 ? "202 · en curso…" : fmt(a.r, a.ms))); paint();
+      for (let i = 0; i < 6 && estado === "en autenticacion"; i++) {
+        await new Promise((ok) => setTimeout(ok, 2000));
+        const l2 = await call("GET", `/api/v1/citizens/${state.ciudadanoId}/documents?pageSize=50`, { quiet: true }).catch(() => null);
+        const doc = l2 && l2.status === 200 && l2.data.documentos.find((x) => x.documentoId === up.r.data.documentoId);
+        if (doc) estado = doc.estado;
+      }
+      if (a.r.status === 202) {
+        tiles[tiles.length - 1] = estado === "certificado" ? tile("Autenticación", "ok", "✓ certificado") : tile("Autenticación", "wait", "en cola: se completa al volver");
+        paint();
+      }
+    } else { tiles.push(tile("Autenticación", "bad", "sin carga")); paint(); }
+  } finally {
+    $("b-probar").disabled = false;
+    refresh(true);
+  }
+};
+loadServices();
+setInterval(loadServices, 15000);
+</script>
+</body>
+</html>

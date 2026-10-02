@@ -137,6 +137,11 @@ Para correr un servicio fuera de Docker (`npm run dev`) necesita MongoDB, y seg�
 | Las pruebas fallan o se quedan sin memoria | Cierre otros programas; los suites levantan un MongoDB en memoria cada uno |
 | `docker compose` no conecta con el motor | Reinicie Docker Desktop |
 
+## Demostración y sustentación
+
+- `node demo-web/server.js` y abrir http://localhost:5173: cliente web de demostración (registro, login, carga, consulta, descarga y autenticación) con un **panel de resiliencia** que apaga, borra o vuelve a encender contenedores y prueba todas las operaciones (matriz de degradación). Escucha solo en `127.0.0.1`.
+- [`docs/SUSTENTACION.md`](docs/SUSTENTACION.md): guion, granularidad, decisiones y tecnologías, resultados medidos y preguntas probables.
+
 ## Documentación de seguridad y operación
 
 - [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md) — secretos, TLS, sesiones, gateway, documentos, límites conocidos.
